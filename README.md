@@ -1,2 +1,3 @@
-# PDCNet
-Official implementation of our paper PDCNet
+# Dense Matching
+
+A general dense matching library based on PyTorch. 
