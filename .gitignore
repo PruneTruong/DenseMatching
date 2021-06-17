@@ -1,0 +1,8 @@
+**/__pycache__
+**/.ipynb_checkpoints
+**/*.pyc
+*.idea
+**/*.pth.tar
+**/*.pth
+**qsublogs
+**qsub_logs
