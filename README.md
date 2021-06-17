@@ -7,10 +7,15 @@ For any questions, issues or recommendations, please contact Prune at prune.truo
 <br />
 <br />
 
-# Dense Matching Networks 
+## Highlights
+* Inference code for our **CVPR 2021 oral** paper [Learning Accurate Correspondences and When to Trust Them](https://arxiv.org/abs/2101.01710) is now available.  
+
+<br />
+
+## Dense Matching Networks 
 
 The repo contains the implementation of the following matching models. 
-
+We provide pre-trained model weights, data preparation, evaluation commands, and results for each dataset and method. 
 
 ### PDC-Net: Learning Accurate Correspondences and When to Trust Them. (CVPR 2021 - ORAL)
 Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/), Luc Van Gool, Radu Timofte<br />
@@ -70,7 +75,7 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 ![alt text](/images/glunet.png)
 
 
-# Pre-trained weights
+## Pre-trained weights
 
 | Model        | Pre-trained model type | Description                         | Link |
 |--------------|------------------------|-------------------------------------|------|
@@ -87,9 +92,9 @@ To download all of them, run the command ```bash assets/download_pre_trained_mod
 
 All networks are created in 'model_selection.py'. Weights should be put in pre_trained_models/
 
+<br />
 
-
-# Table of Content
+## Table of Content
 
 1. [Installation](#Installation)
 2. [Test on your own image pairs!](#test)
@@ -109,9 +114,9 @@ All networks are created in 'model_selection.py'. Weights should be put in pre_t
 6. [Changelog](#changelog)
 
 
+<br />
 
-
-# 1. Installation <a name="Installation"></a>
+## 1. Installation <a name="Installation"></a>
 
 Inference runs for torch version >= 1.0
 
@@ -142,14 +147,20 @@ pip install cupy-cuda100==7.8.0 --no-cache-dir
 ```
 
 * This repo includes [GOCor](https://arxiv.org/abs/2009.07823) as git submodule. 
-You need to pull submodules with ```git submodule update --init --recursive```. 
+You need to pull submodules with 
+```bash
+git submodule update --init --recursive
+```
 
+* Create admin/local.py by running the following command and update the paths to the dataset. 
+We provide an example admin/local_example.py where all datasets are stored in data/. 
+```bash
+python -c "from admin.environment import create_default_local_file; create_default_local_file()"
+```
 
+<br />
 
-
-
-
-# 2. Test on your own image pairs!  <a name="Test"></a>
+## 2. Test on your own image pairs!  <a name="Test"></a>
 
 You can test the networks on a pair of images using test_models.py and the provided trained model weights. 
 You must first choose the model and pre-trained weights to use. 
@@ -242,10 +253,17 @@ python test_models.py --model PWCNet --pre_trained_model chairs_things --path_qu
 <br />
 
 
-# 3. Benchmark and results  <a name="Results"></a>
+
+
+
+
+
+
+## 3. Benchmark and results  <a name="Results"></a>
 
 All paths to the datasets must be provided in file admin/local.py. 
-We provide an example admin/local_example.py where all datasets are stored in data/. You need to update the paths before running the evaluation. 
+We provide an example admin/local_example.py where all datasets are stored in data/. 
+You need to update the paths of admin/local.py before running the evaluation. 
 
 
 
@@ -282,7 +300,7 @@ For pose estimation, we also compute the pose with RANSAC, which leads to some v
   
 </details>
 
-## 2.1. Correspondence evaluation <a name="correspondence_eval"></a>
+### 3.1. Correspondence evaluation <a name="correspondence_eval"></a>
 
 Metrics are computed with, 
 ```bash
@@ -617,7 +635,7 @@ Similar results should be obtained:
 
 </details>
 
-## 2.2 Pose estimation <a name="pose_estimation"></a>
+### 3.2 Pose estimation <a name="pose_estimation"></a>
 
 
 Metrics are computed with
@@ -664,12 +682,12 @@ You should get similar metrics (not exactly the same because of RANSAC):
 
 
 
-# 4. Training <a name="Training"></a>
+## 4. Training <a name="Training"></a>
 
 TO COME 
 
 
-# 5. Acknowledgement <a name="Acknowledgement"></a>
+## 5. Acknowledgement <a name="Acknowledgement"></a>
 
 We borrow code from public projects, such as [pytracking](https://github.com/visionml/pytracking), [GLU-Net](https://github.com/PruneTruong/GLU-Net), 
 [DGC-Net](https://github.com/AaltoVision/DGC-Net), [PWC-Net](https://github.com/NVlabs/PWC-Net), 

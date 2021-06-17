@@ -6,3 +6,4 @@
 **/*.pth
 **qsublogs
 **qsub_logs
+admin/local.py
