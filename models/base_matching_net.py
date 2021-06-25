@@ -424,24 +424,6 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
             return flow_est.permute(0, 2, 3, 1)
 
     # FOR FLIPPING CONDITION
-    def coarsest_resolution_flow(self, c14, c24, h_256, w_256):
-        ratio_x = 16.0 / float(w_256)
-        ratio_y = 16.0 / float(h_256)
-
-        corr4 = self.get_global_correlation(c14, c24)
-
-        b, c, h, w = corr4.size()
-        if torch.cuda.is_available():
-            init_map = torch.FloatTensor(b, 2, h, w).zero_().cuda()
-        else:
-            init_map = torch.FloatTensor(b, 2, h, w).zero_()
-        est_map4 = self.decoder4(x1=corr4, x3=init_map)
-        # conversion to flow and from there constrained correlation
-        flow4 = unnormalise_and_convert_mapping_to_flow(est_map4)
-        flow4[:, 0, :, :] /= ratio_x
-        flow4[:, 1, :, :] /= ratio_y
-        return corr4, flow4
-
     def flipping_condition(self, im_source_base, im_target_base, device):
 
         if self.params.global_corr_type == 'GlobalGOCor':

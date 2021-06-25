@@ -53,6 +53,9 @@ def test_model_on_image_pair(args, query_image, reference_image):
         # pass both images to the network, it will pre-process the images and ouput the estimated flow
         # in dimension 1x2xHxW
         if estimate_uncertainty:
+            if args.flipping_condition:
+                raise NotImplementedError('No flipping condition with PDC-Net for now')
+
             estimated_flow, uncertainty_components = network.estimate_flow_and_confidence_map(query_image_,
                                                                                               reference_image_,
                                                                                               mode='channel_first')

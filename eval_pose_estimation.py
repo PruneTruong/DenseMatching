@@ -1,6 +1,3 @@
-"""
-Modified from SuperGlue repo (https://github.com/magicleap/SuperGluePretrainedNetwork)
-"""
 from pathlib import Path
 import argparse
 import numpy as np
@@ -13,7 +10,7 @@ import json
 from validation.utils_pose_estimation import matches_from_flow
 from models.PDCNet.inference_utils import estimate_mask
 from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
-from validation.utils_pose_estimation import (compute_pose_error, compute_epipolar_error,
+from validation.utils_pose_estimation import (compute_pose_error,
                                               estimate_pose, pose_auc, read_image,
                                               rotate_intrinsics, rotate_pose_inplane,
                                               scale_intrinsics)
@@ -148,10 +145,6 @@ def main(args, settings):
                     cam1_T_cam0 = cam1_T_w @ np.linalg.inv(cam0_T_w)
                     T_0to1 = cam1_T_cam0
 
-                epi_errs = compute_epipolar_error(mkpts0, mkpts1, T_0to1, K0, K1)
-                correct = epi_errs < 5e-4
-                num_correct = np.sum(correct)
-
                 thresh = 1.  # In pixels relative to resized image load_size.
                 ret = estimate_pose(mkpts0, mkpts1, K0, K1, ransac=args.ransac, thresh=thresh)
 
@@ -162,12 +155,7 @@ def main(args, settings):
                     err_t, err_R = compute_pose_error(T_0to1, R, t)
 
                 # Write the evaluation results to disk.
-                out_eval = {'error_t': err_t,
-                            'error_R': err_R,
-                            'num_correct': num_correct,
-                            'epipolar_errors': epi_errs}
-
-                pose_error = np.maximum(out_eval['error_t'], out_eval['error_R'])
+                pose_error = np.maximum(err_t, err_R)
                 pose_errors.append(pose_error)
 
         if args.compute_poses:

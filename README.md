@@ -5,10 +5,19 @@ A general dense matching library based on PyTorch.
 For any questions, issues or recommendations, please contact Prune at prune.truong@vision.ee.ethz.ch
 
 <br />
-<br />
+
 
 ## Highlights
-* Inference code for our **CVPR 2021 oral** paper [Learning Accurate Correspondences and When to Trust Them](https://arxiv.org/abs/2101.01710) is now available.  
+
+Official implementation of GLU-Net (CVPR 2021), GLU-Net-GOCor (NeurIPS 2020), PWC-Net-GOCor (NeurIPS 2021), 
+PDC-Net (CVPR 2021), including trained models and respective results.
+
+
+Libraries for implementing and evaluating dense matching networks. It includes
+* Common dense matching validation datasets for geometric matching (MegaDepth, RobotCar, ETH3D, HPatches), 
+optical flow (KITTI, Sintel) and semantic matching (TSS). 
+* Scripts to analyse network performance and obtain standard performance scores for matching and pose estimation.
+* General building blocks, including deep networks, optimization, feature extraction and utilities.
 
 <br />
 
@@ -692,5 +701,5 @@ TO COME
 We borrow code from public projects, such as [pytracking](https://github.com/visionml/pytracking), [GLU-Net](https://github.com/PruneTruong/GLU-Net), 
 [DGC-Net](https://github.com/AaltoVision/DGC-Net), [PWC-Net](https://github.com/NVlabs/PWC-Net), 
 [NC-Net](https://github.com/ignacio-rocco/ncnet), [Flow-Net-Pytorch](https://github.com/ClementPinard/FlowNetPytorch), 
-[RAFT](https://github.com/princeton-vl/RAFT), [SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork) ...
+[RAFT](https://github.com/princeton-vl/RAFT)...
 
