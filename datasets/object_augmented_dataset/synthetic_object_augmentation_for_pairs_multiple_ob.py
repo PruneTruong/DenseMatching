@@ -56,8 +56,8 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
     def __init__(self, foreground_image_dataset, background_image_dataset, foreground_transform=None,
                  source_image_transform=None, target_image_transform=None, flow_transform=None,
                  co_transform=None, compute_occlusion_mask=False, compute_out_of_view_mask=False,
-                 compute_object_reprojection_mask=False, compute_mask_zero_borders=False,
-                 number_of_objects=4, object_proba=1.0, output_flow_size=None):
+                 compute_object_reprojection_mask=False, compute_mask_zero_borders=False, random_nbr_objects=False,
+                 number_of_objects=4, object_proba=0.8, output_flow_size=None):
         """
         Args:
             foreground_image_dataset - A segmentation dataset from which foreground objects are cropped using the
@@ -113,6 +113,7 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
         self.compute_occlusion_mask = compute_occlusion_mask
         self.compute_out_of_view_mask = compute_out_of_view_mask
         self.compute_object_reprojection_mask = compute_object_reprojection_mask
+        self.random_nbr_objects = random_nbr_objects
         self.number_of_objects = number_of_objects
         self.size_flow = output_flow_size
 
@@ -204,7 +205,7 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
             self.background_image_dataset.__getitem__(index) must return a dictionary, with fields 'source_image',
             'target_image', 'flow_map', 'correspondence_mask'. 'mask_zero_borders' if self.mask_zero_borders
 
-        Returns:
+        Returns: Dictionary with fieldnames:
             source_image
             target_image
             flow_map: if self.output_flow_size is a list of sizes, contains a list of flow_fields. Otherwise, contains
@@ -253,7 +254,11 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
 
         [source_image, target_image] = bg_frame_list
         if np.random.rand() < self.object_proba:  # only add objects with a certain probability
-            for ob_id in range(0, self.number_of_objects):
+            if self.random_nbr_objects:
+                number_of_objects = random.randint(1, self.number_of_objects)
+            else:
+                number_of_objects = self.number_of_objects
+            for ob_id in range(0, number_of_objects):
                 try:
                     # Handle foreground
                     seq_id = random.randint(0, self.get_num_sequences() - 1)
@@ -363,8 +368,8 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
                             mask_of_reprojected_object_from_source_to_target = \
                                 mask_of_reprojected_object_from_source_to_target | mask_fg_object_source_in_target_frame
 
-                            # remove current target mask from reproction mask (there is an object here, so correct match at
-                            # the current level), but can cover older objects.
+                            # remove current target mask from reproction mask (there is an object here,
+                            # so correct match at the current level), but can cover older objects.
                             mask_of_reprojected_object_from_source_to_target = \
                                 mask_of_reprojected_object_from_source_to_target & ~target_mask_fg
                     else:

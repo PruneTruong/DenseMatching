@@ -7,9 +7,12 @@ from ..base_matching_net import BaseGLUMultiScaleMatchingNet
 from ..base_matching_net import set_glunet_parameters
 from ..feature_backbones.VGG_features import VGGPyramid
 from ..modules.local_correlation import correlation
+from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
+from ..inference_utils import matches_from_flow, estimate_mask
+from admin.model_constructor import model_constructor
 
 
-class GLUNet_model(BaseGLUMultiScaleMatchingNet):
+class GLUNetModel(BaseGLUMultiScaleMatchingNet):
     """
     GLU-Net model
     """
@@ -335,3 +338,179 @@ class GLUNet_model(BaseGLUMultiScaleMatchingNet):
         flow4[:, 0, :, :] /= ratio_x
         flow4[:, 1, :, :] /= ratio_y
         return corr4, flow4
+
+    def estimate_flow_and_confidence_map(self, source_img, target_img, output_shape=None,
+                                         scaling=1.0, mode='channel_first'):
+        """
+        Returns the flow field and corresponding confidence map/uncertainty map relating the target to the source image.
+        Here, the confidence map corresponds to the inverse of the forward-backward cycle consistency error map.
+        Returned flow has output_shape if provided, otherwise the same dimension than the target image.
+        If scaling is provided, the output shape is the target image dimension multiplied by this scaling factor.
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            output_shape: int or list of int, or None, output shape of the returned flow field
+            scaling: float, scaling factor applied to target image shape, to obtain the outputted flow field dimensions
+                     if output_shape is None
+            mode: if channel_first, flow has shape b, 2, H, W. Else shape is b, H, W, 2
+
+        Returns:
+            flow_est: estimated flow field relating the target to the reference image, resized and scaled to
+                      output_shape (can be defined by scaling parameter)
+            uncertainty_est: dict with keys 'cyclic_consistency_error'
+        """
+        w_scale = target_img.shape[3]
+        h_scale = target_img.shape[2]
+        # define output_shape
+        if output_shape is None and scaling != 1.0:
+            output_shape = (int(h_scale*scaling), int(w_scale*scaling))
+        source_img, target_img, source_img_256, target_img_256, ratio_x, ratio_y \
+            = self.pre_process_data(source_img, target_img)
+
+        output_256, output = self.forward(target_img, source_img, target_img_256, source_img_256)
+
+        flow_est_list = output['flow_estimates']
+        flow_est = flow_est_list[-1]
+
+        if output_shape is not None:
+            ratio_x *= float(output_shape[1]) / float(w_scale)
+            ratio_y *= float(output_shape[0]) / float(h_scale)
+        else:
+            output_shape = (h_scale, w_scale)
+        flow_est = torch.nn.functional.interpolate(input=flow_est, size=output_shape, mode='bilinear',
+                                                   align_corners=False)
+
+        flow_est[:, 0, :, :] *= ratio_x
+        flow_est[:, 1, :, :] *= ratio_y
+
+        # compute flow in opposite direction
+        output_256_backward, output_backward = self.forward(source_img, target_img, source_img_256, target_img_256)
+        flow_est_backward = output_backward['flow_estimates'][-1]
+
+        flow_est_backward = torch.nn.functional.interpolate(input=flow_est_backward, size=output_shape, mode='bilinear',
+                                                            align_corners=False)
+        flow_est_backward[:, 0, :, :] *= ratio_x
+        flow_est_backward[:, 1, :, :] *= ratio_y
+
+        cyclic_consistency_error = torch.norm(flow_est + self.warp(flow_est_backward, flow_est), dim=1, p=2,
+                                              keepdim=True)
+        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error}
+
+        if mode == 'channel_first':
+            return flow_est, uncertainty_est
+        else:
+            return flow_est.permute(0, 2, 3, 1), uncertainty_est
+
+    def estimate_flow_and_confidence_map_with_flipping_condition(self, source_img, target_img, output_shape=None,
+                                                                 scaling=1.0, mode='channel_first'):
+        """
+        Returns the flow field and corresponding confidence map relating the target to the source image.
+        Here, the confidence map corresponds to the inverse of the forward-backward cycle consistency error map.
+        Returned flow has output_shape if provided, otherwise the same dimension than the target image.
+        If scaling is provided, the output shape is the target image dimension multiplied by this scaling factor.
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            output_shape: int or list of int, or None, output shape of the returned flow field
+            scaling: float, scaling factor applied to target image shape, to obtain the outputted flow field dimensions
+                     if output_shape is None
+            mode: if channel_first, flow has shape b, 2, H, W. Else shape is b, H, W, 2
+
+        Returns:
+            flow_est: estimated flow field relating the target to the reference image, resized and scaled to
+                      output_shape (can be defined by scaling parameter)
+            uncertainty_est: dict with keys 'cyclic_consistency_error'
+        """
+        flow_est = self.estimate_flow_with_flipping_condition(source_img, target_img, output_shape=output_shape,
+                                                              scaling=scaling)
+        flow_est_backward = self.estimate_flow_with_flipping_condition(target_img, source_img,
+                                                                       output_shape=output_shape, scaling=scaling)
+
+        cyclic_consistency_error = torch.norm(flow_est + self.warp(flow_est_backward, flow_est), dim=1, p=2,
+                                              keepdim=True)
+        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error}
+
+        if mode == 'channel_first':
+            return flow_est, uncertainty_est
+        else:
+            return flow_est.permute(0, 2, 3, 1), uncertainty_est
+
+    def get_matches_and_confidence(self, source_img, target_img, scaling=1.0/4.0,
+                                   confident_mask_type='cyclic_consistency_error_below_3', min_number_of_pts=200):
+        """
+        Computes matches and corresponding confidence value.
+        Confidence value is obtained with forward-backward cyclic consistency.
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            scaling: float, scaling factor applied to target image shape, to obtain the outputted flow field dimensions,
+                     where the matches are extracted
+            confident_mask_type: default is 'proba_interval_1_above_10' for PDCNet.
+                                 See inference_utils/estimate_mask for more details
+            min_number_of_pts: below that number, we discard the retrieved matches (little blobs in cyclic
+                               consistency mask)
+
+        Returns:
+            dict with keys 'kp_source', 'kp_target', 'confidence_value', 'flow' and 'mask'
+            flow and mask are torch tensors
+
+        """
+        flow_estimated, uncertainty_est = self.estimate_flow_and_confidence_map(source_img, target_img, scaling=scaling)
+
+        cyclic_consistency_error = uncertainty_est['cyclic_consistency_error']
+        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error}
+        mask = estimate_mask(confident_mask_type, uncertainty_est, list_item=-1)
+        mapping_estimated = convert_flow_to_mapping(flow_estimated)
+        # remove point that lead to outside the source image
+        mask = mask & mapping_estimated[:, 0].ge(0) & mapping_estimated[:, 1].ge(0) & \
+            mapping_estimated[:, 0].le(source_img.shape[-1] // scaling - 1) & \
+            mapping_estimated[:, 1].le(source_img.shape[-2] // scaling - 1)
+
+        # get corresponding keypoints
+        scaling_kp = np.float32(target_img.shape[-2:]) / np.float32(flow_estimated.shape[-2:])  # h, w
+
+        mkpts_s, mkpts_t = matches_from_flow(flow_estimated, mask, scaling=scaling_kp[::-1])
+        uncertainty_values = cyclic_consistency_error.squeeze()[mask.squeeze()].cpu().numpy()
+        sort_index = np.argsort(np.array(uncertainty_values)).tolist()  # from smallest to highest
+        uncertainty_values = np.array(uncertainty_values)[sort_index]
+        mkpts_s = np.array(mkpts_s)[sort_index]
+        mkpts_t = np.array(mkpts_t)[sort_index]
+
+        if len(mkpts_s) < min_number_of_pts:
+            mkpts_s = np.empty([0, 2], dtype=np.float32)
+            mkpts_t = np.empty([0, 2], dtype=np.float32)
+            uncertainty_values = np.empty([0], dtype=np.float32)
+
+        pred = {'kp_source': mkpts_s, 'kp_target': mkpts_t, 'confidence_value': 1.0 / (uncertainty_values + 1e-6),
+                'flow': self.resize_and_rescale_flow(flow_estimated, target_img.shape[-2:]),
+                'mask': F.interpolate(input=mask.unsqueeze(1).float(), size=target_img.shape[-2:], mode='bilinear',
+                                      align_corners=False).squeeze(1)}
+        return pred
+
+
+@model_constructor
+def glunet_vgg16(global_corr_type='global_corr', global_gocor_arguments=None, normalize='relu_l2norm',
+                 normalize_features=True, cyclic_consistency=False,
+                 local_corr_type='local_corr', local_gocor_arguments=None, same_local_corr_at_all_levels=True,
+                 local_decoder_type='OpticalFlowEstimator', global_decoder_type='CMDTop',
+                 decoder_inputs='corr_flow_feat', refinement_at_adaptive_reso=True, refinement_at_all_levels=False,
+                 refinement_at_finest_level=True, apply_refinement_finest_resolution=True,
+                 give_flow_to_refinement_module=False, nbr_upfeat_channels=2, train_features=False,
+                 iterative_refinement=False):
+
+    net = GLUNetModel(iterative_refinement=iterative_refinement,
+                      global_gocor_arguments=global_gocor_arguments, global_corr_type=global_corr_type,
+                      normalize=normalize, normalize_features=normalize_features,
+                      cyclic_consistency=cyclic_consistency, local_corr_type=local_corr_type,
+                      local_gocor_arguments=local_gocor_arguments,
+                      same_local_corr_at_all_levels=same_local_corr_at_all_levels,
+                      local_decoder_type=local_decoder_type, global_decoder_type=global_decoder_type,
+                      decoder_inputs=decoder_inputs,
+                      refinement_at_adaptive_reso=refinement_at_adaptive_reso,
+                      refinement_at_all_levels=refinement_at_all_levels,
+                      refinement_at_finest_level=refinement_at_finest_level,
+                      apply_refinement_finest_resolution=apply_refinement_finest_resolution,
+                      give_flow_to_refinement_module=give_flow_to_refinement_module, pyramid_type='VGG', md=4,
+                      upfeat_channels=nbr_upfeat_channels,
+                      train_features=train_features)
+    return net

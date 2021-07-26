@@ -159,6 +159,14 @@ def writeFlow(flow, name_to_save, save_dir):
     flow.tofile(f)
 
 
+def writeMask(mask, name_to_save, save_dir):
+    name = os.path.join(save_dir, name_to_save)
+    mask = mask.astype(np.uint8)
+    if mask.max() != 255:
+        mask *= 255
+    imageio.imwrite(name, mask.astype(np.uint8))
+
+
 def readFloat(name):
     f = open(name, 'rb')
 

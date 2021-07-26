@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 import numpy as np
 from utils_flow.pixel_wise_mapping import warp, warp_with_mapping
 from utils_data.augmentations.geometric_distortions import ElasticTransform
@@ -48,7 +47,7 @@ class SynthecticAffHomoTPSTransfo:
                                   Must be selected from ['affine', 'hom', 'tps', 'afftps']
             parametrize_with_gaussian: sampling distribution for the transformation parameters. Gaussian ? otherwise, 
                                        uses a uniform distribution
-            use_cuda: use_cuda ?
+            use_cuda: use_cuda?
         """
 
         if not isinstance(size_output_flow, tuple):

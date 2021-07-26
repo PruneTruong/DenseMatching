@@ -72,12 +72,14 @@ def topk_accuracy(output, target, topk=(1,)):
 
 
 def merge_dictionaries(list_dict, name=None):
-    """Merges mutliple dictionaries and add a specified suffix (listed in 'name') in front of the keys of
+    """Merges multiple dictionaries and add a specified suffix (listed in 'name') in front of the keys of
     each dictionary. """
     if name is not None:
         dall = {}
         for d, name_ in zip(list_dict, name):
             if name_ is None:
+                dall.update(d)
+            elif name_ == '':
                 dall.update(d)
             else:
                 for key in list(d.keys()):

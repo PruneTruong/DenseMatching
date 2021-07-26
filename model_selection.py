@@ -1,5 +1,5 @@
-from models.GLUNet.GLU_Net import GLUNet_model
-from models.PWCNet.pwc_net import PWCNet_model
+from models.GLUNet.GLU_Net import GLUNetModel
+from models.PWCNet.pwc_net import PWCNetModel
 from models.PDCNet.PDCNet import PDCNet_vgg16
 import os.path as osp
 import torch
@@ -64,22 +64,22 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
     if model_name == 'GLUNet':
         # GLU-Net uses a global feature correlation layer followed by a cyclic consistency post-processing.
         # local cost volumes are computed by feature correlation layers
-        network = GLUNet_model(iterative_refinement=True, global_corr_type='feature_corr_layer',
-                               normalize='relu_l2norm', cyclic_consistency=True,
-                               local_corr_type='feature_corr_layer')
+        network = GLUNetModel(iterative_refinement=True, global_corr_type='feature_corr_layer',
+                              normalize='relu_l2norm', cyclic_consistency=True,
+                              local_corr_type='feature_corr_layer')
 
     elif model_name == 'GLUNet_GOCor':
         '''
         Default for global and local gocor arguments:
         global_gocor_arguments = {'optim_iter':3, 'num_features': 512, 'init_step_length': 1.0, 
-                                  'init_filter_reg': 1e-2, 'min_filter_reg': 1e-5,
+                                  'init_filter_reg': 1e-2, 'min_filter_reg': 1e-5, 'steplength_reg': 0.0, 
                                   'num_dist_bins':10, 'bin_displacement': 0.5, 'init_gauss_sigma_DIMP':1.0,
                                   'v_minus_act': 'sigmoid', 'v_minus_init_factor': 4.0
                                   'apply_query_loss': False, 'reg_kernel_size': 3, 
                                   'reg_inter_dim': 1, 'reg_output_dim': 1.0}
         
         local_gocor_arguments= {'optim_iter':3, 'num_features': 512, 'search_size': 9, 'init_step_length': 1.0,
-                                'init_filter_reg': 1e-2, 'min_filter_reg': 1e-5,
+                                'init_filter_reg': 1e-2, 'min_filter_reg': 1e-5, 'steplength_reg': 0.0, 
                                 'num_dist_bins':10, 'bin_displacement': 0.5, 'init_gauss_sigma_DIMP':1.0,
                                 'v_minus_act': 'sigmoid', 'v_minus_init_factor': 4.0
                                 'apply_query_loss': False, 'reg_kernel_size': 3, 
@@ -91,46 +91,46 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
 
         # for global gocor, we apply L_r only
         local_gocor_arguments = {'optim_iter': local_optim_iter}
-        network = GLUNet_model(iterative_refinement=True, global_corr_type='GlobalGOCor',
-                               global_gocor_arguments=global_gocor_arguments, normalize='leakyrelu',
-                               local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,
-                               same_local_corr_at_all_levels=True)
+        network = GLUNetModel(iterative_refinement=True, global_corr_type='GlobalGOCor',
+                              global_gocor_arguments=global_gocor_arguments, normalize='leakyrelu',
+                              local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,
+                              same_local_corr_at_all_levels=True)
 
     elif model_name == 'PWCNet':
         # PWC-Net uses a feature correlation layer at each pyramid level
-        network = PWCNet_model(local_corr_type='feature_corr_layer')
+        network = PWCNetModel(local_corr_type='feature_corr_layer')
 
     elif model_name == 'PWCNet_GOCor':
         local_gocor_arguments = {'optim_iter': local_optim_iter}
         # We instead replace the feature correlation layers by Local GOCor modules
-        network = PWCNet_model(local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,
-                               same_local_corr_at_all_levels=False)
+        network = PWCNetModel(local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,
+                              same_local_corr_at_all_levels=False)
 
     elif model_name == 'GLUNet_GOCor_star':
         # different mapping and flow decoders, features are also finetuned with two VGG copies
 
         # for global gocor, we apply L_r and L_q within the optimizer module
-        global_gocor_arguments = {'optim_iter': global_optim_iter, 'apply_query_loss': True,
+        global_gocor_arguments = {'optim_iter': global_optim_iter,  'steplength_reg': 0.1, 'apply_query_loss': True,
                                   'reg_kernel_size': 3, 'reg_inter_dim': 16, 'reg_output_dim': 16}
 
         # for global gocor, we apply L_r only
-        local_gocor_arguments = {'optim_iter': local_optim_iter}
-        network = GLUNet_model(iterative_refinement=True, cyclic_consistency=False, global_corr_type='GlobalGOCor',
-                               global_gocor_arguments=global_gocor_arguments, normalize='leakyrelu',
-                               local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,
-                               same_local_corr_at_all_levels=True, give_flow_to_refinement_module=True,
-                               local_decoder_type='OpticalFlowEstimatorResidualConnection',
-                               global_decoder_type='CMDTopResidualConnection', make_two_feature_copies=True)
+        local_gocor_arguments = {'optim_iter': local_optim_iter, 'steplength_reg': 0.1}
+        network = GLUNetModel(iterative_refinement=True, cyclic_consistency=False, global_corr_type='GlobalGOCor',
+                              global_gocor_arguments=global_gocor_arguments, normalize='leakyrelu',
+                              local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,
+                              same_local_corr_at_all_levels=True, give_flow_to_refinement_module=True,
+                              local_decoder_type='OpticalFlowEstimatorResidualConnection',
+                              global_decoder_type='CMDTopResidualConnection', make_two_feature_copies=True)
 
     elif model_name == 'PDCNet':
         estimate_uncertainty = True
         # for global gocor, we apply L_r and L_q within the optimizer module
-        global_gocor_arguments = {'optim_iter': global_optim_iter, 'init_gauss_sigma_DIMP': 0.5,
-                                  'train_label_map': False, 'apply_query_loss': True,
+        global_gocor_arguments = {'optim_iter': global_optim_iter, 'steplength_reg': 0.1, 'train_label_map': False,
+                                  'apply_query_loss': True,
                                   'reg_kernel_size': 3, 'reg_inter_dim': 16, 'reg_output_dim': 16}
 
         # for global gocor, we apply L_r only
-        local_gocor_arguments = {'optim_iter': local_optim_iter}
+        local_gocor_arguments = {'optim_iter': local_optim_iter, 'steplength_reg': 0.1}
         network = PDCNet_vgg16(global_corr_type='GlobalGOCor', global_gocor_arguments=global_gocor_arguments,
                                normalize='leakyrelu', same_local_corr_at_all_levels=True,
                                local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,

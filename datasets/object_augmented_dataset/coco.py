@@ -1,12 +1,11 @@
 import os
-from datasets.object_augmented_dataset.video_datasets.base_image_dataset import BaseImageDataset
+from .base_image_dataset import BaseImageDataset
 import torch
 from pycocotools.coco import COCO
-import random
 from collections import OrderedDict
 from datasets.object_augmented_dataset.image_loader import jpeg4py_loader
 from torch.utils.data import Dataset
-from utils_flow.util import pad_to_size, resize_keeping_aspect_ratio
+from ..util import pad_to_size, resize_keeping_aspect_ratio
 import cv2
 import random
 

@@ -1,17 +1,9 @@
 from __future__ import division
 import os.path
 from datasets.listdataset import ListDataset
-from datasets.util import split2list
 import numpy as np
 import torch.utils.data as data
-try:
-    import cv2
-except ImportError as e:
-    import warnings
-    with warnings.catch_warnings():
-        warnings.filterwarnings("default", category=ImportWarning)
-        warnings.warn("failed to load openCV, which is needed"
-                      "for KITTI which uses 16bit PNG images", ImportWarning)
+import cv2
 from utils_data.io import load_flo
 
 
@@ -46,7 +38,7 @@ def pad_to_same_shape(im1, im2, flow, mask):
     return im1, im2, flow, mask
 
 
-def make_dataset(dir, split):
+def make_dataset(dir):
     """For TSS"""
     images = []
     dir_list = [f for f in os.listdir(os.path.join(dir)) if
@@ -81,7 +73,7 @@ def make_dataset(dir, split):
             flow_map = os.path.join(img_dir, 'flow1.flo')
             images.append([[img1, img2], flow_map])
 
-    return split2list(images, split, default_split=0.9)
+    return images
 
 
 def flow_loader(root, path_imgs, path_flo):
@@ -97,36 +89,6 @@ def flow_loader(root, path_imgs, path_flo):
     source_size = images[0].shape # threshold is max load_size of source image for pck
     im1, im2, flow, mask = pad_to_same_shape(images[0], images[1], flow, mask)
     return [im1, im2], flow, mask.astype(np.uint8), source_size
-
-
-def TSS(root, source_image_transform=None, target_image_transform=None, flow_transform=None,
-        co_transform=None, split=0.0):
-    """
-    Builds the dataset of TSS image pairs and corresponding ground-truth flow fields.
-    Args:
-        root: path to root folder
-        source_image_transform: image transformations to apply to source images
-        target_image_transform: image transformations to apply to target images
-        flow_transform: flow transformations to apply to ground-truth flow fields
-        co_transform: transformations to apply to both images and ground-truth flow fields
-        split: split (float) between training and testing, 0 means all pairs are in test_dataset
-
-    Returns:
-        train_dataset
-        test_dataset
-
-    """
-    train_list, test_list = make_dataset(root, split)
-    train_dataset = ListDataset(root, train_list, source_image_transform=source_image_transform,
-                                target_image_transform=target_image_transform,
-                                flow_transform=flow_transform, co_transform=co_transform,
-                                loader=flow_loader, load_valid_mask=True, load_size=True)
-    test_dataset = ListDataset(root, test_list, source_image_transform=source_image_transform,
-                               target_image_transform=target_image_transform,
-                               flow_transform=flow_transform,
-                               co_transform=co_transform,
-                               loader=flow_loader, load_valid_mask=True, load_size=True)
-    return train_dataset, test_dataset
 
 
 def flow_loader_with_paths(root, path_imgs, path_flo):
@@ -146,7 +108,7 @@ def flow_loader_with_paths(root, path_imgs, path_flo):
 
 
 class TSSDataset(data.Dataset):
-    """TSS dataset"""
+    """TSS dataset. Builds the dataset of TSS image pairs and corresponding ground-truth flow fields."""
     def __init__(self, root, source_image_transform=None, target_image_transform=None, flow_transform=None,
                  co_transform=None, split=0.0):
         """
@@ -165,7 +127,7 @@ class TSSDataset(data.Dataset):
             source_image_size
             target_image_size
         """
-        train_list, test_list = make_dataset(root, split)
+        test_list = make_dataset(root)
         self.root = root
         self.path_list = test_list
         self.first_image_transform = source_image_transform
@@ -179,7 +141,7 @@ class TSSDataset(data.Dataset):
         Args:
             index:
 
-        Returns:
+        Returns: Dictionary with fieldnames:
             source_image
             target_image
             flow_map
@@ -196,12 +158,14 @@ class TSSDataset(data.Dataset):
             inputs[1] = self.second_image_transform(inputs[1])
         if self.target_transform is not None:
             target = self.target_transform(target)
+        L_pck = float(max(source_size))
         return {'source_image': inputs[0],
                 'target_image': inputs[1],
                 'flow_map': target,
                 'correspondence_mask': mask.astype(np.bool),  # in torch will be torch.uint8
                 'source_image_size': source_size,
-                'target_image_size': target_size
+                'target_image_size': target_size,
+                'L_bounding_box': L_pck
                 }
 
     def __len__(self):

@@ -5,7 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from tqdm import tqdm
 import torch
-from utils_flow.util import pad_to_same_shape, pad_to_size, resize_keeping_aspect_ratio
+from ..util import pad_to_same_shape, pad_to_size, resize_keeping_aspect_ratio
 import cv2
 import random
 from datasets.util import define_mask_zero_borders
@@ -18,7 +18,6 @@ class MegaDepthDataset(Dataset):
                  target_image_transform=None, flow_transform=None, co_transform=None, compute_mask_zero_borders=False,
                  pickle_information=None):
         """
-
         Args:
             root: root directory
             cfg: config (dictionary)
@@ -52,8 +51,10 @@ class MegaDepthDataset(Dataset):
         default_conf = {
             'seed': 400,
             'train_split': 'train_scenes_MegaDepth.txt',
+            'train_debug_split': 'train_debug_scenes_MegaDepth.txt',
             'val_split': 'validation_scenes_MegaDepth.txt',
             'scene_info_path': '',
+            'train_debug_num_per_scene': 10,
             'train_num_per_scene': 100,
             'val_num_per_scene': 25,
 
@@ -101,6 +102,7 @@ class MegaDepthDataset(Dataset):
             raise ValueError('there is no pre saved dataset for single view')
 
         if self.load_pre_saved_dataset:
+            print('Loading from MegaDepth pickle')
             if not os.path.exists(pickle_information):
                 raise ValueError('the path to info that you provided does not exist: {}'.format(pickle_information))
             with open(pickle_information, "rb") as fp:  # Unpickling
@@ -383,6 +385,10 @@ class MegaDepthDataset(Dataset):
         else:
             size_of_flow = self.output_flow_size
 
+        if not isinstance(size_of_flow[0], list):
+            # must be list of sizes
+            size_of_flow = [size_of_flow]
+
         list_of_flow = []
         list_of_mask = []
         for i_size in size_of_flow:
@@ -421,7 +427,7 @@ class MegaDepthDataset(Dataset):
         Args:
             idx
 
-        Returns:
+        Returns: Dictionary with fieldnames:
             if self.two_views:
                 source_image
                 target_image
@@ -429,7 +435,6 @@ class MegaDepthDataset(Dataset):
                 correspondence_mask: visible and valid correspondences
                 source_image_size
                 sparse: True
-
 
                 if mask_zero_borders:
                     mask_zero_borders: bool tensor equal to 1 where the target image is not equal to 0, 0 otherwise
@@ -456,36 +461,36 @@ class MegaDepthDataset(Dataset):
                 scene, idx0, idx1, overlap = self.items[idx]
                 pair_metadata = self._read_pair_info(scene, idx0, idx1)
 
-            image1, image2, target, mask = self.recover_pair(pair_metadata,
+            source, target, flow, mask = self.recover_pair(pair_metadata,
                                                              random.random() < self.cfg['exchange_images_with_proba'])
 
             if self.co_transform is not None:
-                [image1, image2], target, mask = self.co_transform([image1, image2], target, mask)
-            source_size = image1.shape
+                [source, target], flow, mask = self.co_transform([source, target], flow, mask)
+            source_size = source.shape
 
             if self.source_image_transform is not None:
-                image1 = self.source_image_transform(image1)
+                source = self.source_image_transform(source)
             if self.target_image_transform is not None:
-                image2 = self.target_image_transform(image2)
+                target = self.target_image_transform(target)
             if self.flow_transform is not None:
-                if type(target) in [tuple, list]:
+                if type(flow) in [tuple, list]:
                     # flow field at different resolution
-                    for i in range(len(target)):
-                        target[i] = self.flow_transform(target[i])
+                    for i in range(len(flow)):
+                        flow[i] = self.flow_transform(flow[i])
                 else:
-                   target = self.flow_transform(target)
+                   flow = self.flow_transform(flow)
 
             if self.compute_mask_zero_borders:
-                mask_valid = define_mask_zero_borders(image2)
+                mask_valid = define_mask_zero_borders(target)
 
             if type(mask) in [tuple, list]:
                 # flow field at different resolution
-                for i in range(len(target)):
+                for i in range(len(flow)):
                     mask[i] = torch.from_numpy(mask[i].astype(np.bool if float(torch.__version__[:3]) >= 1.1 else np.uint8))
             else:
                 mask = torch.from_numpy(mask.astype(np.bool if float(torch.__version__[:3]) >= 1.1 else np.uint8))
 
-            output = {'source_image': image1, 'target_image': image2, 'flow_map': target, 'correspondence_mask': mask,
+            output = {'source_image': source, 'target_image': target, 'flow_map': flow, 'correspondence_mask': mask,
                       'source_image_size': source_size, 'sparse': True}
             if self.compute_mask_zero_borders:
                 output['mask_zero_borders'] = mask_valid.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 \

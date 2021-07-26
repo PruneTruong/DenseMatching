@@ -7,8 +7,9 @@ from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 import cv2
 from model_selection import select_model
 from utils_flow.util_optical_flow import flow_to_image
-from utils_flow.visualization_utils import overlay_semantic_mask, replace_area
+from utils_flow.visualization_utils import overlay_semantic_mask
 import numpy as np
+from validation.test_parser import define_pdcnet_parser
 
 
 def pad_to_same_shape(im1, im2):
@@ -109,7 +110,7 @@ def test_model_on_image_pair(args, query_image, reference_image):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Test models on a pair of images')
-    parser.add_argument('--model', type=str, help='Model to use')
+    parser.add_argument('--model', type=str, help='Model to use', required=True)
     parser.add_argument('--flipping_condition', dest='flipping_condition',  default=False, type=boolean_string,
                         help='Apply flipping condition for semantic data and GLU-Net-based networks ? ')
     parser.add_argument('--optim_iter', type=int, default=3,
@@ -118,39 +119,15 @@ if __name__ == "__main__":
                         help='Number of optim iter for Local GOCor, if applicable')
     parser.add_argument('--pre_trained_models_dir', type=str, default='pre_trained_models/',
                         help='Directory containing the pre-trained-models.')
-    parser.add_argument('--pre_trained_model', type=str, help='Name of the pre-trained-model.')
+    parser.add_argument('--pre_trained_model', type=str, help='Name of the pre-trained-model', required=True)
     parser.add_argument('--path_query_image', type=str,
-                        help='Path to the source image.')
+                        help='Path to the source image.', required=True)
     parser.add_argument('--path_reference_image', type=str,
-                        help='Path to the target image.')
+                        help='Path to the target image.', required=True)
     parser.add_argument('--write_dir', type=str,
                         help='Directory where to write output figure.')
-    subprasers = parser.add_subparsers(dest='network_type')
-    PDCNet = subprasers.add_parser('PDCNet', help='inference parameters for PDCNet')
-    PDCNet.add_argument(
-        '--confidence_map_R', default=1.0, type=float,
-        help='R used for confidence map computation',
-    )
-    PDCNet.add_argument(
-        '--multi_stage_type', default='direct', type=str, choices=['direct', 'homography_from_last_level_uncertainty',
-                                                                   'homography_from_quarter_resolution_uncertainty',
-                                                                   'multiscale_homo_from_quarter_resolution_uncertainty'],
-        help='multi stage type',
-    )
-    PDCNet.add_argument(
-        '--ransac_thresh', default=1.0, type=float,
-        help='ransac threshold used for multi-stages alignment',
-    )
-    PDCNet.add_argument(
-        '--mask_type', default='proba_interval_1_above_5', type=str,
-        help='mask computation for multi-stage alignment',
-    )
-    PDCNet.add_argument(
-        '--homography_visibility_mask', default=True, type=boolean_string,
-        help='apply homography visibility mask for multi-stage computation ?',
-    )
-    PDCNet.add_argument('--scaling_factors', type=float, nargs='+', default=[0.5, 0.6, 0.88, 1, 1.33, 1.66, 2],
-                        help='scaling factors')
+    subparsers = parser.add_subparsers(dest='network_type')
+    define_pdcnet_parser(subparsers)
     args = parser.parse_args()
 
     torch.cuda.empty_cache()
@@ -158,10 +135,7 @@ if __name__ == "__main__":
     torch.backends.cudnn.enabled = True
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # either gpu or cpu
 
-    if not args.local_optim_iter:
-        local_optim_iter = args.optim_iter
-    else:
-        local_optim_iter = int(args.local_optim_iter)
+    local_optim_iter = args.optim_iter if not args.local_optim_iter else int(args.local_optim_iter)
 
     if not os.path.exists(args.path_query_image):
         raise ValueError('The path to the source image you provide does not exist ! ')

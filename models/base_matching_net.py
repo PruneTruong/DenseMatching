@@ -5,7 +5,6 @@ import numpy as np
 import math
 from .modules.consensus_network_modules import MutualMatching, NeighConsensus, FeatureCorrelation
 from .modules.mod import conv, predict_flow
-from .modules.mod import unnormalise_and_convert_mapping_to_flow
 from .modules.feature_correlation_layer import FeatureL2Norm, GlobalFeatureCorrelationLayer
 from .modules.matching_modules import initialize_flow_decoder_, initialize_mapping_decoder_
 from third_party.GOCor.GOCor.global_gocor_modules import GlobalGOCorWithFlexibleContextAwareInitializer
@@ -117,7 +116,7 @@ class MatchingNetParams:
 
 class BaseMultiScaleMatchingNet(nn.Module):
     """
-        Common to all multiscale architectures
+    Common to all multiscale dense matching architectures
     """
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -125,13 +124,25 @@ class BaseMultiScaleMatchingNet(nn.Module):
         self.epoch = None
 
     @staticmethod
-    def resize(flow, output_size):
+    def resize_and_rescale_flow(flow, output_size):
         # output size is h, w
         b, _, h, w = flow.shape
+        if h == output_size[0] and w == output_size[1]:
+            return flow
+
         flow = F.interpolate(input=flow, size=output_size, mode='bilinear', align_corners=False)
         flow[:, 0] *= float(output_size[1]) / float(w)
         flow[:, 1] *= float(output_size[0]) / float(h)
         return flow
+
+    @staticmethod
+    def scale_flow_to_resolution(flow, ratio_x, ratio_y=None, div=1.0):
+        if ratio_y is None:
+            ratio_y = ratio_x
+        flow_warping = flow * div
+        flow_warping[:, 0, :, :] *= ratio_x
+        flow_warping[:, 1, :, :] *= ratio_y
+        return flow_warping
 
     @staticmethod
     def get_nbr_features_pyramid(pyramid_type):
@@ -160,10 +171,11 @@ class BaseMultiScaleMatchingNet(nn.Module):
     @staticmethod
     def warp(x, flo):
         """
-        warp an image/tensor (im2) back to im1, according to the flow
+        warp an image/tensor (im2) back to im1, according to the optical flow
 
-        x: [B, C, H, W] (im2)
-        flo: [B, 2, H, W] flow
+        Args:
+            x: [B, C, H, W] (im2)
+            flo: [B, 2, H, W] flow
 
         """
         B, C, H, W = x.size()
@@ -195,7 +207,7 @@ class BaseMultiScaleMatchingNet(nn.Module):
         self.epoch = epoch
 
     def forward(self, *input):
-        pass
+        raise NotImplementedError
 
 
 class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):

@@ -40,7 +40,7 @@ class ETHInterval(data.Dataset):
         Args:
             index
 
-        Returns:
+        Returns: Dictionary with fieldnames:
             source_image
             target_image
             flow_map

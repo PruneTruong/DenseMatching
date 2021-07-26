@@ -76,3 +76,37 @@ class RandomHomography:
         t_mat[1, 2] += self.pad_amount
 
         return t_mat
+
+
+def from_homography_to_pixel_wise_mapping(shape, H):
+    """
+    From a homography relating image I to image I', computes pixel wise mapping and pixel wise displacement
+    between pixels of image I to image I'
+    Args:
+        shape: shape of image
+        H: homography
+
+    Returns:
+        map_x mapping of each pixel of image I in the horizontal direction (given index of its future position)
+        map_y mapping of each pixel of image I in the vertical direction (given index of its future position)
+    """
+    h_scale, w_scale=shape[:2]
+
+    # estimate the grid
+    X, Y = np.meshgrid(np.linspace(0, w_scale - 1, w_scale),
+                       np.linspace(0, h_scale - 1, h_scale))
+    X, Y = X.flatten(), Y.flatten()
+    # X is same shape as shape, with each time the horizontal index of the pixel
+
+    # create matrix representation --> each contain horizontal coordinate, vertical and 1
+    XYhom = np.stack([X, Y, np.ones_like(X)], axis=1).T
+
+    # multiply Hinv to XYhom to find the warped grid
+    XYwarpHom = np.dot(H, XYhom)
+    Xwarp=XYwarpHom[0,:]/(XYwarpHom[2,:]+1e-8)
+    Ywarp=XYwarpHom[1,:]/(XYwarpHom[2,:]+1e-8)
+
+    # reshape to obtain the ground truth mapping
+    map_x = Xwarp.reshape((h_scale,w_scale))
+    map_y = Ywarp.reshape((h_scale,w_scale))
+    return map_x.astype(np.float32), map_y.astype(np.float32)

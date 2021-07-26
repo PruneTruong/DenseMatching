@@ -1,16 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from models.base_matching_net import BaseGLUMultiScaleMatchingNet
+from models.inference_utils import estimate_homography_and_inliers, estimate_homography_and_correspondence_map, \
+    estimate_mask, matches_from_flow, from_homography_to_pixel_wise_mapping
+from .mod_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density, estimate_average_variance_of_mixture_density
 import cv2
 import numpy as np
-from ..base_matching_net import BaseGLUMultiScaleMatchingNet
-from .inference_utils import estimate_probability_of_confidence_interval_of_mixture_density, \
-    estimate_average_variance_of_mixture_density, estimate_mask, estimate_homography_and_correspondence_map, \
-    estimate_homography_and_inliers, matches_from_flow, from_homography_to_pixel_wise_mapping
+from datasets.util import pad_to_size
 from ..modules.local_correlation import correlation
 from utils_flow.pixel_wise_mapping import warp, warp_with_mapping
-from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow
-from utils_flow.util import pad_to_size
+from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow, convert_flow_to_mapping
 
 
 class UncertaintyPredictionInference(nn.Module):
@@ -28,36 +28,34 @@ class UncertaintyPredictionInference(nn.Module):
                                         'list_resizing_ratios': [0.5, 0.6, 0.88, 1, 1.33, 1.66, 2],
                                         # [1, 0.5, 0.88, 1.0 / 0.5, 1.0 / 0.88],
                                         'min_inlier_threshold_for_multi_scale': 0.2,
-                                        'min_nbr_points_for_multi_scale': 70}
+                                        'min_nbr_points_for_multi_scale': 70,
+                                        'compute_cyclic_consistency_error': False}
         self.inference_parameters = inference_parameters_default
 
     def set_inference_parameters(self, confidence_R=1.0, ransac_thresh=1.0, multi_stage_type='direct',
                                  mask_type_for_2_stage_alignment='proba_interval_1_above_5',
                                  homography_visibility_mask=True,
                                  list_resizing_ratios=[0.5, 0.6, 0.88, 1, 1.33, 1.66, 2],
-                                 min_inlier_threshold_for_multi_scale=0.2, min_nbr_points_for_multi_scale=70):
+                                 min_inlier_threshold_for_multi_scale=0.2, min_nbr_points_for_multi_scale=70,
+                                 compute_cyclic_consistency_error=False):
         """Sets the inference parameters required for PDCNet.
-        Args:
-            inference_parameters_default = {'R': 1.0, 'ransac_thresh': 1.0,
-                                            'multi_stage_type': 'direct', 'mask_type': 'proba_interval_1_above_5',
-                                            'homography_visibility_mask': True,
-                                            'list_resizing_ratios': [0.5, 0.6, 0.88, 1, 1.33, 1.66, 2],
-                                            'min_inlier_threshold_for_multi_scale': 0.2,
-                                            'min_nbr_points_for_multi_scale': 70}
-            confidence_R:
-            ransac_thresh:
-            mask_type_for_2_stage_alignment:
-            homography_visibility_mask:
-            list_resizing_ratios:
-            min_inlier_threshold_for_multi_scale:
-            min_nbr_points_for_multi_scale:
+        inference_parameters_default = {'R': 1.0, 'ransac_thresh': 1.0, 'multi_stage_type': 'direct',
+                                        'mask_type': 'proba_interval_1_above_5',
+                                        # for multi-scale
+                                        'homography_visibility_mask': True,
+                                        'list_resizing_ratios': [0.5, 0.6, 0.88, 1, 1.33, 1.66, 2],
+                                        'min_inlier_threshold_for_multi_scale': 0.2,
+                                        'min_nbr_points_for_multi_scale': 70,
+                                        'compute_cyclic_consistency_error': False}
+
         """
         inference_parameters = {'R': confidence_R, 'ransac_thresh': ransac_thresh, 'multi_stage_type': multi_stage_type,
                                 'mask_type': mask_type_for_2_stage_alignment,
                                 'homography_visibility_mask': homography_visibility_mask,
                                 'list_resizing_ratios': list_resizing_ratios,
                                 'min_inlier_threshold_for_multi_scale': min_inlier_threshold_for_multi_scale,
-                                'min_nbr_points_for_multi_scale': min_nbr_points_for_multi_scale
+                                'min_nbr_points_for_multi_scale': min_nbr_points_for_multi_scale,
+                                'compute_cyclic_consistency_error': compute_cyclic_consistency_error
                                 }
         self.inference_parameters = inference_parameters
 
@@ -94,7 +92,9 @@ class UncertaintyPredictionInference(nn.Module):
         elif var_max > 0:
             large_log_var_map = torch.log((var_max - var_min) * torch.sigmoid(large_log_var_map - torch.log(var_max)))
         elif var_min > 0:
-            large_log_var_map = torch.log(var_min + torch.exp(large_log_var_map))
+            # large_log_var_map = torch.log(var_min + torch.exp(large_log_var_map))
+            max_exp = large_log_var_map.detach().max() - 10.0
+            large_log_var_map = torch.log(var_min / max_exp.exp() + torch.exp(large_log_var_map - max_exp)) + max_exp
         return large_log_var_map
 
     def estimate_flow_and_confidence_map(self, source_img, target_img, output_shape=None,
@@ -114,8 +114,23 @@ class UncertaintyPredictionInference(nn.Module):
         Returns:
             flow_est: estimated flow field relating the target to the reference image, resized and scaled to
                       output_shape (can be defined by scaling parameter)
-            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'R', 'variance'
+            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance' and
+                            'cyclic_consistency_error' if self.inference_parameters['compute_cyclic_consistency_error']
+                             is True
         """
+        flow_est, uncertainty_est = self.estimate_flow_and_confidence_map_(source_img, target_img, output_shape,
+                                                                           scaling, mode)
+
+        if self.inference_parameters['compute_cyclic_consistency_error']:
+            flow_est_backward, uncertainty_est_backward = self.estimate_flow_and_confidence_map_(
+                target_img, source_img, output_shape, scaling, mode)
+            cyclic_consistency_error = torch.norm(flow_est + self.warp(flow_est_backward, flow_est), dim=1,
+                                                  keepdim=True)
+            uncertainty_est['cyclic_consistency_error'] = cyclic_consistency_error
+        return flow_est, uncertainty_est
+
+    def estimate_flow_and_confidence_map_(self, source_img, target_img, output_shape=None,
+                                          scaling=1.0, mode='channel_first'):
         # will be chosen when defining the network by calling 'set_inference_parameters()'
         inference_parameters = self.inference_parameters
 
@@ -163,7 +178,8 @@ class UncertaintyPredictionInference(nn.Module):
                                   {'R': 1.0, 'ransac_thresh': 1.0, 'multi_stage_type': 'direct',
                                   'mask_type': 'proba_interval_1_above_5', 'homography_visibility_mask': True,
                                   'list_resizing_ratios': [0.5, 0.6, 0.88, 1, 1.33, 1.66, 2],
-                                  'min_inlier_threshold_for_multi_scale': 0.2, 'min_nbr_points_for_multi_scale': 70}
+                                  'min_inlier_threshold_for_multi_scale': 0.2, 'min_nbr_points_for_multi_scale': 70,
+                                  'compute_cyclic_consistency_error': False}
             inter_shape: list of int, shape of outputted flow for homography computation. If None, use target image
                          resolution
             output_shape: int or list of int, or None, output shape of the returned flow field
@@ -174,7 +190,7 @@ class UncertaintyPredictionInference(nn.Module):
         Returns:
             flow_est: estimated flow field relating the target to the reference image, resized and scaled to
                       output_shape (can be defined by scaling parameter)
-            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'R', 'variance'
+            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance'
         """
         b, _, h_ori, w_ori = target_img.shape
         image_shape = (h_ori, w_ori)
@@ -197,7 +213,7 @@ class UncertaintyPredictionInference(nn.Module):
             ransac_thresh=inference_parameters['ransac_thresh'], min_nbr_points=200)
 
         if mapping_from_homography is not None:
-            flow_est_first = self.resize(flow_est, output_shape)
+            flow_est_first = self.resize_and_rescale_flow(flow_est, output_shape)
 
             Is_remapped_with_homo = cv2.warpPerspective(source_img.squeeze().permute(1, 2, 0).cpu().numpy(),
                                                         H_image_size, image_shape[::-1])
@@ -253,7 +269,8 @@ class UncertaintyPredictionInference(nn.Module):
                                   {'R': 1.0, 'ransac_thresh': 1.0, 'multi_stage_type': 'direct',
                                   'mask_type': 'proba_interval_1_above_5', 'homography_visibility_mask': True,
                                   'list_resizing_ratios': [0.5, 0.6, 0.88, 1, 1.33, 1.66, 2],
-                                  'min_inlier_threshold_for_multi_scale': 0.2, 'min_nbr_points_for_multi_scale': 70}
+                                  'min_inlier_threshold_for_multi_scale': 0.2, 'min_nbr_points_for_multi_scale': 70,
+                                  'compute_cyclic_consistency_error': False}
             output_shape: int or list of int, or None, output shape of the returned flow field
             scaling: float, scaling factor applied to target image shape, to obtain the outputted flow field dimensions
                      if output_shape is None
@@ -262,7 +279,7 @@ class UncertaintyPredictionInference(nn.Module):
         Returns:
             flow_est: estimated flow field relating the target to the reference image, resized and scaled to
                       output_shape (can be defined by scaling parameter)
-            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'R', 'variance'
+            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance'
         """
 
         b, _, h_ori, w_ori = target_img.shape
@@ -280,7 +297,7 @@ class UncertaintyPredictionInference(nn.Module):
         # output shape must be the load_size of the flow, while H_image_size corresponds to the image_size
 
         if mapping_from_homography is not None:
-            flow_est_first = self.resize(flow_est_first, output_shape)
+            flow_est_first = self.resize_and_rescale_flow(flow_est_first, output_shape)
 
             Is_remapped_with_homo = cv2.warpPerspective(source_img.squeeze().permute(1, 2, 0).cpu().numpy(),
                                                         H_image_size, image_shape[::-1])
@@ -305,8 +322,7 @@ class UncertaintyPredictionInference(nn.Module):
                 mask = mask * warping_mask
             uncertainty_est['warping_mask'] = mask
 
-            flow_est = flow_est * mask.float() * warping_mask.float() + \
-                       flow_est_first * (~(mask & warping_mask)).float()
+            flow_est = flow_est * mask.float() * warping_mask.float() + flow_est_first * (~(mask & warping_mask)).float()
 
             if mode == 'channel_first':
                 return flow_est, uncertainty_est
@@ -442,6 +458,125 @@ class UncertaintyPredictionInference(nn.Module):
             mapping_from_homography_torch = None
         return H_final, mapping_from_homography_torch, flow_est_first_original_resolution
 
+    def get_matches_and_confidence(self, source_img, target_img, scaling=1.0/4.0,
+                                   confident_mask_type='proba_interval_1_above_10', min_number_of_pts=200):
+        """
+        Computes matches and corresponding confidence value.
+        Confidence value is obtained with forward-backward cyclic consistency.
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            scaling: float, scaling factor applied to target_img image shape, to obtain the outputted flow field dimensions,
+                     where the matches are extracted
+            confident_mask_type: default is 'proba_interval_1_above_10' for PDCNet.
+                                 See inference_utils/estimate_mask for more details
+            min_number_of_pts: below that number, we discard the retrieved matches (little blobs in cyclic
+                               consistency mask)
+
+
+        Returns:
+            dict with keys 'kp_source', 'kp_target', 'confidence_value', 'flow' and 'mask'
+            flow and mask are torch tensors
+
+        """
+        flow_estimated, uncertainty_est = self.estimate_flow_and_confidence_map(
+            source_img, target_img, scaling=scaling)
+
+        mask = estimate_mask(confident_mask_type, uncertainty_est, list_item=-1)
+        if 'warping_mask' in list(uncertainty_est.keys()):
+            # get mask from internal multi stage alignment, if it took place
+            mask = mask * uncertainty_est['warping_mask']
+        mapping_estimated = convert_flow_to_mapping(flow_estimated)
+        # remove point that lead to outside the source_img image
+        mask = mask & mapping_estimated[:, 0].ge(0) & mapping_estimated[:, 1].ge(0) & \
+            mapping_estimated[:, 0].le(source_img.shape[-1] * scaling - 1) & \
+            mapping_estimated[:, 1].le(source_img.shape[-2] * scaling - 1)
+
+        # get corresponding keypoints
+        scaling_kp = np.float32(target_img.shape[-2:]) / np.float32(flow_estimated.shape[-2:])  # h, w
+        mkpts_s, mkpts_t = matches_from_flow(flow_estimated, mask, scaling=scaling_kp[::-1])
+        confidence_values = uncertainty_est['p_r'].squeeze()[mask.squeeze()].cpu().numpy()
+        sort_index = np.argsort(np.array(confidence_values)).tolist()[::-1]  # from highest to smallest
+        confidence_values = np.array(confidence_values)[sort_index]
+        mkpts_s = np.array(mkpts_s)[sort_index]
+        mkpts_t = np.array(mkpts_t)[sort_index]
+
+        if len(mkpts_s) < min_number_of_pts:
+            mkpts_s = np.empty([0, 2], dtype=np.float32)
+            mkpts_t = np.empty([0, 2], dtype=np.float32)
+            confidence_values = np.empty([0], dtype=np.float32)
+
+        pred = {'kp_source': mkpts_s, 'kp_target': mkpts_t, 'confidence_value': confidence_values,
+                'flow': self.resize_and_rescale_flow(flow_estimated, target_img.shape[-2:]),
+                'mask': F.interpolate(input=mask.unsqueeze(1).float(), size=target_img.shape[-2:], mode='bilinear',
+                                      align_corners=False).squeeze(1)}
+        return pred
+
+    def perform_matching(self, data_source, data_target, cfg, segNet=None):
+        """
+        Utils function to get flow and matching confidence mask relating target image to source image.
+        Args:
+            data_source: dict with keys 'image_original', 'size_original', 'image_resized', 'size_resized',
+                         'image_resized_padded', 'size_resized_padded', 'image_resized_padded_torch'
+            data_target: dict with keys 'image_original', 'size_original', 'image_resized', 'size_resized',
+                         'image_resized_padded', 'size_resized_padded', 'image_resized_padded_torch'
+            cfg: config with default
+                 {'estimate_at_quarter_resolution: True, 'use_segnet': False,
+                  'mask_type_for_pose_estimation': 'proba_interval_1_above_10'}
+            segNet: segmentation network initialized. If not used, None
+
+        Returns:
+            flow, confidence_map and mask: torch tensors of shapes (b, 2, h, w), (b, h, w) and (b, h, w) respectively
+
+        """
+        if cfg.estimate_at_quarter_resolution:
+            scaling = 4.0
+            size_of_flow_padded = [int(image_shape_ // 4) for image_shape_ in data_target['size_resized_padded']]
+            size_of_flow = [int(image_shape_ // 4) for image_shape_ in data_target['size_resized']]
+            size_of_source = [int(image_shape_ // 4) for image_shape_ in data_source['size_resized']]
+        else:
+            scaling = 1.0
+            size_of_flow_padded = data_target['size_resized_padded']
+            size_of_flow = data_target['size_resized']
+            size_of_source = data_source['size_resized']
+
+        target_padded_numpy = data_target['image_resized_padded']
+        if cfg.use_segnet:
+            mask_building = segNet.getSky(target_padded_numpy)
+            mask_padded = torch.from_numpy(mask_building.astype(np.float32)).unsqueeze(0)
+            # might have a different shape
+            mask_padded = torch.nn.functional.interpolate(input=mask_padded.to(self.device).unsqueeze(1),
+                                                          size=size_of_flow_padded, mode='bilinear',
+                                                          align_corners=False).squeeze(1).byte()
+        else:
+            mask_padded = torch.ones(size_of_flow_padded).unsqueeze(0).byte().to(self.device)
+        mask_padded = mask_padded.bool() if float(torch.__version__[:3]) >= 1.1 else mask_padded.byte()
+
+        # scaling defines the final outputted shape by the network.
+        source_padded_torch = data_source['image_resized_padded_torch']
+        target_padded_torch = data_target['image_resized_padded_torch']
+        flow_estimated_padded, uncertainty_est_padded = self.estimate_flow_and_confidence_map(
+            source_padded_torch, target_padded_torch, scaling=1.0 / scaling)
+
+        if 'warping_mask' in list(uncertainty_est_padded.keys()):
+            # get mask from internal multi stage alignment, if it took place
+            mask_padded = uncertainty_est_padded['warping_mask'] * mask_padded
+
+        # get the mask according to uncertainty estimation
+        mask_padded = estimate_mask(cfg.mask_type_for_pose_estimation, uncertainty_est_padded,
+                                    list_item=-1) * mask_padded
+
+        # remove the padding
+        flow = flow_estimated_padded[:, :, :size_of_flow[0], :size_of_flow[1]]
+        mask = mask_padded[:, :size_of_flow[0], :size_of_flow[1]]
+        mapping_estimated = convert_flow_to_mapping(flow)
+        # remove point that lead to outside the source image
+        mask = mask & mapping_estimated[:, 0].ge(0) & mapping_estimated[:, 1].ge(0) & \
+            mapping_estimated[:, 0].le(size_of_source[1] - 1) & mapping_estimated[:, 1].le(size_of_source[0] - 1)
+
+        confidence_map = uncertainty_est_padded['p_r'][:, :, :size_of_flow[0], :size_of_flow[1]].squeeze(1)
+        return flow, confidence_map, mask
+
 
 class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInference):
     """Base class for probabilistic matching networks."""
@@ -479,7 +614,7 @@ class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInfere
                                                                              R=inference_parameters['R'])
         variance = estimate_average_variance_of_mixture_density(weight_map, log_var_map)
         uncertainty_est = {'log_var_map': log_var_map, 'weight_map': weight_map,
-                           'p_r': p_r, 'R': inference_parameters['R'], 'variance': variance}
+                           'p_r': p_r, 'inference_parameters': inference_parameters, 'variance': variance}
         return flow_est, uncertainty_est
 
     def estimate_flow_and_confidence_map_direct(self, source_img, target_img, inference_parameters,
@@ -504,7 +639,7 @@ class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInfere
         Returns:
             flow_est: estimated flow field relating the target to the reference image, resized and scaled to
                       output_shape (can be defined by scaling parameter)
-            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'R', 'variance'
+            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance'
         """
         w_scale = target_img.shape[3]
         h_scale = target_img.shape[2]

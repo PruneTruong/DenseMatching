@@ -6,6 +6,56 @@ except:
 import os
 import numpy as np
 import cv2
+from datasets.util import pad_to_same_shape
+
+
+def horizontal_combine_images(img1, img2):
+    ratio = img1.shape[0] / img2.shape[0]
+    imgs_comb = np.hstack((img1, cv2.resize(img2, None, fx=ratio, fy=ratio)))
+    return imgs_comb
+
+
+def draw_matches(img1, img2, kp1, kp2):
+    """
+
+    Args:
+        img1:
+        img2:
+        kp1: kp1 is shape Nx2, N number of feature points, first point in horizontal direction
+        kp2: kp2 is shape Nx2, N number of feature points, first point in horizontal direction
+
+    Returns:
+
+    """
+    img1, img2 = pad_to_same_shape(img1, img2)
+    h, w = img1.shape[:2]
+    img = horizontal_combine_images(img1, img2)
+
+    if kp1.shape[0] == 0:
+        return img
+    # shape Mx1x2 M number of matches
+    kp2[:, 0] = kp2[:, 0] + w
+
+    for i in range(kp1.shape[0]):
+        img = cv2.line(img, (kp1[i, 0], kp1[i, 1]), (kp2[i, 0], kp2[i, 1]), (255, 0, 0), 2)
+    return img
+
+
+def draw_keypoints(img, kp):
+    """
+
+    Args:
+        img:
+        kp: kp1 is shape Nx2, N number of feature points, first point in horizontal direction
+
+    Returns:
+
+    """
+    image_copy = np.copy(img)
+    nbr_points = kp.shape[0]
+    for i in range(nbr_points):
+        image = cv2.circle(image_copy, (np.uint(kp[i,0]),np.uint(kp[i,1])), 1, (0,255,0),thickness=5)
+    return image
 
 
 def sorted_nicely( l ):
@@ -66,10 +116,16 @@ def _pascal_color_map(N=256, normalized=False):
 
 def overlay_with_colored_mask(im, mask, alpha=0.5):
     fg = im * alpha + (1 - alpha) * mask
+
+    img = im.copy()
     return fg
 
 
 def overlay_semantic_mask(im, ann, alpha=0.5, mask=None, colors=None, color=[255, 218, 185], contour_thickness=1):
+    """
+    example usage:
+    image_overlaid = overlay_semantic_mask(im.astype(np.uint8), 255 - mask.astype(np.uint8) * 255, color=[255, 102, 51])
+    """
     im, ann = np.asarray(im, dtype=np.uint8), np.asarray(ann, dtype=np.int)
     if im.shape[:-1] != ann.shape:
         raise ValueError('First two dimensions of `im` and `ann` must match')

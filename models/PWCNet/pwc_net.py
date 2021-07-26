@@ -5,17 +5,42 @@ Jinwei Gu and Zhile Ren
 
 """
 
-import torch
 import torch.nn as nn
-import numpy as np
-from ..modules.local_correlation import correlation
-from .base_net import BasePWCNet, conv, deconv, predict_flow
 from third_party.GOCor.GOCor import local_gocor
 from third_party.GOCor.GOCor.optimizer_selection_functions import define_optimizer_local_corr
+from ..modules.local_correlation import correlation
+import numpy as np
+from ..base_matching_net import BaseMultiScaleMatchingNet
+import torch
+import torch.nn as nn
+import math
+import torch.nn.functional as F
+from torchvision import transforms
 
 
+def conv(in_planes, out_planes, kernel_size=3, stride=1, padding=1, dilation=1, batch_norm=False):
+    if batch_norm:
+        return nn.Sequential(
+                            nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, stride=stride,
+                                        padding=padding, dilation=dilation, bias=True),
+                            nn.BatchNorm2d(out_planes),
+                            nn.LeakyReLU(0.1, inplace=True))
+    else:
+        return nn.Sequential(
+                            nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, stride=stride,
+                            padding=padding, dilation=dilation, bias=True),
+                            nn.LeakyReLU(0.1))
 
-class PWCNet_model(BasePWCNet):
+
+def predict_flow(in_planes):
+    return nn.Conv2d(in_planes,2,kernel_size=3,stride=1,padding=1,bias=True)
+
+
+def deconv(in_planes, out_planes, kernel_size=4, stride=2, padding=1):
+    return nn.ConvTranspose2d(in_planes, out_planes, kernel_size, stride, padding, bias=True)
+
+
+class PWCNetModel(BaseMultiScaleMatchingNet):
     """
     PWC-Net model
     """
@@ -265,6 +290,190 @@ class PWCNet_model(BasePWCNet):
             flow2 = flow2 + self.dc_conv7(self.dc_conv6(self.dc_conv5(x)))
 
         return {'flow_estimates': [flow6, flow5, flow4, flow3, flow2]}
+
+    @staticmethod
+    def warp(x, flo):
+        """
+        warp an image/tensor (im2) back to im1, according to the optical flow
+
+        x: [B, C, H, W] (im2)
+        flo: [B, 2, H, W] flow
+
+        """
+        B, C, H, W = x.size()
+        # mesh grid
+        xx = torch.arange(0, W).view(1, -1).repeat(H, 1)
+        yy = torch.arange(0, H).view(-1, 1).repeat(1, W)
+        xx = xx.view(1, 1, H, W).repeat(B, 1, 1, 1)
+        yy = yy.view(1, 1, H, W).repeat(B, 1, 1, 1)
+        grid = torch.cat((xx, yy),1).float()
+
+        if x.is_cuda:
+            grid = grid.cuda()
+        vgrid = grid + flo
+        # makes a mapping out of the flow
+
+        # scale grid to [-1,1]
+        vgrid[:, 0, :, :] = 2.0 * vgrid[:, 0, :, :].clone() / max(W-1, 1) - 1.0
+        vgrid[:, 1, :, :] = 2.0 * vgrid[:, 1, :, :].clone() / max(H-1, 1) - 1.0
+
+        vgrid = vgrid.permute(0, 2, 3, 1)
+
+        if float(torch.__version__[:3]) >= 1.3:
+            output = nn.functional.grid_sample(x, vgrid, align_corners=True)
+        else:
+            output = nn.functional.grid_sample(x, vgrid)
+
+        # the mask makes a difference here
+        mask = torch.ones(x.size()).cuda()
+        if float(torch.__version__[:3]) >= 1.3:
+            mask = nn.functional.grid_sample(mask, vgrid, align_corners=True)
+        else:
+            mask = nn.functional.grid_sample(mask, vgrid)
+        mask[mask < 0.9999] = 0
+        mask[mask > 0] = 1
+        return output * mask
+
+    def pre_process_data(self, source_img, target_img):
+        b, _, h_scale, w_scale = target_img.shape
+        int_preprocessed_width = int(math.floor(math.ceil(w_scale / 64.0) * 64.0))
+        int_preprocessed_height = int(math.floor(math.ceil(h_scale / 64.0) * 64.0))
+
+        '''
+        source_img = torch.nn.functional.interpolate(input=source_img.float().to(device),
+                                                     load_size=(int_preprocessed_height, int_preprocessed_width),
+                                                     mode='area').byte()
+        target_img = torch.nn.functional.interpolate(input=target_img.float().to(device),
+                                                     load_size=(int_preprocessed_height, int_preprocessed_width),
+                                                     mode='area').byte()
+        source_img = source_img.float().div(255.0)
+        target_img = target_img.float().div(255.0)
+        '''
+        # this gives slightly better values
+        source_img_copy = torch.zeros((b, 3, int_preprocessed_height, int_preprocessed_width))
+        target_img_copy = torch.zeros((b, 3, int_preprocessed_height, int_preprocessed_width))
+        transform = transforms.Compose([transforms.ToPILImage(),
+                                        transforms.Resize((int_preprocessed_height, int_preprocessed_width),
+                                                          interpolation=2),
+                                        transforms.ToTensor()])
+        # only /255 the tensor
+        for i in range(source_img.shape[0]):
+            source_img_copy[i] = transform(source_img[i].byte())
+            target_img_copy[i] = transform(target_img[i].byte())
+
+        source_img = source_img_copy
+        target_img = target_img_copy
+
+        ratio_x = float(w_scale) / float(int_preprocessed_width)
+        ratio_y = float(h_scale) / float(int_preprocessed_height)
+
+        # convert to BGR
+        return source_img[:, [2, 1, 0]].to(self.device), target_img[:, [2, 1, 0]].to(self.device), ratio_x, ratio_y
+
+    def estimate_flow(self, source_img, target_img, output_shape=None, scaling=1.0, mode='channel_first'):
+        """
+        Estimates the flow field relating the target to the source image. Returned flow has output_shape if provided,
+        otherwise the same dimension than the target image. If scaling is provided, the output shape is the
+        target image dimension multiplied by this scaling factor.
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            output_shape: int or list of int, or None, output shape of the returned flow field
+            scaling: float, scaling factor applied to target image shape, to obtain the outputted flow field dimensions
+                     if output_shape is None
+            mode: if channel_first, flow has shape b, 2, H, W. Else shape is b, H, W, 2
+
+        Returns:
+            flow_est: estimated flow field relating the target to the reference image,resized and scaled to output_shape
+                      (can be defined by scaling parameter)
+        """
+        w_scale = target_img.shape[3]
+        h_scale = target_img.shape[2]
+        # define output_shape
+        if output_shape is None and scaling != 1.0:
+            output_shape = (int(h_scale*scaling), int(w_scale*scaling))
+
+        source_img, target_img, ratio_x, ratio_y = self.pre_process_data(source_img, target_img)
+        output = self.forward(target_img, source_img)
+
+        flow_est_list = output['flow_estimates']
+        flow_est = self.div * flow_est_list[-1]
+
+        if output_shape is not None:
+            flow_est = torch.nn.functional.interpolate(input=flow_est, size=(h_scale, w_scale), mode='bilinear',
+                                                       align_corners=False)
+            ratio_x *= float(output_shape[1]) / w_scale
+            ratio_y *= float(output_shape[0]) / h_scale
+        else:
+            flow_est = torch.nn.functional.interpolate(input=flow_est, size=(h_scale, w_scale), mode='bilinear',
+                                                       align_corners=False)
+
+        flow_est[:, 0, :, :] *= ratio_x
+        flow_est[:, 1, :, :] *= ratio_y
+        if mode == 'channel_first':
+            return flow_est
+        else:
+            return flow_est.permute(0, 2, 3, 1)
+
+    def estimate_flow_and_confidence_map(self, source_img, target_img, output_shape=None,
+                                         scaling=1.0, mode='channel_first'):
+        """
+        Returns the flow field and corresponding confidence map relating the target to the source image.
+        Here, the confidence map corresponds to the inverse of the forward-backward cycle consistency error map.
+        Returned flow has output_shape if provided, otherwise the same dimension than the target image.
+        If scaling is provided, the output shape is the target image dimension multiplied by this scaling factor.
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            output_shape: int or list of int, or None, output shape of the returned flow field
+            scaling: float, scaling factor applied to target image shape, to obtain the outputted flow field dimensions
+                     if output_shape is None
+            mode: if channel_first, flow has shape b, 2, H, W. Else shape is b, H, W, 2
+
+        Returns:
+            flow_est: estimated flow field relating the target to the reference image, resized and scaled to
+                      output_shape (can be defined by scaling parameter)
+            uncertainty_est: dict with keys 'cyclic_consistency_error'
+        """
+        w_scale = target_img.shape[3]
+        h_scale = target_img.shape[2]
+        # define output_shape
+        if output_shape is None and scaling != 1.0:
+            output_shape = (int(h_scale * scaling), int(w_scale * scaling))
+
+        source_img, target_img, ratio_x, ratio_y = self.pre_process_data(source_img, target_img)
+        output = self.forward(target_img, source_img)
+
+        flow_est_list = output['flow_estimates']
+        flow_est = flow_est_list[-1]
+
+        if output_shape is not None:
+            ratio_x *= float(output_shape[1]) / float(w_scale)
+            ratio_y *= float(output_shape[0]) / float(h_scale)
+        else:
+            output_shape = (h_scale, w_scale)
+        flow_est = torch.nn.functional.interpolate(input=flow_est, size=output_shape, mode='bilinear',
+                                                   align_corners=False)
+
+        flow_est[:, 0, :, :] *= ratio_x
+        flow_est[:, 1, :, :] *= ratio_y
+
+        # compute flow in opposite direction
+        output_backward = self.forward(source_img, target_img)
+        flow_est_backward = output_backward['flow_estimates'][-1]
+
+        flow_est_backward = torch.nn.functional.interpolate(input=flow_est_backward, size=output_shape, mode='bilinear',
+                                                            align_corners=False)
+        flow_est_backward[:, 0, :, :] *= ratio_x
+        flow_est_backward[:, 1, :, :] *= ratio_y
+
+        cyclic_consistency_error = torch.norm(flow_est + self.warp(flow_est_backward, flow_est), dim=1)
+        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error}
+
+        if mode == 'channel_first':
+            return flow_est, uncertainty_est
+        else:
+            return flow_est.permute(0, 2, 3, 1), uncertainty_est
 
 
 

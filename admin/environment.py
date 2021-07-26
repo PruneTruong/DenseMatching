@@ -22,8 +22,16 @@ def create_default_local_file():
         'kitti2012': empty_str,
         'kitti2015': empty_str,
         'sintel': empty_str,
+        'scannet_test': empty_str,
         'yfcc': empty_str,
         'tss': empty_str,
+        'PFPascal': empty_str,
+        'PFWillow': empty_str,
+        'spair': empty_str,
+        'training_cad_520': empty_str,
+        'validation_cad_520': empty_str,
+        'coco': empty_str,
+        'megadepth_training': empty_str
         })
 
     comment = {'workspace_dir': 'Base directory for saving network checkpoints.',

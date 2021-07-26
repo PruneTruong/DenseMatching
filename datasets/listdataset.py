@@ -15,7 +15,10 @@ def default_loader(root, path_imgs, path_flo):
     flo = os.path.join(root, path_flo)
 
     if imgs[0].endswith('.jpg') or imgs[0].endswith('.jpeg'):
-        return [jpeg4py.JPEG(img).decode().astype(np.uint8) for img in imgs], load_flo(flo)
+        try:
+            return [jpeg4py.JPEG(img).decode().astype(np.uint8) for img in imgs], load_flo(flo)
+        except:
+            return [imread(img).astype(np.uint8) for img in imgs], load_flo(flo)
     else:
         return [imread(img).astype(np.uint8) for img in imgs], load_flo(flo)
 
@@ -77,7 +80,7 @@ class ListDataset(data.Dataset):
         Args:
             index:
 
-        Returns:
+        Returns: dictionary with fieldnames
             source_image
             target_image
             correspondence_mask: visible and valid correspondences
@@ -85,7 +88,7 @@ class ListDataset(data.Dataset):
             sparse: False (only dense outputs here)
 
             if load_occlusion_mask:
-                load_occlusion_mask: ground-truth occlusion mask, bool tensor equal to 1 where the pixel in the flow
+                occlusion_mask: ground-truth occlusion mask, bool tensor equal to 1 where the pixel in the flow
                                 image is occluded in the source image, 0 otherwise
 
             if mask_zero_borders:
@@ -149,7 +152,7 @@ class ListDataset(data.Dataset):
                   'source_image_size': source_size,
                   'sparse': False}
         if self.load_occlusion_mask:
-            output['load_occlusion_mask'] = occ_mask
+            output['occlusion_mask'] = occ_mask
 
         if self.mask_zero_borders:
             output['mask_zero_borders'] = mask_valid.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 \

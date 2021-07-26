@@ -12,7 +12,7 @@ from ..PDCNet.base_pdcnet import ProbabilisticGLU
 from ..modules.local_correlation import correlation
 
 
-class PDCNet_model(ProbabilisticGLU):
+class PDCNetModel(ProbabilisticGLU):
     """PDCNet model"""
     def __init__(self, global_gocor_arguments=None, global_corr_type='feature_corr_layer', normalize='relu_l2norm',
                  normalize_features=True, cyclic_consistency=False,
@@ -510,21 +510,21 @@ def PDCNet_vgg16(global_corr_type='feature_corr_layer', global_gocor_arguments=N
                  estimate_three_modes=False, var_3_minus_plus=520 ** 2, var_3_minus_plus_256=256 ** 2,
                  make_two_feature_copies=False, train_features=False):
 
-    net = PDCNet_model(global_gocor_arguments=global_gocor_arguments, global_corr_type=global_corr_type, normalize=normalize,
-                       normalize_features=True, cyclic_consistency=cyclic_consistency,
-                       local_corr_type=local_corr_type, local_gocor_arguments=local_gocor_arguments,
-                       same_local_corr_at_all_levels=same_local_corr_at_all_levels,
-                       local_decoder_type=local_decoder_type, global_decoder_type=global_decoder_type,
-                       batch_norm=True, pyramid_type='VGG', upfeat_channels=2, decoder_inputs=decoder_inputs,
-                       refinement_at_all_levels=False, refinement_at_adaptive_reso=True,
-                       refinement_at_finest_level=refinement_at_finest_level,
-                       apply_refinement_finest_resolution=apply_refinement_finest_resolution,
-                       corr_for_corr_uncertainty_decoder=corr_for_corr_uncertainty_decoder,
-                       var_1_minus_plus=var_1_minus_plus, var_2_minus=var_2_minus,
-                       var_2_plus=var_2_plus, var_2_plus_256=var_2_plus_256,
-                       var_3_minus_plus=var_3_minus_plus,
-                       var_3_minus_plus_256=var_3_minus_plus_256, estimate_three_modes=estimate_three_modes,
-                       give_layer_before_flow_to_uncertainty_decoder=give_layer_before_flow_to_uncertainty_decoder,
-                       make_two_feature_copies=make_two_feature_copies, train_features=train_features)
+    net = PDCNetModel(global_gocor_arguments=global_gocor_arguments, global_corr_type=global_corr_type, normalize=normalize,
+                      normalize_features=True, cyclic_consistency=cyclic_consistency,
+                      local_corr_type=local_corr_type, local_gocor_arguments=local_gocor_arguments,
+                      same_local_corr_at_all_levels=same_local_corr_at_all_levels,
+                      local_decoder_type=local_decoder_type, global_decoder_type=global_decoder_type,
+                      batch_norm=True, pyramid_type='VGG', upfeat_channels=2, decoder_inputs=decoder_inputs,
+                      refinement_at_all_levels=False, refinement_at_adaptive_reso=True,
+                      refinement_at_finest_level=refinement_at_finest_level,
+                      apply_refinement_finest_resolution=apply_refinement_finest_resolution,
+                      corr_for_corr_uncertainty_decoder=corr_for_corr_uncertainty_decoder,
+                      var_1_minus_plus=var_1_minus_plus, var_2_minus=var_2_minus,
+                      var_2_plus=var_2_plus, var_2_plus_256=var_2_plus_256,
+                      var_3_minus_plus=var_3_minus_plus,
+                      var_3_minus_plus_256=var_3_minus_plus_256, estimate_three_modes=estimate_three_modes,
+                      give_layer_before_flow_to_uncertainty_decoder=give_layer_before_flow_to_uncertainty_decoder,
+                      make_two_feature_copies=make_two_feature_copies, train_features=train_features)
     return net
 

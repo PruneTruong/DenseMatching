@@ -4,12 +4,12 @@ import os.path
 from imageio import imread
 import numpy as np
 import torch
-import cv2
 import jpeg4py
 import random
 from utils_flow.pixel_wise_mapping import remap_using_flow_fields, warp
 from utils_data.augmentations.geometric_distortions import ElasticTransform
-from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping, convert_mapping_to_flow, get_gt_correspondence_mask
+from utils_flow.flow_and_mapping_operations import (convert_flow_to_mapping, convert_mapping_to_flow,
+                                                    get_gt_correspondence_mask)
 from utils_data.io import load_flo
 from datasets.util import define_mask_zero_borders
 
@@ -127,8 +127,9 @@ class DiscontinuityDatasetV2(data.Dataset):
         nbr_perturbations = random.randint(self.min_nbr_perturbations, self.max_nbr_perturbations)
 
         sigma_, alpha = self.ElasticTrans.get_random_paremeters(shape, seed=None)
-        flow_x_pertu, flow_y_pertu = self.ElasticTrans.get_mapping_from_distorted_image_to_undistorted(shape, sigma_, alpha,
-                                                                                                        seed=None)
+        flow_x_pertu, flow_y_pertu = self.ElasticTrans.get_mapping_from_distorted_image_to_undistorted(
+            shape, sigma_, alpha, seed=None)
+
         flow_pertu = np.dstack((flow_x_pertu, flow_y_pertu))
         mask_final = np.zeros(shape, np.float32)
 

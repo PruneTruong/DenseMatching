@@ -16,4 +16,11 @@ class EnvironmentSettings:
         self.sintel = 'data/sintel/training/'
         self.yfcc = 'data/yfcc100m'
         self.tss = 'data/TSS_CVPR2016/'
+        self.PFPascal = 'data/PF-dataset-PASCAL'
+        self.PFWillow = 'data/PF-dataset'
+        self.spair = 'data/SPair-71k'
+        self.training_cad_520 = 'data/training_cad'
+        self.validation_cad_520 = 'data/validation_cad'
+        self.coco = 'data/coco'
+        self.megadepth_training = 'data/megadepth_training'
 

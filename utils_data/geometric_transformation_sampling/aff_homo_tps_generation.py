@@ -297,7 +297,7 @@ class TpsGridGen(Module):
 
 class ComposedGeometricTnf(object):
     """
-    Composed geometric transfromation (affine+tps)
+    Composed geometric transformation (affine+tps)
     """
 
     def __init__(self, tps_grid_size=3, tps_reg_factor=0, out_h=240, out_w=240,

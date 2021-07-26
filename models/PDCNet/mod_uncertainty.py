@@ -2,6 +2,32 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..modules.batch_norm import BatchNorm
+import math
+
+
+def estimate_average_variance_of_mixture_density(weight_map, log_var_map, list_item=-1):
+    if isinstance(weight_map, list):
+        # several uncertainties estimation
+        log_var_map = log_var_map[list_item]
+        proba_map = torch.nn.functional.softmax(weight_map[list_item], dim=1)
+    else:
+        proba_map = torch.nn.functional.softmax(weight_map, dim=1)
+
+    avg_variance = torch.sum(proba_map * torch.exp(log_var_map), dim=1, keepdim=True) # shape is b,1,  h, w
+    return avg_variance
+
+
+def estimate_probability_of_confidence_interval_of_mixture_density(weight_map, log_var_map, list_item=-1, R=1.0):
+    if isinstance(weight_map, list):
+        # several uncertainties estimation
+        log_var_map = log_var_map[list_item]
+        proba_map = torch.nn.functional.softmax(weight_map[list_item], dim=1)
+    else:
+        proba_map = torch.nn.functional.softmax(weight_map, dim=1)
+
+    var_map = torch.exp(log_var_map)
+    p_r = torch.sum(proba_map * (1 - torch.exp(- math.sqrt(2)*R/torch.sqrt(var_map)))**2, dim=1, keepdim=True)
+    return p_r
 
 
 def conv(in_planes, out_planes, kernel_size=3, stride=1, padding=1, dilation=1, batch_norm=False):

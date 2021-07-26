@@ -4,7 +4,6 @@ import glob
 from datasets.listdataset import ListDataset
 from datasets.util import split2list
 import numpy as np
-from utils_data import co_flow_and_images_transforms
 
 try:
     import cv2

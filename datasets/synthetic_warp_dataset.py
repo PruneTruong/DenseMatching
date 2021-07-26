@@ -8,19 +8,19 @@ import torch.nn.functional as F
 
 
 class WarpingDataset(torch.utils.data.Dataset):
-    """Dataset applying random warps to single images to obtain a pairs of matching images and their corresponding
-    ground truth flow fields.
+    """Dataset applying random warps to single images to obtain pairs of matching images and their corresponding
+    ground truth flow fields. The final image pair is composed of the central crops of the desired dimensions in both
+    images.
     """
 
     def __init__(self, original_image_dataset, synthetic_flow_generator, compute_mask_zero_borders=False,
                  min_percent_valid_corr=0.1, crop_size=256, output_size=256, source_image_transform=None,
                  target_image_transform=None, flow_transform=None, co_transform=None):
         """
-
         Args:
             original_image_dataset: dataset for the single images
             synthetic_flow_generator: module generating the dense flow fields
-            compute_mask_zero_borders: compute mask zero borders ?
+            compute_mask_zero_borders: compute mask zero borders?
             min_percent_valid_corr:
             crop_size:
             output_size:
@@ -72,11 +72,10 @@ class WarpingDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         """
-
         Args:
             idx:
 
-        Returns:
+        Returns: dictionary with fieldnames
             source_image
             target_image
             correspondence_mask: visible and valid correspondences

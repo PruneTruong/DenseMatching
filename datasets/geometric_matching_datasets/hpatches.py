@@ -81,7 +81,7 @@ class HPatchesDataset(Dataset):
         Args:
             idx: index
 
-        Returns:
+        Returns: Dictionary with fieldnames:
                 source_image
                 target_image
                 correspondence_mask: visible and valid correspondences

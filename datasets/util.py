@@ -1,7 +1,6 @@
+import torch
 import numpy as np
 import cv2
-from utils_flow.util import pad_to_same_shape
-import torch
 
 
 def define_mask_zero_borders(image, epsilon=1e-8):
@@ -42,55 +41,6 @@ def define_mask_zero_borders(image, epsilon=1e-8):
     return mask
 
 
-def horizontal_combine_images(img1, img2):
-    ratio = img1.shape[0] / img2.shape[0]
-    imgs_comb = np.hstack((img1, cv2.resize(img2, None, fx=ratio, fy=ratio)))
-    return imgs_comb
-
-
-def draw_matches(img1, img2, kp1, kp2):
-    """
-
-    Args:
-        img1:
-        img2:
-        kp1: kp1 is shape Nx2, N number of feature points, first point in horizontal direction
-        kp2: kp2 is shape Nx2, N number of feature points, first point in horizontal direction
-
-    Returns:
-
-    """
-    img1, img2 = pad_to_same_shape(img1, img2)
-    h, w = img1.shape[:2]
-    img = horizontal_combine_images(img1, img2)
-
-    if kp1.shape[0] == 0:
-        return img
-    # shape Mx1x2 M number of matches
-    kp2[:, 0] = kp2[:, 0] + w
-
-    for i in range(kp1.shape[0]):
-        img = cv2.line(img, (kp1[i, 0], kp1[i, 1]), (kp2[i, 0], kp2[i, 1]), (255, 0, 0), 2)
-    return img
-
-
-def draw_keypoints(img, kp):
-    """
-
-    Args:
-        img:
-        kp: kp1 is shape Nx2, N number of feature points, first point in horizontal direction
-
-    Returns:
-
-    """
-    image_copy = np.copy(img)
-    nbr_points = kp.shape[0]
-    for i in range(nbr_points):
-        image = cv2.circle(image_copy, (np.uint(kp[i,0]),np.uint(kp[i,1])), 1, (0,255,0),thickness=5)
-    return image
-
-
 def split2list(images, split, default_split=0.9):
     if isinstance(split, str):
         with open(split) as f:
@@ -108,3 +58,148 @@ def split2list(images, split, default_split=0.9):
     train_samples = [sample for sample, split in zip(images, split_values) if split]
     test_samples = [sample for sample, split in zip(images, split_values) if not split]
     return train_samples, test_samples
+
+
+def resize_keeping_aspect_ratio(image, size):
+    h, w, _ = image.shape
+    if h > w:
+        ratio = float(size) / float(h)
+    else:
+        ratio = float(size) / float(w)
+    new_h = int(h*ratio)
+    new_w = int(w*ratio)
+    return cv2.resize(image, (new_w, new_h)), ratio
+
+
+def pad_to_same_shape(im1, im2):
+    # pad to same shape
+    if im1.shape[0] <= im2.shape[0]:
+        pad_y_1 = im2.shape[0] - im1.shape[0]
+        pad_y_2 = 0
+    else:
+        pad_y_1 = 0
+        pad_y_2 = im1.shape[0] - im2.shape[0]
+    if im1.shape[1] <= im2.shape[1]:
+        pad_x_1 = im2.shape[1] - im1.shape[1]
+        pad_x_2 = 0
+    else:
+        pad_x_1 = 0
+        pad_x_2 = im1.shape[1] - im2.shape[1]
+    im1 = cv2.copyMakeBorder(im1, 0, pad_y_1, 0, pad_x_1, cv2.BORDER_CONSTANT)
+    im2 = cv2.copyMakeBorder(im2, 0, pad_y_2, 0, pad_x_2, cv2.BORDER_CONSTANT)
+    shape = im1.shape
+    return im1, im2
+
+
+def pad_to_size(im, size):
+    # load_size first h then w
+    if not isinstance(size, tuple):
+        size = (size, size)
+    # pad to same shape
+    if im.shape[0] < size[0]:
+        pad_y_1 = size[0] - im.shape[0]
+    else:
+        pad_y_1 = 0
+    if im.shape[1] < size[1]:
+        pad_x_1 = size[1] - im.shape[1]
+    else:
+        pad_x_1 = 0
+
+    im = cv2.copyMakeBorder(im, 0, pad_y_1, 0, pad_x_1, cv2.BORDER_CONSTANT)
+    return im
+
+
+def center_pad(im, size):
+    # load_size first h then w
+    if not isinstance(size, tuple):
+        size = (size, size)
+    # pad to same shape
+    if im.shape[0] < size[0]:
+        pad_y_1 = size[0] - im.shape[0]
+    else:
+        pad_y_1 = 0
+    if im.shape[1] < size[1]:
+        pad_x_1 = size[1] - im.shape[1]
+    else:
+        pad_x_1 = 0
+
+    im = cv2.copyMakeBorder(im, pad_y_1//2, pad_y_1-pad_y_1//2, pad_x_1//2, pad_x_1-pad_x_1//2, cv2.BORDER_CONSTANT)
+    return im
+
+
+def center_crop(img, size):
+    """
+    Get the center crop of the input image
+    Args:
+        img: input image [HxWxC]
+        size: load_size of the center crop (tuple) (width, height)
+    Output:
+        img_pad: center crop
+        x, y: coordinates of the crop
+    """
+
+    if not isinstance(size, tuple):
+        size = (size, size)
+        #load_size is W,H
+
+    img = img.copy()
+    h, w = img.shape[:2]
+
+    pad_w = 0
+    pad_h = 0
+    if w < size[0]:
+        pad_w = np.int(np.ceil((size[0] - w) / 2))
+    if h < size[1]:
+        pad_h = np.int(np.ceil((size[1] - h) / 2))
+    img_pad = cv2.copyMakeBorder(img,
+                                 pad_h,
+                                 pad_h,
+                                 pad_w,
+                                 pad_w,
+                                 cv2.BORDER_CONSTANT,
+                                 value=[0, 0, 0])
+    h, w = img_pad.shape[:2]
+
+    x1 = w // 2 - size[0] // 2
+    y1 = h // 2 - size[1] // 2
+
+    img_pad = img_pad[y1:y1 + size[1], x1:x1 + size[0], :]
+
+    return img_pad, x1, y1
+
+
+def crop(img, size, x1, y1):
+    """
+    Get the center crop of the input image
+    Args:
+        img: input image [HxWxC]
+        size: load_size of the center crop (tuple) (width, height)
+    Output:
+        img_pad: center crop
+        x, y: coordinates of the crop
+    """
+
+    if not isinstance(size, tuple):
+        size = (size, size)
+        #load_size is W,H
+
+    img = img.copy()
+    h, w = img.shape[:2]
+
+    pad_w = 0
+    pad_h = 0
+    if w < (x1 + size[0]):
+        pad_w = np.int(np.ceil(((size[0] + x1) - w) / 2))
+    if h < (y1+size[1]):
+        pad_h = np.int(np.ceil(((y1+size[1]) - h) / 2))
+    img_pad = cv2.copyMakeBorder(img,
+                                 pad_h,
+                                 pad_h,
+                                 pad_w,
+                                 pad_w,
+                                 cv2.BORDER_CONSTANT,
+                                 value=[0, 0, 0])
+    h, w = img_pad.shape[:2]
+    img_pad = img_pad[y1:y1 + size[1], x1:x1 + size[0], :]
+
+    return img_pad, x1, y1

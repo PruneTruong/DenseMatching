@@ -9,15 +9,20 @@ For any questions, issues or recommendations, please contact Prune at prune.truo
 
 ## Highlights
 
-Official implementation of GLU-Net (CVPR 2021), GLU-Net-GOCor (NeurIPS 2020), PWC-Net-GOCor (NeurIPS 2021), 
-PDC-Net (CVPR 2021), including trained models and respective results.
-
-
-Libraries for implementing and evaluating dense matching networks. It includes
-* Common dense matching validation datasets for geometric matching (MegaDepth, RobotCar, ETH3D, HPatches), 
-optical flow (KITTI, Sintel) and semantic matching (TSS). 
-* Scripts to analyse network performance and obtain standard performance scores for matching and pose estimation.
+Libraries for implementing, training and evaluating dense matching networks. It includes
+* Common dense matching **validation datasets** for **geometric matching** (MegaDepth, RobotCar, ETH3D, HPatches), 
+**optical flow** (KITTI, Sintel) and **semantic matching** (TSS, PF-Pascal, PF-Willow, Spair). 
+* Scripts to **analyse** network performance and obtain standard performance scores for matching and pose estimation.
 * General building blocks, including deep networks, optimization, feature extraction and utilities.
+* **General training framework** for training dense matching networks with
+    * Common training datasets for matching networks.
+    * Functions to generate random image pairs and their corresponding ground-truth flow, as well as to add 
+    moving objects and modify the flow accordingly. 
+    * Functions for data sampling, processing etc.
+    * And much more...
+
+* **Official implementation** of GLU-Net (CVPR 2021), GLU-Net-GOCor (NeurIPS 2020), PWC-Net-GOCor (NeurIPS 2021), 
+PDC-Net (CVPR 2021), including trained models and respective results.
 
 <br />
 
@@ -84,6 +89,9 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 ![alt text](/images/glunet.png)
 
 
+<br />
+<br />
+
 ## Pre-trained weights
 
 | Model        | Pre-trained model type | Description                         | Link |
@@ -107,7 +115,8 @@ All networks are created in 'model_selection.py'. Weights should be put in pre_t
 
 1. [Installation](#Installation)
 2. [Test on your own image pairs!](#test)
-3. [Benchmarks and results](#Results)
+3. [Overview](#overview)
+4. [Benchmarks and results](#Results)
     1. [Correspondence evaluation](#correspondence_eval)
         1. [MegaDepth](#megadepth)
         2. [RobotCar](#robotcar)
@@ -116,11 +125,15 @@ All networks are created in 'model_selection.py'. Weights should be put in pre_t
         5. [KITTI](#kitti)
         6. [Sintel](#sintel)
         7. [TSS](#tss)
+        8. [PF-Pascal](#pfpascal)
+        9. [PF-Willow](#pfwillow)
+        10. [Spair-71k](#spair)
     2. [Pose estimation](#pose_estimation)
         1. [YFCC100M](#yfcc)
-4. [Training](#training)
-5. [Acknowledgement](#acknowledgement)
-6. [Changelog](#changelog)
+        2. [ScanNet](#scannet)
+5. [Training](#training)
+6. [Acknowledgement](#acknowledgement)
+7. [Changelog](#changelog)
 
 
 <br />
@@ -167,17 +180,12 @@ We provide an example admin/local_example.py where all datasets are stored in da
 python -c "from admin.environment import create_default_local_file; create_default_local_file()"
 ```
 
+* **Download pre-trained model weights** with the command ```bash assets/download_pre_trained_models.sh```. 
+
 <br />
 
 ## 2. Test on your own image pairs!  <a name="Test"></a>
 
-You can test the networks on a pair of images using test_models.py and the provided trained model weights. 
-You must first choose the model and pre-trained weights to use. 
-The inputs are the paths to the query and reference images. 
-The images are then passed to the network which outputs the corresponding flow field relating the reference to the query image. 
-The query is then warped according to the estimated flow, and a figure is saved. 
-
-<br />
 Possible model choices are : PDCNet, GLUNet_GOCor_star, GLUNet, GLUNet_GOCor, PWCNet, PWCNet_GOCor
 
 Possible pre-trained model choices are: static, dynamic, chairs_things, chairs_things_ft_sintel, megadepth
@@ -212,7 +220,19 @@ PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --
 </details>
 
 
-For this pair of MegaDepth images (provided to check that the code is working properly) and using **PDCNet** (MS) trained on the megadepth dataset, the output is:
+### Test on a specific image pair 
+
+
+You can test the networks on a pair of images using test_models.py and the provided trained model weights. 
+You must first choose the model and pre-trained weights to use. 
+The inputs are the paths to the query and reference images. 
+The images are then passed to the network which outputs the corresponding flow field relating the reference to the query image. 
+The query is then warped according to the estimated flow, and a figure is saved. 
+
+<br />
+
+For this pair of MegaDepth images (provided to check that the code is working properly) and using **PDCNet** (MS) 
+trained on the megadepth dataset, the output is:
 
 ```bash
 python test_models.py --model PDCNet --pre_trained_model megadepth --path_query_image images/piazza_san_marco_0.jpg --path_reference_image images/piazza_san_marco_1.jpg --write_dir evaluation/ PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10
@@ -262,13 +282,38 @@ python test_models.py --model PWCNet --pre_trained_model chairs_things --path_qu
 <br />
 
 
+### Demo with videos 
+
+TO COME
 
 
 
+## 3. Overview  <a name="overview"></a>
+
+The framework consists of the following sub-modules.
+
+* training: 
+    * actors: Contains the actor classes for different trainings. The actor class is responsible for passing the input 
+    data through the network and calculating losses. 
+    Here are also pre-processing classes, that process batch tensor inputs to the desired inputs needed for training the network. 
+    * trainers: The main class which runs the training.
+    * losses: Contain the loss classes 
+* train_settings: Contains settings files, specifying the training of a network.
+* admin: Includes functions for loading networks, tensorboard etc. and also contains environment settings.
+* datasets: Contains integration of a number of datasets. Additionally, it includes modules to generate 
+synthetic image pairs and their corresponding ground-truth flow as well as to add independently moving objects 
+and modify the flow accordingly. 
+* utils_data: Contains functions for processing data, e.g. loading images, data augmentations, sampling frames.
+* utils_flow: Contains functions for working with flow fields, e.g. converting to mapping, warping an array according 
+to a flow, as well as visualization tools. 
+* third_party: External libraries needed for training. Added as submodules.
+* models: Contains different layers and network definitions.
+* validation: Contains functions to evaluate and analyze the performance of the networks in terms of predicted 
+flow and uncertainty. 
 
 
 
-## 3. Benchmark and results  <a name="Results"></a>
+## 4. Benchmark and results  <a name="Results"></a>
 
 All paths to the datasets must be provided in file admin/local.py. 
 We provide an example admin/local_example.py where all datasets are stored in data/. 
@@ -309,7 +354,7 @@ For pose estimation, we also compute the pose with RANSAC, which leads to some v
   
 </details>
 
-### 3.1. Correspondence evaluation <a name="correspondence_eval"></a>
+### 4.1. Correspondence evaluation <a name="correspondence_eval"></a>
 
 Metrics are computed with, 
 ```bash
@@ -539,7 +584,6 @@ Similar results should be obtained:
 |---------------|------------------------|--------|--------|--------|--------|---------|---------|
 | PDCNet (D)         (this repo)     | megadepth                 | 19.40 | 43.94       |    78.51       | 85.81       |
 | PDCNet (H)         (this repo)     | megadepth                 | **17.51** |  **48.69**   |   **82.71**       | **89.44**       |
-| PDCNet (MS)         (this repo)     | megadepth                 |  |     |        |       |
 
 
 
@@ -644,7 +688,57 @@ Similar results should be obtained:
 
 </details>
 
-### 3.2 Pose estimation <a name="pose_estimation"></a>
+<details>
+  <summary><b>PF-Pascal <a name="pfpascal"></a></b></summary>
+
+**Data preparation**: To download the images, run:
+```bash
+bash assets/download_pf_pascal.sh
+```
+ 
+<br />
+
+**Evaluation**: After updating the path of 'PFPascal' in admin/local.py, evaluation is run with
+ ```bash
+python eval_matching.py --datasets PFPascal --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --flipping_condition True --save_dir path_to_save_dir
+```
+</details>
+
+<details>
+  <summary><b>PF-Willow <a name="pfwillow"></a></b></summary>
+
+**Data preparation**: To download the images, run:
+```bash
+bash assets/download_pf_willow.sh
+```
+ 
+<br />
+
+**Evaluation**: After updating the path of 'PFWillow' in admin/local.py, evaluation is run with
+ ```bash
+python eval_matching.py --datasets PFWillow --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --flipping_condition True --save_dir path_to_save_dir
+```
+
+</details>
+
+<details>
+  <summary><b>Spair-71k <a name="spair"></a></b></summary>
+
+**Data preparation**: To download the images, run:
+```bash
+bash assets/download_spair.sh
+```
+ 
+<br />
+
+**Evaluation**: After updating the path of 'spair' in admin/local.py, evaluation is run with
+ ```bash
+python eval_matching.py --datasets spair --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --flipping_condition True --save_dir path_to_save_dir
+```
+
+</details>
+
+### 4.2 Pose estimation <a name="pose_estimation"></a>
 
 
 Metrics are computed with
@@ -656,19 +750,19 @@ python -u eval_pose_estimation.py --datasets dataset_name --model model_name --p
 <details>
   <summary><b>YFCC100M  <a name="yfcc"></a></b></summary>
   
-**Data preparation**: The groundtruth for YFCC is provided the file assets/yfcc_test_pairs_with_gt_original.txt (from [SuperGlue repo]()). 
-Images can be downloaded from the [OANet repo]() and moved to the desired location
+**Data preparation**: The groundtruth for YFCC is provided the file assets/yfcc_test_pairs_with_gt_original.txt (from [SuperGlue repo](https://github.com/magicleap/SuperGluePretrainedNetwork)). 
+Images can be downloaded from the [OANet repo](https://github.com/zjhthu/OANet) and moved to the desired location
 ```bash
 bash assets/download_yfcc.sh
 ```
 File structure should be 
 ```bash
 YFCC
-── images/
-   ├── buckingham_palace/
-   ├── notre_dame_front_facade/
-   ├── reichstag/
-   └── sacre_coeur/
+└──  images/
+       ├── buckingham_palace/
+       ├── notre_dame_front_facade/
+       ├── reichstag/
+       └── sacre_coeur/
 ```
 
   
@@ -676,30 +770,249 @@ YFCC
 **Evaluation**: After updating the path 'yfcc' in admin/local.py, compute metrics on YFCC100M with PDC-Net multiscale (MS) using the command:
 
 ```bash
-python -u eval_pose_estimation.py --datasets dataset_name --model model_name --pre_trained_models pre_trained_model_name --optim_iter optim_step  --local_optim_iter local_optim_iter --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10 
+python -u eval_pose_estimation.py --datasets YFCC --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10 
 ```
 
 You should get similar metrics (not exactly the same because of RANSAC):
   
 |              | mAP @5 | mAP @10 | mAP @20 | Run-time (s) |
 |--------------|--------|---------|---------|--------------|
+| PDC-Net (D)  | 60.52  | 70.91   | 80.30   | 0.         |
 | PDC-Net (H)  | 63.90  | 73.00   | 81.22   | 0.74         |
 | PDC-Net (MS) | 65.18  | 74.21   | 82.42   | 2.55         |
 
 </details>
 
 
+<details>
+  <summary><b>ScanNet <a name="scanNet"></a></b></summary>
+  
+**Data preparation**:  Go to the [ScanNet github repo](https://github.com/ScanNet/ScanNet) to download the ScanNet test set (100 scenes). 
+You will need to extract the raw sensor data from the 100 .sens files in each scene in the test set using the SensReader tool.
+We use the groundtruth provided by in the [SuperGlue repo](https://github.com/magicleap/SuperGluePretrainedNetwork) 
+provided here in the file assets/scannet_test_pairs_with_gt.txt. 
 
 
-## 4. Training <a name="Training"></a>
+<br /><br />
+**Evaluation**: After updating the path 'scannet_test' in admin/local.py, compute metrics on ScanNet with PDC-Net multiscale (MS) using the command:
+```bash
+python -u eval_pose_estimation.py --datasets scannet --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10 
+```
 
-TO COME 
+
+You should get similar metrics (not exactly the same because of RANSAC):
+  
+|              | mAP @5 | mAP @10 | mAP @20 |
+|--------------|--------|---------|---------|
+| PDC-Net (D)  | 39.93  | 50.17   | 60.87   |
+| PDC-Net (H)  | 42.87  | 53.07   | 63.25   |
+| PDC-Net (MS) | 42.40  | 52.83   | 63.13   | 
+
+</details>
 
 
-## 5. Acknowledgement <a name="Acknowledgement"></a>
+
+
+## 5. Training <a name="Training"></a>
+
+### Quick Start
+
+The installation should have generated a local configuration file "admin/local.py". 
+In case the file was not generated, run 
+```python -c "from admin.environment import create_default_local_file; create_default_local_file()"```to generate it. 
+Next, set the paths to the training workspace, i.e. the directory where the model weights and checkpoints will be saved. 
+Also set the paths to the datasets you want to use (and which should be downloaded beforehand, see below). 
+If all the dependencies have been correctly installed, you can train a network using the run_training.py script 
+in the correct conda environment.
+
+```bash
+conda activate dense_matching_env
+python run_training.py train_module train_name
+```
+
+Here, train_module is the sub-module inside train_settings and train_name is the name of the train setting file to be used.
+
+For example, you can train using the included default PDCNet_stage1 settings by running:
+```bash
+python run_training PDCNet PDCNet_stage1
+```
+
+### Training datasets downloading <a name="scanNet"></a>
+
+<details>
+  <summary><b>DPED-CityScape-ADE </b></summary>
+
+This is the same image pairs used in [GLU-Net repo](https://github.com/PruneTruong/GLU-Net). 
+For the training, we use a combination of the DPED, CityScapes and ADE-20K datasets. 
+The DPED training dataset is composed of only approximately 5000 sets of images taken by four different cameras. 
+We use the images from two cameras, resulting in around  10,000 images. 
+CityScapes additionally adds about 23,000 images. 
+We complement with a random sample of ADE-20K images with a minimum resolution of 750 x 750. 
+It results in 40.000 original images, used to create pairs of training images by applying geometric transformations to them. 
+The path to the original images as well as the geometric transformation parameters are given in the csv files
+'assets/csv_files/homo_aff_tps_train_DPED_CityScape_ADE.csv' and 'assets/csv_files/homo_aff_tps_test_DPED_CityScape_ADE.csv'.
+
+**Apparently, the structure of the ADE-20K dataset has changed and the provided paths in the csv files are not valid anymore**. 
+I am working on a fix for the ADE-20K images. 
+In the meantime, use 'assets/csv_files/homo_aff_tps_train_DPED_CityScape.csv' and 
+'assets/csv_files/homo_aff_tps_test_DPED_CityScape.csv' to exclude the ADE images (you don't need to download the ADE-20K dataset in that case). 
+Resulting training data is 31K images. Performance of the resulting trained model might be a bit different. 
+
+ 
+1. Download the original images
+
+* Download the [DPED dataset](http://people.ee.ethz.ch/~ihnatova/) (54 GB) ==> images are created in original_images/
+* Download the [CityScapes dataset](https://www.cityscapes-dataset.com/)
+    - download 'leftImg8bit_trainvaltest.zip' (11GB, left 8-bit images - train, val, and test sets', 5000 images) ==> images are created in CityScape/
+    - download leftImg8bit_trainextra.zip (44GB, left 8-bit images - trainextra set, 19998 images) ==> images are created in CityScape_extra/
+
+* Download the [ADE-20K dataset](https://groups.csail.mit.edu/vision/datasets/ADE20K/) (3.8 GB, 20.210 images) ==> images are created in ADE20K_2016_07_26/
+
+
+Put all the datasets in the same directory. 
+As illustration, your root training directory should be organised as follows:
+```bash
+training_datasets/
+    ├── original_images/
+    ├── CityScape/
+    ├── CityScape_extra/
+    └── ADE20K_2016_07_26/
+```
+
+2. Save the synthetic image pairs and flows to disk                
+During training, from this set of original images, the pairs of synthetic images could be created on the fly at each epoch. 
+However, this dataset generation takes time and since no augmentation is applied at each epoch, one can also create the dataset in advance
+and save it to disk. During training, the image pairs composing the training datasets are then just loaded from the disk 
+before passing through the network, which is a lot faster. 
+To generate the training dataset and save it to disk: 
+
+```bash
+python assets/save_training_dataset_to_disk.py --image_data_path /directory/to/original/training_datasets/ 
+--csv_path assets/homo_aff_tps_train_DPED_CityScape_ADE.csv --save_dir /path/to/save_dir --plot True
+```    
+It will create the images pairs and corresponding flow fields in save_dir/images and save_dir/flow respectively.
+
+3. Add the paths in admin/local.py as 'training_cad_520' and 'validation_cad_520'
+
+</details>
+
+<details>
+  <summary><b>COCO </b></summary>
+  
+This is useful for adding moving objects. 
+Download the images along with annotations from [here](http://cocodataset.org/#download). The root folder should be
+organized as follows. The add the paths in admin/local.py as 'coco'. 
+```bash
+coco_root
+    └── annotations
+        ├── instances_train2014.json
+        └── instances_train2017.json
+    └──images
+        ├── train2014
+        └── train2017
+```
+</details>
+
+
+<details>
+  <summary><b> MegaDepth </b></summary>
+  
+We use the reconstructions provided in the [D2-Net repo](https://github.com/mihaidusmanu/d2-net).
+You can download the undistorted reconstructions and aggregated scene information folder directly 
+[here - Google Drive](https://drive.google.com/drive/folders/1hxpOsqOZefdrba_BqnW490XpNX_LgXPB). 
+
+File structure should be the following:
+```bash
+MegaDepth
+├── Undistorted_Sfm
+└── scene_info
+```
+
+Them add the paths in admin/local.py as 'megadepth_training'. 
+
+</details>
+
+
+
+
+### Training scripts 
+
+The framework currently contains the training code for the following matching networks. 
+The setting files can be used train the networks, or to know the exact training details.
+
+
+**Warp Consistency**: TO COME 
+
+
+<details>
+  <summary><b>PDC-Net <a name="pdcnet"></a></b></summary>
+
+* PDCNet.PDCNet_stage1: The default settings used for first stage network training with fixed backbone weights. 
+We initialize the backbone VGG-16 with pre-trained ImageNet weights. We train first on synthetically generated image 
+pairs from the DPED, CityScape and ADE dataset (pre-computed and saved), on which we add independently moving objects and perturbations. 
+
+* PDCNet.PDCNet_stage2: The default settings used for training the final PDC-Net model. 
+This setting fine-tunes all layers in the model trained using PDCNet_stage1 (including the feature backbone). As training
+dataset, we use a combination of the same dataset than in stage 1 as well as image pairs from the MegaDepth dataset 
+and their sparse ground-truth correspondence data. 
+
+* PDCNet.GLUNet_GOCor_star_stage1: Same settings than for PDCNet_stage1, with different model (non probabilistic baseline). 
+The loss is changed accordingly to the L1 loss instead of the negative log likelihood loss. 
+
+* PDCNet.GLUNet_GOCor_star_stage2: The default settings used for training the final GLU-Net-GOCor* 
+(see [PDCNet paper](https://arxiv.org/abs/2101.01710)). 
+
+</details>
+
+
+<details>
+  <summary><b>GLU-Net <a name="glunet"></a></b></summary>
+
+* GLUNet.GLUNet_static: The default settings used training the final GLU-Net (of the paper
+ [GLU-Net](https://arxiv.org/abs/1912.05524)).  
+We fix the  backbone weights and initialize the backbone VGG-16 with pre-trained ImageNet weights. 
+We train on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved),
+which is later ([GOCor paper](https://arxiv.org/abs/2009.07823)) referred to as 'static' dataset. 
+
+* GLUNet.GLUNet_dynamic: The default settings used training the final GLU-Net trained on the dynamic 
+dataset (of the paper [GOCor](https://arxiv.org/abs/2009.07823)).  
+We fix the  backbone weights and initialize the backbone VGG-16 with pre-trained ImageNet weights. 
+We train on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved), 
+on which we add one independently moving object. 
+This dataset is referred to as 'dynamic' dataset in [GOCor paper](https://arxiv.org/abs/2009.07823). 
+
+</details>
+
+
+### Training your own networks
+
+To train a custom network using the toolkit, the following components need to be specified in the train settings. 
+For reference, see [GLUNet_static.py](https://github.com/PruneTruong/DenseMatching/train_settings/GLUNet/GLUNet_static.py).
+
+* Datasets: The datasets to be used for training. A number of standard matching datasets are already available in 
+the datasets module. The dataset class can be passed a processing function, which should perform the necessary 
+processing of the data before batching it, e.g. data augmentations and conversion to tensors.
+* Dataloader: Determines how to sample the batches. Can use specific samplers. 
+* Network: The network module to be trained.
+* BatchPreprocessingModule: The pre-processing module that takes the batch and will transform it to the inputs 
+required for training the network. Depends on the different networks and training strategies. 
+* Objective: The training objective.
+* Actor: The trainer passes the training batch to the actor who is responsible for passing the data through the 
+network correctly, and calculating the training loss. The batch preprocessing is also done within the actor class. 
+* Optimizer: Optimizer to be used, e.g. Adam.
+* Scheduler: Scheduler to be used. 
+* Trainer: The main class which runs the epochs and saves checkpoints.
+
+
+
+## 6. Acknowledgement <a name="Acknowledgement"></a>
 
 We borrow code from public projects, such as [pytracking](https://github.com/visionml/pytracking), [GLU-Net](https://github.com/PruneTruong/GLU-Net), 
 [DGC-Net](https://github.com/AaltoVision/DGC-Net), [PWC-Net](https://github.com/NVlabs/PWC-Net), 
 [NC-Net](https://github.com/ignacio-rocco/ncnet), [Flow-Net-Pytorch](https://github.com/ClementPinard/FlowNetPytorch), 
-[RAFT](https://github.com/princeton-vl/RAFT)...
+[RAFT](https://github.com/princeton-vl/RAFT), [CATs](https://github.com/SunghwanHong/CATs)...
 
+## 7. ChangeLog <a name="changelog"></a>
+
+* 06/21: Added evaluation code
+* 07/21: Added training code and more options for evaluation

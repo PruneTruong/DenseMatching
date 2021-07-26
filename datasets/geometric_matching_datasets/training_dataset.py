@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
-from utils_flow.util import center_crop
+from ..util import center_crop
 from utils_flow.flow_and_mapping_operations import unormalise_and_convert_mapping_to_flow
 from datasets.util import define_mask_zero_borders
 
