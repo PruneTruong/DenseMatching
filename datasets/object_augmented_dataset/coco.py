@@ -1,5 +1,5 @@
 import os
-from .base_image_dataset import BaseImageDataset
+from datasets.object_augmented_dataset.base_image_dataset import BaseImageDataset
 import torch
 from pycocotools.coco import COCO
 from collections import OrderedDict
@@ -86,7 +86,7 @@ class MSCOCOImages(Dataset):
         Args:
             idx
 
-        Returns:
+        Returns: Dictionary with fieldname:
             image
         """
         output = self._read_single_view(idx)
@@ -207,6 +207,9 @@ class MSCOCO(BaseImageDataset):
     def _get_image(self, im_id):
         path = self.coco_set.loadImgs([self.coco_set.anns[self.image_list[im_id]]['image_id']])[0]['file_name']
         img = self.image_loader(os.path.join(self.img_pth, path))
+        if len(img.shape) == 2:
+            # black and white image
+            img = cv2. cvtColor(img, cv2. COLOR_GRAY2RGB)
         #img = imread(os.path.join(self.img_pth, path))
         return img
 

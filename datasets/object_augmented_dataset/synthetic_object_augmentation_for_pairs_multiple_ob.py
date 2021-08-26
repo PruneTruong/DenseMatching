@@ -199,6 +199,8 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
 
     def __getitem__(self, index):
         """
+        TODO: clean-up
+
         Args:
             index
 
@@ -218,6 +220,7 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
             if mask_zero_borders:
                 mask_zero_borders: bool tensor equal to 1 where the target image is not equal to 0, 0 otherwise
         """
+
         # get background image, which correspond to the original image pair
         background_sample = self.background_image_dataset.__getitem__(index)
         bg_frame_list = [background_sample['source_image'], background_sample['target_image']]
@@ -253,137 +256,137 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
         mask_of_reprojected_object_from_source_to_target = torch.zeros_like(occluded_mask)
 
         [source_image, target_image] = bg_frame_list
+
         if np.random.rand() < self.object_proba:  # only add objects with a certain probability
             if self.random_nbr_objects:
                 number_of_objects = random.randint(1, self.number_of_objects)
             else:
                 number_of_objects = self.number_of_objects
             for ob_id in range(0, number_of_objects):
-                try:
-                    # Handle foreground
-                    seq_id = random.randint(0, self.get_num_sequences() - 1)
-                    anno = self.get_sequence_info(seq_id)
+                # Handle foreground
+                seq_id = random.randint(0, self.get_num_sequences() - 1)
+                anno = self.get_sequence_info(seq_id)
 
-                    image_fg, fg_anno, fg_object_meta = self.foreground_image_dataset.get_image(seq_id, anno=anno)
+                image_fg, fg_anno, fg_object_meta = self.foreground_image_dataset.get_image(seq_id, anno=anno)
 
-                    # get segmentation mask and bounding box of the foreground object to past
-                    mask_fg = fg_anno['mask'][0]  # float32
-                    bbox_fg = fg_anno['bbox'][0]
+                # get segmentation mask and bounding box of the foreground object to past
+                mask_fg = fg_anno['mask'][0]  # float32
+                bbox_fg = fg_anno['bbox'][0]
 
-                    # if the object is too big, reduce it:
-                    number_of_pixels = bg_frame_list[0].shape[0]*bg_frame_list[0].shape[1]
-                    if mask_fg.sum() > 0.5 * number_of_pixels:
-                        scale = random.uniform(0.1, 0.4) * number_of_pixels / mask_fg.sum()
-                        image_fg, bbox_fg, mask_fg, _ = self.foreground_transform.transform_with_specific_values(
-                            image_fg, bbox_fg, mask_fg, do_flip=False, theta=0, shear_values=(0, 0),
-                            scale_factors=(scale, scale), tx=0, ty=0)
+                # if the object is too big, reduce it:
+                number_of_pixels = bg_frame_list[0].shape[0]*bg_frame_list[0].shape[1]
+                if mask_fg.sum() > 0.5 * number_of_pixels:
+                    scale = random.uniform(0.1, 0.4) * number_of_pixels / mask_fg.sum()
+                    image_fg, bbox_fg, mask_fg, _ = self.foreground_transform.transform_with_specific_values(
+                        image_fg, bbox_fg, mask_fg, do_flip=False, theta=0, shear_values=(0, 0),
+                        scale_factors=(scale, scale), tx=0, ty=0)
 
-                    # for the target image, put the object at random location on the target background
-                    loc_y_target = random.randint(0, bg_frame_list[1].shape[0] - 1)
-                    loc_x_target = random.randint(0, bg_frame_list[1].shape[1] - 1)
-                    target_image, target_mask_fg = self._paste_target(image_fg, masks_to_bboxes(mask_fg, fmt='t'),
-                                                                   mask_fg, bg_frame_list[1],  # original target image
-                                                                   (loc_x_target, loc_y_target))
+                # for the target image, put the object at random location on the target background
+                loc_y_target = random.randint(0, bg_frame_list[1].shape[0] - 1)
+                loc_x_target = random.randint(0, bg_frame_list[1].shape[1] - 1)
 
-                    # computes the geometric transformation applied to the object to paste it in the source image
-                    # the transformation is defined in self.foreground_transform and we additionally add translation
-                    # to decide more or less the location of object in the source image
-                    # proba half, transform is only a small translation, half its a random location
-                    if np.random.rand() < 0.5:
-                        # make a small translation only
-                        translation_x = random.randrange(-8, 8)
-                        loc_x_source = loc_x_target + translation_x
-                        if loc_x_source > (bg_frame_list[1].shape[1] - 1) or loc_x_source < 0:
-                            loc_x_source = loc_x_target - translation_x
+                target_image, target_mask_fg = self._paste_target(image_fg, masks_to_bboxes(mask_fg, fmt='t'),
+                                                               mask_fg, bg_frame_list[1],  # original target image
+                                                               (loc_x_target, loc_y_target))
 
-                        translation_y = random.randrange(-8, 8)
-                        loc_y_source = loc_y_target + translation_y
-                        if loc_y_source > (bg_frame_list[1].shape[0] - 1) or loc_y_source < 0:
-                            loc_y_source = loc_y_target - translation_y
-                    else:
-                        loc_y_source = random.randint(0, bg_frame_list[1].shape[0] - 1)
-                        loc_x_source = random.randint(0, bg_frame_list[1].shape[1] - 1)
 
-                    # corresponding translation
-                    tx = loc_x_source - loc_x_target
-                    ty = loc_y_source - loc_y_target
+                # computes the geometric transformation applied to the object to paste it in the source image
+                # the transformation is defined in self.foreground_transform and we additionally add translation
+                # to decide more or less the location of object in the source image
+                # proba half, transform is only a small translation, half its a random location
+                if np.random.rand() < 0.5:
+                    # make a small translation only
+                    translation_x = random.randrange(-8, 8)
+                    loc_x_source = loc_x_target + translation_x
+                    if loc_x_source > (bg_frame_list[1].shape[1] - 1) or loc_x_source < 0:
+                        loc_x_source = loc_x_target - translation_x
 
-                    # transform the newly augmentated target image, and keep track of the object bounding box and
-                    # segmentation mask, also outputs the homography h corresponding to the geometric transformation of
-                    # the object.
-                    source_image_fg, source_bbx_fg, source_mask_fg, h = self.foreground_transform.transform(
-                        image=target_image, bbox=masks_to_bboxes(target_mask_fg, fmt='t'), mask=target_mask_fg,
-                        tx=tx, ty=ty)
+                    translation_y = random.randrange(-8, 8)
+                    loc_y_source = loc_y_target + translation_y
+                    if loc_y_source > (bg_frame_list[1].shape[0] - 1) or loc_y_source < 0:
+                        loc_y_source = loc_y_target - translation_y
+                else:
+                    loc_y_source = random.randint(0, bg_frame_list[1].shape[0] - 1)
+                    loc_x_source = random.randint(0, bg_frame_list[1].shape[1] - 1)
 
-                    # get the flow corresponding to this transformation
-                    flow_x, flow_y = from_homography_to_pixel_wise_mapping(target_image.shape[:2], h)
-                    flow_fg_object = np.dstack([flow_x, flow_y])
+                # corresponding translation
+                tx = loc_x_source - loc_x_target
+                ty = loc_y_source - loc_y_target
 
-                    source_mask_fg = source_mask_fg.bool() if float(torch.__version__[:3]) >= 1.1 else source_mask_fg.byte()
-                    target_mask_fg = target_mask_fg.bool() if float(torch.__version__[:3]) >= 1.1 else target_mask_fg.byte()
+                # transform the newly augmentated target image, and keep track of the object bounding box and
+                # segmentation mask, also outputs the homography h corresponding to the geometric transformation of
+                # the object.
+                source_image_fg, source_bbx_fg, source_mask_fg, h = self.foreground_transform.transform(
+                    image=target_image, bbox=masks_to_bboxes(target_mask_fg, fmt='t'), mask=target_mask_fg,
+                    tx=tx, ty=ty)
 
-                    # compute newly augmented source image. it is the source background except at location of object !
-                    source_image = np.where(source_mask_fg.unsqueeze(2).numpy(), source_image_fg, bg_frame_list[0])
+                # get the flow corresponding to this transformation
+                flow_x, flow_y = from_homography_to_pixel_wise_mapping(target_image.shape[:2], h)
+                flow_fg_object = np.dstack([flow_x, flow_y])
 
-                    # compute the final flow as composition of background and foreground
-                    if source_mask_fg.sum() != 0:
-                        # the object that is in target is not fully occluded in the source (the object is also present
-                        # in the source image)
-                        flow_file = torch.where(target_mask_fg.unsqueeze(2), torch.from_numpy(flow_fg_object).float(),
-                                                flow_file)
+                source_mask_fg = source_mask_fg.bool() if float(torch.__version__[:3]) >= 1.1 else source_mask_fg.byte()
+                target_mask_fg = target_mask_fg.bool() if float(torch.__version__[:3]) >= 1.1 else target_mask_fg.byte()
 
-                        mask_of_objects_in_target = mask_of_objects_in_target | target_mask_fg
+                # compute newly augmented source image. it is the source background except at location of object !
+                source_image = np.where(source_mask_fg.unsqueeze(2).numpy(), source_image_fg, bg_frame_list[0])
 
-                        # current object in source covering old objects in source
-                        area_of_source_objects_covered_by_new_object = mask_of_objects_in_source & source_mask_fg
-                        mask_of_objects_in_source = mask_of_objects_in_source | source_mask_fg
-                        if self.compute_occlusion_mask or self.compute_object_reprojection_mask:
-                            # occlusion due to object in source, i.e. places it covers does not have correspondence
-                            # in target image.
-                            # warped according to original bg !
-                            mask_fg_object_source_in_target_frame = np.clip(
-                                remap_using_flow_fields(source_mask_fg.float().numpy(), flow_bg[:, :, 0].numpy(),
-                                                        flow_bg[:, :, 1].numpy()), 0, 1)
-                            mask_fg_object_source_in_target_frame = torch.Tensor(
-                                cv2.erode(cv2.dilate(mask_fg_object_source_in_target_frame,
-                                                     np.ones((3, 3), np.uint8), iterations=1),
-                                          np.ones((3, 3), np.uint8), iterations=1))
-                            mask_fg_object_source_in_target_frame = mask_fg_object_source_in_target_frame.bool() \
-                                if float(torch.__version__[:3]) >= 1.1 else mask_fg_object_source_in_target_frame.byte()
 
-                            # not fully valid if object was further covered
-                            if area_of_source_objects_covered_by_new_object.sum() > 0:
-                                # warp area covering old objects  with current object in source by all flow
-                                # should be included in occluded regions
-                                mask_occluded_in_source = np.clip(
-                                    remap_using_flow_fields(source_mask_fg.float().numpy(), flow_file[:, :, 0].numpy(),
-                                                            flow_file[:, :, 1].numpy()), 0, 1)
-                                mask_occluded_in_source = torch.Tensor(mask_occluded_in_source).byte()
-                                mask_occluded_in_source = mask_occluded_in_source.bool() \
-                                    if float(torch.__version__[:3]) >= 1.1 else mask_occluded_in_source.byte()
-                                mask_of_reprojected_object_from_source_to_target = \
-                                    mask_of_reprojected_object_from_source_to_target | mask_occluded_in_source
+                # compute the final flow as composition of background and foreground
+                if source_mask_fg.sum() != 0:
+                    # the object that is in target is not fully occluded in the source (the object is also present
+                    # in the source image)
+                    flow_file = torch.where(target_mask_fg.unsqueeze(2), torch.from_numpy(flow_fg_object).float(),
+                                            flow_file)
 
-                            # add current mask of reprojection to the final mask of reprojection
+                    mask_of_objects_in_target = mask_of_objects_in_target | target_mask_fg
+
+                    # current object in source covering old objects in source
+                    area_of_source_objects_covered_by_new_object = mask_of_objects_in_source & source_mask_fg
+                    mask_of_objects_in_source = mask_of_objects_in_source | source_mask_fg
+                    if self.compute_occlusion_mask or self.compute_object_reprojection_mask:
+                        # occlusion due to object in source, i.e. places it covers does not have correspondence
+                        # in target image.
+                        # warped according to original bg !
+                        mask_fg_object_source_in_target_frame = np.clip(
+                            remap_using_flow_fields(source_mask_fg.float().numpy(), flow_bg[:, :, 0].numpy(),
+                                                    flow_bg[:, :, 1].numpy()), 0, 1)
+                        mask_fg_object_source_in_target_frame = torch.Tensor(
+                            cv2.erode(cv2.dilate(mask_fg_object_source_in_target_frame,
+                                                 np.ones((3, 3), np.uint8), iterations=1),
+                                      np.ones((3, 3), np.uint8), iterations=1))
+                        mask_fg_object_source_in_target_frame = mask_fg_object_source_in_target_frame.bool() \
+                            if float(torch.__version__[:3]) >= 1.1 else mask_fg_object_source_in_target_frame.byte()
+
+                        # not fully valid if object was further covered
+                        if area_of_source_objects_covered_by_new_object.sum() > 0:
+                            # warp area covering old objects  with current object in source by all flow
+                            # should be included in occluded regions
+                            mask_occluded_in_source = np.clip(
+                                remap_using_flow_fields(source_mask_fg.float().numpy(), flow_file[:, :, 0].numpy(),
+                                                        flow_file[:, :, 1].numpy()), 0, 1)
+                            mask_occluded_in_source = torch.Tensor(mask_occluded_in_source).byte()
+                            mask_occluded_in_source = mask_occluded_in_source.bool() \
+                                if float(torch.__version__[:3]) >= 1.1 else mask_occluded_in_source.byte()
                             mask_of_reprojected_object_from_source_to_target = \
-                                mask_of_reprojected_object_from_source_to_target | mask_fg_object_source_in_target_frame
+                                mask_of_reprojected_object_from_source_to_target | mask_occluded_in_source
 
-                            # remove current target mask from reproction mask (there is an object here,
-                            # so correct match at the current level), but can cover older objects.
-                            mask_of_reprojected_object_from_source_to_target = \
-                                mask_of_reprojected_object_from_source_to_target & ~target_mask_fg
-                    else:
-                        # the object that is in target is fully occluded in the source (the object is NOT present
-                        # in the source image). Therefore, the flow needs to be background everywhere.
-                        # the target object is therefore an occlusion for the background basically.
+                        # add current mask of reprojection to the final mask of reprojection
                         mask_of_reprojected_object_from_source_to_target = \
-                            mask_of_reprojected_object_from_source_to_target | target_mask_fg
-                        flow_file = flow_file
+                            mask_of_reprojected_object_from_source_to_target | mask_fg_object_source_in_target_frame
 
-                    bg_frame_list = [source_image, target_image]
+                        # remove current target mask from reproction mask (there is an object here,
+                        # so correct match at the current level), but can cover older objects.
+                        mask_of_reprojected_object_from_source_to_target = \
+                            mask_of_reprojected_object_from_source_to_target & ~target_mask_fg
+                else:
+                    # the object that is in target is fully occluded in the source (the object is NOT present
+                    # in the source image). Therefore, the flow needs to be background everywhere.
+                    # the target object is therefore an occlusion for the background basically.
+                    mask_of_reprojected_object_from_source_to_target = \
+                        mask_of_reprojected_object_from_source_to_target | target_mask_fg
+                    flow_file = flow_file
 
-                except:
-                    [source_image, target_image] = bg_frame_list
+                bg_frame_list = [source_image, target_image]
 
         # from the reprojection, make sure that we do not occlude some part of target object
         valid_flow = get_gt_correspondence_mask(flow_file)  # remove out of regions flow

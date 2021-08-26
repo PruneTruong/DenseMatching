@@ -20,9 +20,16 @@ class MixDatasets(data.Dataset):
         self.list_of_indexes = []
         self.list_overwrite_mask = list_overwrite_mask
         self.list_sparse = list_sparse
-        self.sample_new_items(seed)
+        self.get_indexes()
+
+    def get_indexes(self):
+        self.list_of_indexes = []
+        for index_dataset, dataset in enumerate(self.list_of_datasets):
+            for index_element in range(dataset.__len__()):
+                self.list_of_indexes.append([index_dataset, index_element])
 
     def sample_new_items(self, seed):
+        self.list_of_indexes = []
         print('Sampling images in mixture')
         for index_dataset, dataset in enumerate(self.list_of_datasets):
             if hasattr(dataset, 'sample_new_items'):
@@ -38,6 +45,7 @@ class MixDatasets(data.Dataset):
         Returns:
             dict_element, output of __getitem__ of datasets contained in self.list_of_datasets
         """
+
         [index_dataset, index_element] = self.list_of_indexes[index]
         dict_element = self.list_of_datasets[index_dataset].__getitem__(index_element)
 

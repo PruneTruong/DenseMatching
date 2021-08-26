@@ -55,6 +55,11 @@ def run(settings):
     coco_dataset_train = MSCOCO(root=settings.env.coco, split='train', version='2014',
                                 min_area=min_target_area)
 
+    # parameter for the perturbations
+    perturbations_parameters_v2 = {'elastic_param': {"max_sigma": 0.04, "min_sigma": 0.1, "min_alpha": 1,
+                                                     "max_alpha": 0.4},
+                                   'max_sigma_mask': 10, 'min_sigma_mask': 3}
+
     # base training data is DPED-CityScape-ADE + perturbations
     train_dataset_, _ = PreMadeDataset(root=settings.env.training_cad_520,
                                        source_image_transform=None,
@@ -64,6 +69,7 @@ def run(settings):
                                        split=1,
                                        get_mapping=False,
                                        add_discontinuity=True,
+                                       parameters_v2=perturbations_parameters_v2,
                                        max_nbr_perturbations=15,
                                        min_nbr_perturbations=5)
 
@@ -85,23 +91,25 @@ def run(settings):
                      'train_num_per_scene': 300, 'val_num_per_scene': 25,
                      'output_image_size': [520, 520], 'pad_to_same_shape': True,
                      'output_flow_size': [[520, 520], [256, 256]]}
-    training_dataset_MegaDepth = MegaDepthDataset(root=settings.env.megadepth_training,
-                                                  load_pre_saved_dataset=False, cfg=megadepth_cfg,
+    training_dataset_MegaDepth = MegaDepthDataset(root=settings.env.megadepth_training, split='train',
+                                                  cfg=megadepth_cfg,
                                                   source_image_transform=img_transforms,
                                                   target_image_transform=img_transforms,
                                                   flow_transform=flow_transform, co_transform=co_transform,
-                                                  split='train')
+                                                  store_scene_info_in_memory=False)
+    # put store_scene_info_in_memory to True if more than 55GB of cpu memory is available. Sampling will be faster
 
     # final training dataset is the combination of both. Here, we overwrite the mask of train_dataset_dynamic
     train_dataset = MixDatasets(list_of_datasets=[train_dataset_dynamic, training_dataset_MegaDepth],
                                 list_overwrite_mask=[True, False], list_sparse=[False, True])
 
     # validation data: only megadepth sparse data
-    val_dataset = MegaDepthDataset(root=settings.env.megadepth_training, load_pre_saved_dataset=False,
-                                   cfg=megadepth_cfg, split='val',
+    val_dataset = MegaDepthDataset(root=settings.env.megadepth_training, cfg=megadepth_cfg, split='val',
                                    source_image_transform=img_transforms,
                                    target_image_transform=img_transforms,
-                                   flow_transform=flow_transform, co_transform=co_transform)
+                                   flow_transform=flow_transform, co_transform=co_transform,
+                                   store_scene_info_in_memory=False)
+    # put store_scene_info_in_memory to True if more than 55GB of cpu memory is available. Sampling will be faster
 
     # dataloader
     train_loader = Loader('train', train_dataset, batch_size=settings.batch_size,
@@ -147,8 +155,8 @@ def run(settings):
     loss_module_256 = MultiScaleFlow(level_weights=weights_level_loss[:2], loss_function=objective,
                                      downsample_gt_flow=False)
     loss_module = MultiScaleFlow(level_weights=weights_level_loss[2:], loss_function=objective, downsample_gt_flow=False)
-    GLUNetActor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
-                                   batch_processing=batch_preprocessing)
+    glunet_actor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
+                                    batch_processing=batch_preprocessing)
 
     # Optimizer
     optimizer = \
@@ -160,7 +168,7 @@ def run(settings):
     scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=settings.scheduler_steps, gamma=0.5)
 
     # Trainer
-    trainer = MatchingTrainer(GLUNetActor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler,
+    trainer = MatchingTrainer(glunet_actor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler,
                               make_initial_validation=True)
 
     trainer.train(settings.n_epochs, load_latest=True, fail_safe=True)

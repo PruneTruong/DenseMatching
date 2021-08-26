@@ -5,6 +5,7 @@ from admin.stats import AverageMeter, StatValue
 from admin.tensorboard import TensorboardWriter
 import torch
 import time
+import gc
 
 
 class MatchingTrainer(BaseTrainer):
@@ -30,7 +31,6 @@ class MatchingTrainer(BaseTrainer):
         # I want to save the checkpoints at the same location than the models and so on
         tensorboard_writer_dir = os.path.join(self._base_save_dir, self.settings.project_path, 'tensorboard')
         self.tensorboard_writer = TensorboardWriter(tensorboard_writer_dir, [l.name for l in loaders])
-
         self.move_data_to_gpu = getattr(settings, 'move_data_to_gpu', True)
 
     def _set_default_settings(self):
@@ -78,19 +78,16 @@ class MatchingTrainer(BaseTrainer):
                 if not grad_is_nan:
                     self.optimizer.step()
 
+                del loss
+
             # update statistics
             batch_size = data['source_image'].shape[0]
             self._update_stats(stats, batch_size, loader)
-
-            # print statistics
-            if loader.training:
-                # for training print statistics often
-                self._print_stats(i, loader, batch_size)
-        if not loader.training:
-            # update the current best value, for each actor, can decide what is the best value.
-            self.current_best_val = self.stats[loader.name]['best_value'].avg
-            # only print at the end of the epoch for validation
             self._print_stats(i, loader, batch_size)
+
+        if not loader.training:
+            # update the current best value, for each epoch, can decide what is the best value.
+            self.current_best_val = self.stats[loader.name]['best_value'].avg
 
     def train_epoch(self):
         """Do one epoch for each loader."""
@@ -105,7 +102,7 @@ class MatchingTrainer(BaseTrainer):
             # do one cycle of training dataset
 
             # resample the training dataset if dataset_callback_fn exists
-            if loader.name == 'train' and self.epoch > 1 and self.settings.dataset_callback_fn:
+            if loader.name == 'train' and self.epoch > 1 and not self.just_started and self.settings.dataset_callback_fn:
                 if hasattr(loader.dataset, self.settings.dataset_callback_fn):
                     getattr(loader.dataset, self.settings.dataset_callback_fn)(self.settings.seed + self.epoch)
 
@@ -114,6 +111,8 @@ class MatchingTrainer(BaseTrainer):
 
         self._stats_new_epoch()
         self._write_tensorboard()
+        torch.cuda.empty_cache()
+        gc.collect()
 
     def _init_timing(self):
         self.num_frames = 0
@@ -136,17 +135,19 @@ class MatchingTrainer(BaseTrainer):
         batch_fps = batch_size / (current_time - self.prev_time)
         average_fps = self.num_frames / (current_time - self.start_time)
         self.prev_time = current_time
+
         if i % self.settings.print_interval == 0 or i == (loader.__len__() - 1):
             lr = self.lr_scheduler.get_last_lr()[0] if float(torch.__version__[:3]) >= 1.1 else \
                 self.lr_scheduler.get_lr()[0]
             print_str = '[%s: epoch %d, batch %d / %d] ' % (loader.name, self.epoch, i, loader.__len__())
             print_str += 'FPS: %.1f (%.1f)  ,  lr: %.5f   ,  ' % (average_fps, batch_fps, lr)
+
             for name, val in self.stats[loader.name].items():
                 if (self.settings.print_stats is None or name in self.settings.print_stats) and hasattr(val, 'avg'):
                     print_str += '%s: %.5f  ,  ' % (name, val.avg)
 
             print('\n' + print_str[:-5])
-            if loader.name == 'val':
+            if loader.name == 'val' and i == (loader.__len__() - 1):
                 print('\n Last validation update {}, value = {}'.format(self.epoch_of_best_val, self.best_val))
 
     def _stats_new_epoch(self):
@@ -179,5 +180,5 @@ class MatchingTrainer(BaseTrainer):
         # add all statistics to tensorboard
         if self.epoch == 1:
             self.tensorboard_writer.write_info(self.settings.module_name, self.settings.script_name, self.settings.description)
-
         self.tensorboard_writer.write_epoch(self.stats, self.epoch)
+

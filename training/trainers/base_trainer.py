@@ -2,7 +2,7 @@ import os
 import glob
 import torch
 import traceback
-from admin import multigpu
+from admin import loading, multigpu
 
 
 class BaseTrainer:
@@ -29,6 +29,7 @@ class BaseTrainer:
 
         self.update_settings(settings)
 
+        self.just_started = False  # to sample new dataset items only at the next epoch
         self.epoch = 0
         self.stats = {}
         self.best_val = float("Inf")  # absolute best val, to know when to save the checkpoint.
@@ -64,6 +65,7 @@ class BaseTrainer:
             fail_safe - Bool indicating whether the training to automatically restart in case of any crashes.
         """
 
+        self.just_started = True
         epoch = -1
         num_tries = 2
         for i in range(num_tries):
@@ -72,7 +74,6 @@ class BaseTrainer:
                     self.load_checkpoint(additional_ignore_fields=load_ignore_fields)
 
                 for epoch in range(self.epoch+1, max_epochs+1):
-                    print('Starting epoch {}'.format(epoch))
                     self.epoch = epoch
 
                     # do one training epoch
@@ -92,6 +93,7 @@ class BaseTrainer:
 
                         self.save_checkpoint(name='model_best')
 
+                    self.just_started = False  # to enable resampling of dataset item at the next epoch
                     # save checkpoint
                     if self._base_save_dir:
                         self.save_checkpoint()

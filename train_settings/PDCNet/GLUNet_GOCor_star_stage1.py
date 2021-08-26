@@ -128,8 +128,8 @@ def run(settings):
     loss_module_256 = MultiScaleFlow(level_weights=weights_level_loss[:2], loss_function=objective,
                                      downsample_gt_flow=True)
     loss_module = MultiScaleFlow(level_weights=weights_level_loss[2:], loss_function=objective, downsample_gt_flow=True)
-    GLUNetActor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
-                                   batch_processing=batch_processing)
+    glunet_actor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
+                                    batch_processing=batch_processing)
 
     # Optimizer
     optimizer = \
@@ -143,7 +143,7 @@ def run(settings):
                                          gamma=0.5)
 
     # Trainer
-    trainer = MatchingTrainer(GLUNetActor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler)
+    trainer = MatchingTrainer(glunet_actor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler)
 
     trainer.train(settings.n_epochs, load_latest=True, fail_safe=True)
 

@@ -1016,3 +1016,4 @@ We borrow code from public projects, such as [pytracking](https://github.com/vis
 
 * 06/21: Added evaluation code
 * 07/21: Added training code and more options for evaluation
+* 08/21: Fixed memory leak in mixture dataset + added other sampling for megadepth dataset

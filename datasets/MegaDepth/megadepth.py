@@ -9,26 +9,30 @@ from ..util import pad_to_same_shape, pad_to_size, resize_keeping_aspect_ratio
 import cv2
 import random
 from datasets.util import define_mask_zero_borders
+from sys import getsizeof
+import time
+import copy
+import jpeg4py
 
 
 class MegaDepthDataset(Dataset):
     """MegaDepth dataset. Retrieves either pairs of matching images and their corresponding ground-truth flow
     (that is actually sparse) or single images. """
-    def __init__(self, root, cfg, load_pre_saved_dataset, split='train', source_image_transform=None,
+    def __init__(self, root, cfg, split='train', source_image_transform=None,
                  target_image_transform=None, flow_transform=None, co_transform=None, compute_mask_zero_borders=False,
-                 pickle_information=None):
+                 store_scene_info_in_memory=False):
         """
         Args:
             root: root directory
             cfg: config (dictionary)
-            load_pre_saved_dataset: load pre computed image pairs using pickle information ?
             split: 'train' or 'val'
             source_image_transform: image transformations to apply to source images
             target_image_transform: image transformations to apply to target images
             flow_transform: flow transformations to apply to ground-truth flow fields
             co_transform: transforms to apply to both image pairs and corresponding flow field
             compute_mask_zero_borders: output mask of zero borders ?
-            pickle_information: path to pickle information
+            store_scene_info_in_memory: store all scene info in cpu memory? requires at least 50GB for training but
+                                        sampling at each epoch is faster.
 
         Output in __getitem__:
             if self.two_views:
@@ -96,136 +100,28 @@ class MegaDepthDataset(Dataset):
 
         self.compute_mask_zero_borders = compute_mask_zero_borders
 
-        self.load_pre_saved_dataset = load_pre_saved_dataset
+        self.items = []
+        self.store_scene_info_in_memory = store_scene_info_in_memory
+        if not self.two_views:
+            # if single view, always just store
+            self.store_scene_info_in_memory = True
 
-        if not self.two_views and self.load_pre_saved_dataset:
-            raise ValueError('there is no pre saved dataset for single view')
-
-        if self.load_pre_saved_dataset:
-            print('Loading from MegaDepth pickle')
-            if not os.path.exists(pickle_information):
-                raise ValueError('the path to info that you provided does not exist: {}'.format(pickle_information))
-            with open(pickle_information, "rb") as fp:  # Unpickling
-                self.items = pickle.load(fp)
+        if self.store_scene_info_in_memory:
+            # it will take around 35GB, you need at least 50GB of cpu memory to train
+            self.save_scene_info()
+            self.sample_new_items(self.cfg['seed'])
         else:
             self.sample_new_items(self.cfg['seed'])
         print('MegaDepth: {} dataset comprises {} image pairs'.format(self.split, self.__len__()))
 
-    def build_pair_dataset_and_save_info_to_disk(self):
-        self.items = []
-        np.random.seed(self.cfg.seed)
-        print('Building the {} dataset...'.format(self.split))
-
-        for scene in tqdm(self.scenes, total=len(self.scenes)):
-            # for each scene
-            scene_info_path = os.path.join(
-                self.scene_info_path, '%s.0.npz' % scene
-            )
-            if not os.path.exists(scene_info_path):
-                continue
-
-            scene_info = np.load(scene_info_path, allow_pickle=True)
-            overlap_matrix = scene_info['overlap_matrix']
-            scale_ratio_matrix = scene_info['scale_ratio_matrix']
-
-            # select valid pairs within the scene that have proper overlap and scale ratio
-            valid = np.logical_and(
-                np.logical_and(
-                    overlap_matrix >= self.cfg['min_overlap_ratio'],
-                    overlap_matrix <= self.cfg['max_overlap_ratio']
-                ),
-                scale_ratio_matrix <= self.cfg['max_scale_ratio']
-            )
-
-            pairs = np.vstack(np.where(valid)) # valid pairs that correspond to criteria
-            try:
-                num = self.cfg[self.split + '_num_per_scene']
-                if num is None:
-                    selected_ids = range(pairs.shape[1])
-                else:
-                    selected_ids = np.random.choice(
-                        pairs.shape[1], num
-                    )
-                # select some pairs if you dont want to have all pairs in the scene
-
-                # get info about the scene images
-                image_paths = scene_info['image_paths']
-                # depth_paths = scene_info['depth_paths']
-                points3D_id_to_2D = scene_info['points3D_id_to_2D']
-                # points3D_id_to_ndepth = scene_info['points3D_id_to_ndepth']
-                # intrinsics = scene_info['intrinsics']
-                # poses = scene_info['poses']
-            except:
-                # there are no pairs that correspond to the criteria
-                continue
-
-            for pair_idx in selected_ids:
-                idx1 = pairs[0, pair_idx]
-                idx2 = pairs[1, pair_idx]
-                matches = np.array(list(
-                    points3D_id_to_2D[idx1].keys() &
-                    points3D_id_to_2D[idx2].keys()
-                ))
-
-                # Scale filtering
-                # matches_nd1 = np.array([points3D_id_to_ndepth[idx1][match] for match in matches])
-                # matches_nd2 = np.array([points3D_id_to_ndepth[idx2][match] for match in matches])
-                # scale_ratio = np.maximum(matches_nd1 / matches_nd2, matches_nd2 / matches_nd1)
-                # matches = matches[np.where(scale_ratio <= self.cfg['max_scale_ratio'])[0]]
-
-                # obtain 2D coordinate for all matches between the pair
-                point2D1 = [np.array(points3D_id_to_2D[idx1][match], dtype=np.float32).reshape(1, 2) for
-                            match in matches] # check shape
-                point2D2 = [np.array(points3D_id_to_2D[idx2][match], dtype=np.float32).reshape(1, 2) for
-                            match in matches]
-
-                # nd1 = np.array([points3D_id_to_ndepth[idx1][match] for match in matches])
-                # nd2 = np.array([points3D_id_to_ndepth[idx2][match] for match in matches])
-                # put all the info in the bundle to create the flow for this image pair
-                image_pair_bundle = ({
-                    'image_path1': image_paths[idx1],
-                    # 'depth_path1': depth_paths[idx1],
-                    # 'intrinsics1': intrinsics[idx1],
-                    # 'pose1': poses[idx1],
-                    'image_path2': image_paths[idx2],
-                    # 'depth_path2': depth_paths[idx2],
-                    # 'intrinsics2': intrinsics[idx2],
-                    # 'pose2': poses[idx2],
-                    '2d_matches_1': point2D1,
-                    '2d_matches_2': point2D2
-                })
-
-                # save the image pair information to disk
-                name_of_dataset = '{}_{}_to_{}'.format(self.split, self.cfg['min_overlap_ratio'],
-                                                       self.cfg['max_overlap_ratio'])
-
-                if not os.path.isdir(os.path.join(self.root, name_of_dataset)):
-                    os.makedirs(os.path.join(self.root, name_of_dataset))
-                name = os.path.join(name_of_dataset,
-                                    'MegaDepth_{}_scene_{}_pair_idx_{}.txt'.format(self.split, scene, pair_idx))
-                with open(name, "wb") as fp:  # Pickling
-                    pickle.dump(image_pair_bundle, fp)
-
-                # save information corresponding to this particular image pair pickle
-                self.items.append({
-                    'scene': scene,
-                    'pair_idx': pair_idx,
-                    'info_path': name })
-
-        # save the list containing into to all image pair individual pickles
-        name = os.path.join(self.root, 'MegaDepth_{}_{}_to_{}.txt'
-                            .format(self.split, self.cfg['min_overlap_ratio'], self.cfg['max_overlap_ratio']))
-        with open(name, "wb") as fp:  # Pickling
-            pickle.dump(self.items, fp)
-            print('Saved the built dataset at {}'.format(name))
-
-    def sample_new_items(self, seed):
-        print(f'Sampling new images or pairs with seed {seed}')
+    def save_scene_info(self):
+        print('MegaDepth {}: Storing info about scenes on memory...\nThis will take some time'.format(self.split))
+        start = time.time()
         self.images = {}
         if self.two_views:
             # self.depth, self.poses, self.intrinsics, self.points3D_id_to_2D = {}, {}, {}, {}
             self.points3D_id_to_2D = {}
-        self.items = []
+            self.pairs = {}
 
         # for scene in tqdm(self.scenes):
         for i, scene in enumerate(self.scenes):
@@ -234,32 +130,97 @@ class MegaDepthDataset(Dataset):
                 print(f'Scene {scene} does not have an info file')
                 continue
             info = np.load(path, allow_pickle=True)
-            num = self.cfg[self.split + '_num_per_scene']
 
             valid = ((info['image_paths'] != None) & (info['depth_paths'] != None))
-            self.images[scene] = info['image_paths'][valid]
+            self.images[scene] = info['image_paths'][valid].copy()
+            # self.depth[scene] = info['depth_paths'][valid]
+            # self.poses[scene] = info['poses'][valid]
+            # self.intrinsics[scene] = info['intrinsics'][valid]
 
             if self.two_views:
-                self.points3D_id_to_2D[scene] = info['points3D_id_to_2D'][valid]
-                # self.depth[scene] = info['depth_paths'][valid]
-                # self.poses[scene] = info['poses'][valid]
-                # self.intrinsics[scene] = info['intrinsics'][valid]
+                self.points3D_id_to_2D[scene] = info['points3D_id_to_2D'][valid].copy()
 
-                mat = info['overlap_matrix'][valid][:, valid]
+                # write pairs that have a correct overlap ratio
+                mat = info['overlap_matrix'][valid][:, valid]  # N_img x N_img where N_img is len(self.images[scene])
                 pairs = (
                     (mat > self.cfg['min_overlap_ratio'])
                     & (mat <= self.cfg['max_overlap_ratio']))
+                pairs = np.stack(np.where(pairs), -1)
+                self.pairs[scene] = [(i, j, mat[i, j]) for i, j in pairs]
+
+            del info
+        total = time.time() - start
+        print('Storing took {} s'.format(total))
+
+    def sample_new_items(self, seed):
+        print('MegaDepth {}: Sampling new images or pairs with seed {}. \nThis will take some time...'
+              .format(self.split, seed))
+        start_time = time.time()
+        self.items = []
+
+        num = self.cfg[self.split + '_num_per_scene']
+
+        # for scene in tqdm(self.scenes):
+        for i, scene in enumerate(self.scenes):
+            path = os.path.join(self.scene_info_path, '%s.0.npz' % scene)
+            if not os.path.exists(path):
+                print(f'Scene {scene} does not have an info file')
+                continue
+            if self.two_views and self.store_scene_info_in_memory:
+                # sampling is just accessing the pairs
+                pairs = np.array(self.pairs[scene])
+                if len(pairs) > num:
+                    selected = np.random.RandomState(seed).choice(
+                        len(pairs), num, replace=False)
+                    pairs = pairs[selected]
+
+                pairs_one_direction = [(scene, int(i), int(j), k) for i, j, k in pairs]
+                self.items.extend(pairs_one_direction)
+            elif self.two_views:
+                # sample all infos from the scenes
+                info = np.load(path, allow_pickle=True, mmap_mode='r')
+                valid = ((info['image_paths'] != None) & (info['depth_paths'] != None))
+                paths = info['image_paths'][valid]
+
+                points3D_id_to_2D = info['points3D_id_to_2D'][valid]
+
+                mat = info['overlap_matrix'][valid][:, valid]
+                pairs = (
+                        (mat > self.cfg['min_overlap_ratio'])
+                        & (mat <= self.cfg['max_overlap_ratio']))
                 pairs = np.stack(np.where(pairs), -1)
                 if len(pairs) > num:
                     selected = np.random.RandomState(seed).choice(
                         len(pairs), num, replace=False)
                     pairs = pairs[selected]
 
-                pairs_one_direction = [(scene, i, j, mat[i, j]) for i, j in pairs]
-                self.items.extend(pairs_one_direction)
-                # pairs_other_direction = [(scene, j, i, mat[i, j]) for i, j in pairs]
-                # self.items.extend(pairs_other_direction)
+                for pair_idx in range(len(pairs)):
+                    idx1 = pairs[pair_idx, 0]
+                    idx2 = pairs[pair_idx, 1]
+                    matches = np.array(
+                        list(points3D_id_to_2D[idx1].keys() & points3D_id_to_2D[idx2].keys()))
+
+                    point2D1 = [np.array(points3D_id_to_2D[idx1][match], dtype=np.float32).reshape(1, 2) for
+                                match in matches]
+
+                    point2D2 = [np.array(points3D_id_to_2D[idx2][match], dtype=np.float32).reshape(1, 2) for
+                                match in matches]
+
+                    image_pair_bundle = {
+                        'image_path1': paths[idx1],
+                        # 'depth_path1': depth_paths[idx1],
+                        # 'intrinsics1': intrinsics[idx1],
+                        # 'pose1': poses[idx1],
+                        'image_path2': paths[idx2],
+                        # 'depth_path2': depth_paths[idx2],
+                        # 'intrinsics2': intrinsics[idx2],
+                        # 'pose2': poses[idx2],
+                        '2d_matches_1': point2D1.copy(),
+                        '2d_matches_2': point2D2.copy()
+                    }
+                    self.items.append(image_pair_bundle)
             else:
+                # single view, just sample new paths to imahes
                 ids = np.arange(len(self.images[scene]))
                 if len(ids) > num:
                     ids = np.random.RandomState(seed).choice(
@@ -267,13 +228,43 @@ class MegaDepthDataset(Dataset):
                 ids = [(scene, i) for i in ids]
                 self.items.extend(ids)
 
-        if self.two_views and self.cfg['sort_by_overlap']:
-            self.items.sort(key=lambda i: i[-1], reverse=True)
-        else:
-            np.random.RandomState(seed).shuffle(self.items)
+        if 'debug' in self.split:
+            orig_copy = copy.deepcopy(self.items)
+            for _ in range(10):
+                self.items = self.items + copy.deepcopy(orig_copy)
+
+        np.random.RandomState(seed).shuffle(self.items)
+        end_time = time.time() - start_time
+        print('Sampling took {} s. Sampled {} items'.format(end_time, len(self.items)))
 
     def __len__(self):
         return len(self.items)
+
+    def _read_pair_info(self, scene, idx1, idx2):
+
+        # when scene info are stored in memory
+        matches = np.array(list(self.points3D_id_to_2D[scene][idx1].keys() & self.points3D_id_to_2D[scene][idx2].keys()))
+
+        # obtain 2D coordinate for all matches between the pair
+        point2D1 = [np.array(self.points3D_id_to_2D[scene][idx1][match], dtype=np.float32).reshape(1, 2) for
+                    match in matches]
+        point2D2 = [np.array(self.points3D_id_to_2D[scene][idx2][match], dtype=np.float32).reshape(1, 2) for
+                    match in matches]
+
+        image_pair_bundle = {
+            'image_path1': self.images[scene][idx1],
+            # 'depth_path1': depth_paths[idx1],
+            # 'intrinsics1': intrinsics[idx1],
+            # 'pose1': poses[idx1],
+            'image_path2': self.images[scene][idx2],
+            # 'depth_path2': depth_paths[idx2],
+            # 'intrinsics2': intrinsics[idx2],
+            # 'pose2': poses[idx2],
+            '2d_matches_1': point2D1,
+            '2d_matches_2': point2D2
+        }
+
+        return image_pair_bundle
 
     def _read_single_view(self, scene, idx):
         path = os.path.join(self.root, self.images[scene][idx])
@@ -299,32 +290,14 @@ class MegaDepthDataset(Dataset):
 
         return {'image': image}
 
-    def _read_pair_info(self, scene, idx1, idx2):
-        image_paths = self.images[scene]
-        points3D_id_to_2D = self.points3D_id_to_2D[scene]
+    def loader(self, path):
+        image = cv2.imread(path)
 
-        matches = np.array(list(points3D_id_to_2D[idx1].keys() & points3D_id_to_2D[idx2].keys()))
-
-        # obtain 2D coordinate for all matches between the pair
-        point2D1 = [np.array(points3D_id_to_2D[idx1][match], dtype=np.float32).reshape(1, 2) for
-                    match in matches]
-        point2D2 = [np.array(points3D_id_to_2D[idx2][match], dtype=np.float32).reshape(1, 2) for
-                    match in matches]
-
-        image_pair_bundle = ({
-            'image_path1': image_paths[idx1],
-            # 'depth_path1': depth_paths[idx1],
-            # 'intrinsics1': intrinsics[idx1],
-            # 'pose1': poses[idx1],
-            'image_path2': image_paths[idx2],
-            # 'depth_path2': depth_paths[idx2],
-            # 'intrinsics2': intrinsics[idx2],
-            # 'pose2': poses[idx2],
-            '2d_matches_1': point2D1,
-            '2d_matches_2': point2D2
-        })
-
-        return image_pair_bundle
+        if len(image.shape) != 3:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        else:
+            image = image[:, :, ::-1]  # go from BGR to RGB
+        return image
 
     def recover_pair(self, pair_metadata, exchange_images=True):
         if exchange_images:
@@ -338,17 +311,8 @@ class MegaDepthDataset(Dataset):
             points2D1_from_file = np.concatenate(pair_metadata['2d_matches_1'], axis=0)  # Nx2
             points2D2_from_file = np.concatenate(pair_metadata['2d_matches_2'], axis=0)  # Nx2
 
-        image1 = cv2.imread(image_path1)
-        if len(image1.shape) != 3:
-            image1 = cv2.cvtColor(image1, cv2.COLOR_GRAY2RGB)
-        else:
-            image1 = image1[:, :, ::-1]  # go from BGR to RGB
-
-        image2 = cv2.imread(image_path2)
-        if len(image2.shape) != 3:
-            image2 = cv2.cvtColor(image2, cv2.COLOR_GRAY2RGB)
-        else:
-            image2 = image2[:, :, ::-1]  # go from BGR to RGB
+        image1 = self.loader(image_path1)
+        image2 = self.loader(image_path2)
 
         if self.pad_to_same_shape:
             # either pad to same shape
@@ -386,7 +350,6 @@ class MegaDepthDataset(Dataset):
             size_of_flow = self.output_flow_size
 
         if not isinstance(size_of_flow[0], list):
-            # must be list of sizes
             size_of_flow = [size_of_flow]
 
         list_of_flow = []
@@ -443,26 +406,15 @@ class MegaDepthDataset(Dataset):
                 image
                 scene: id of the scene
         """
-
         if self.two_views:
-            if self.load_pre_saved_dataset:
-                # obtain the image, the flow and the correspondence mask
-                # image 1 is source image, image2 is target image
-                old_path_with_info = self.items[idx]['info_path']
-                # to remove
-                relative_path = os.path.join(os.path.split(os.path.split(os.path.split(old_path_with_info)[0])[0])[1],
-                                             os.path.split(os.path.split(old_path_with_info)[0])[1],
-                                             os.path.split(old_path_with_info)[1])
-                path_with_info = os.path.join(self.root + relative_path)
-
-                with open(path_with_info, "rb") as fp:  # Unpickling
-                    pair_metadata = pickle.load(fp)
+            if self.store_scene_info_in_memory:
+                scene, idx1, idx2, overlap = self.items[idx]
+                pair_metadata = self._read_pair_info(scene, idx1, idx2)
             else:
-                scene, idx0, idx1, overlap = self.items[idx]
-                pair_metadata = self._read_pair_info(scene, idx0, idx1)
+                pair_metadata = self.items[idx]
 
             source, target, flow, mask = self.recover_pair(pair_metadata,
-                                                             random.random() < self.cfg['exchange_images_with_proba'])
+                                                           random.random() < self.cfg['exchange_images_with_proba'])
 
             if self.co_transform is not None:
                 [source, target], flow, mask = self.co_transform([source, target], flow, mask)

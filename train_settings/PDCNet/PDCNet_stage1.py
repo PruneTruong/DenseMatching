@@ -19,7 +19,7 @@ from datasets.object_augmented_dataset.synthetic_object_augmentation_for_pairs_m
 def run(settings):
     settings.description = 'Default train settings for PDC-Net stage 1'
     settings.data_mode = 'euler'
-    settings.batch_size = 15
+    settings.batch_size = 15  # train on 2GPU of 11GB
     settings.n_threads = 8
     settings.multi_gpu = True
     settings.print_interval = 50
@@ -134,8 +134,8 @@ def run(settings):
                                                downsample_gt_flow=True)
     loss_module = MultiScaleMixtureDensity(level_weights=weights_level_loss[2:], loss_function=objective,
                                            downsample_gt_flow=True)
-    GLUNetActor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
-                                   batch_processing=batch_processing)
+    glunet_actor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
+                                    batch_processing=batch_processing)
 
     # Optimizer
     optimizer = \
@@ -146,7 +146,7 @@ def run(settings):
     scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=settings.scheduler_steps, gamma=0.5)
 
     # Trainer
-    trainer = MatchingTrainer(GLUNetActor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler)
+    trainer = MatchingTrainer(glunet_actor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler)
 
     trainer.train(settings.n_epochs, load_latest=True, fail_safe=True)
 
