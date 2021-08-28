@@ -1,7 +1,7 @@
-import cv2 as cv
+import jpeg4py
+import cv2
 from PIL import Image
 import numpy as np
-from imageio import imread
 
 davis_palette = np.repeat(np.expand_dims(np.arange(0,256), 1), 3, 1).astype(np.uint8)
 davis_palette[:22, :] = [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0],
@@ -28,14 +28,19 @@ def default_image_loader(path):
         return jpeg4py_loader(path)
     return opencv_loader(path)
 
+
 default_image_loader.use_jpeg4py = None
 
 
 def jpeg4py_loader(path):
     """ Image reading using jpeg4py https://github.com/ajkxyz/jpeg4py"""
     try:
-        return imread(path)
-        #return jpeg4py.JPEG(path).decode()
+        if path.endswith('.jpg') or path.endswith('.jpeg'):
+            try:
+                return jpeg4py.JPEG(path).decode()
+            except:
+                return cv2.imread(path, -1)[:, :, ::-1]
+        return cv2.imread(path, -1)[:, :, ::-1]
     except Exception as e:
         print('ERROR: Could not read image "{}"'.format(path))
         print(e)
@@ -45,10 +50,10 @@ def jpeg4py_loader(path):
 def opencv_loader(path):
     """ Read image using opencv's imread function and returns it in rgb format"""
     try:
-        im = cv.imread(path, cv.IMREAD_COLOR)
+        im = cv2.imread(path, cv2.IMREAD_COLOR)
 
         # convert to rgb and return
-        return cv.cvtColor(im, cv.COLOR_BGR2RGB)
+        return cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
     except Exception as e:
         print('ERROR: Could not read image "{}"'.format(path))
         print(e)
@@ -75,7 +80,7 @@ def jpeg4py_loader_w_failsafe(path):
 def opencv_seg_loader(path):
     """ Read segmentation annotation using opencv's imread function"""
     try:
-        return cv.imread(path)
+        return cv2.imread(path)
     except Exception as e:
         print('ERROR: Could not read image "{}"'.format(path))
         print(e)

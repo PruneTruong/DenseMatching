@@ -1,7 +1,7 @@
 import torch.utils.data as data
 import os
 import os.path
-from imageio import imread
+import cv2
 import numpy as np
 import torch
 import jpeg4py
@@ -18,9 +18,9 @@ def default_loader(root, path_imgs, path_flo):
         try:
             return [jpeg4py.JPEG(img).decode().astype(np.uint8) for img in imgs], load_flo(flo)
         except:
-            return [imread(img).astype(np.uint8) for img in imgs], load_flo(flo)
+            return [cv2.imread(img, -1)[:, :, ::-1].astype(np.uint8) for img in imgs], load_flo(flo)
     else:
-        return [imread(img).astype(np.uint8) for img in imgs], load_flo(flo)
+        return [cv2.imread(img, -1)[:, :, ::-1].astype(np.uint8) for img in imgs], load_flo(flo)
 
 
 class ListDataset(data.Dataset):

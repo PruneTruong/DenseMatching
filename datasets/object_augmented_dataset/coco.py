@@ -209,8 +209,7 @@ class MSCOCO(BaseImageDataset):
         img = self.image_loader(os.path.join(self.img_pth, path))
         if len(img.shape) == 2:
             # black and white image
-            img = cv2. cvtColor(img, cv2. COLOR_GRAY2RGB)
-        #img = imread(os.path.join(self.img_pth, path))
+            img = cv2.cvtColor(img, cv2. COLOR_GRAY2RGB)
         return img
 
     def get_meta_info(self, im_id):

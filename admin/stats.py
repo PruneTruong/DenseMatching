@@ -47,30 +47,6 @@ class AverageMeter(object):
             self.has_new_data = False
 
 
-def topk_accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
-    single_input = not isinstance(topk, (tuple, list))
-    if single_input:
-        topk = (topk,)
-
-    maxk = max(topk)
-    batch_size = target.size(0)
-
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)[0]
-        res.append(correct_k * 100.0 / batch_size)
-
-    if single_input:
-        return res[0]
-
-    return res
-
-
 def merge_dictionaries(list_dict, name=None):
     """Merges multiple dictionaries and add a specified suffix (listed in 'name') in front of the keys of
     each dictionary. """
@@ -89,3 +65,11 @@ def merge_dictionaries(list_dict, name=None):
         for d in list_dict:
             dall.update(d)
     return dall
+
+
+class Namespace:
+    def __init__(self, dict_):
+        self.__dict__.update(dict_)
+
+    def update(self, dict_):
+        self.__dict__.update(dict_)

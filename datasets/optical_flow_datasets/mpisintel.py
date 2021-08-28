@@ -3,7 +3,6 @@ import glob
 from datasets.listdataset import ListDataset
 from datasets.util import split2list
 from utils_data import co_flow_and_images_transforms
-from imageio import imread
 from datasets.listdataset import load_flo
 import numpy as np
 import cv2
@@ -61,10 +60,10 @@ def mpisintel_loader(root, path_imgs, path_flo, return_occlusion_mask=False):
     noc_mask = (occluded_mask == 0).astype(np.uint8)
 
     if return_occlusion_mask:
-        return [imread(img).astype(np.uint8) for img in imgs], load_flo(flo), valid_mask.astype(np.uint8), \
+        return [cv2.imread(img)[:, :, ::-1].astype(np.uint8) for img in imgs], load_flo(flo), valid_mask.astype(np.uint8), \
                occluded_mask.astype(np.uint8)
     else:
-        return [imread(img).astype(np.uint8) for img in imgs], load_flo(flo), valid_mask.astype(np.uint8)
+        return [cv2.imread(img)[:, :, ::-1].astype(np.uint8) for img in imgs], load_flo(flo), valid_mask.astype(np.uint8)
 
 
 def mpi_sintel_clean(root, source_image_transform=None, target_image_transform=None, flow_transform=None,
@@ -169,36 +168,6 @@ def mpi_sintel(root, source_image_transform=None, target_image_transform=None, f
         raise ValueError('The split of sintel that you chose does not exist {}'.format(dstype))
 
 
-def mpi_sintel_both(root, first_image_transform=None, second_image_transform=None, target_transform=None,
-                     co_transform=None, test_image_transform=None, split=None):
-    '''load images from both clean and final folders.
-    We cannot shuffle input, because it would very likely cause data snooping
-    for the clean and final frames are not that different'''
-    # assert(isinstance(split, str)), 'To avoid data snooping, you must provide a static list of train/val when
-    # dealing with both clean and final.'
-    ' Look at Sintel_train_val.txt for an example'
-    train_list1, test_list1 = make_dataset(root, split, 'clean')
-    train_list2, test_list2 = make_dataset(root, split, 'final')
-    train_dataset = ListDataset(root, train_list1 + train_list2, source_image_transform=first_image_transform,
-                                target_image_transform=second_image_transform,
-                                flow_transform=target_transform,
-                                co_transform=co_transform, loader=mpisintel_loader, load_valid_mask=True)
-    if test_image_transform is None:
-        test_dataset = ListDataset(root, test_list1 + test_list2, source_image_transform=first_image_transform,
-                                   target_image_transform=second_image_transform,
-                                   flow_transform=target_transform,
-                                   co_transform=co_flow_and_images_transforms.CenterCrop((384, 1024)),
-                                   loader=mpisintel_loader, load_valid_mask=True)
-    else:
-        test_dataset = ListDataset(root, test_list1 + test_list2, source_image_transform=test_image_transform,
-                                   target_image_transform=test_image_transform,
-                                   flow_transform=target_transform,
-                                   co_transform=co_flow_and_images_transforms.CenterCrop((384, 1024)),
-                                   loader=mpisintel_loader, load_valid_mask=True)
-
-    return train_dataset, test_dataset
-
-
 def make_dataset_test_data(root):
     images = []
     list_files = sorted(glob.glob(os.path.join(root, '*.png')))
@@ -226,8 +195,8 @@ class MPISintelTestData(data.Dataset):
     def __getitem__(self, index):
 
         inputs = self.path_list[index]
-        im1 = imread(inputs[0][0]).astype(np.uint8)
-        im2 = imread(inputs[0][1]).astype(np.uint8)
+        im1 = cv2.imread(inputs[0][0])[:, :, ::-1].astype(np.uint8)
+        im2 = cv2.imread(inputs[0][1])[:, :, ::-1].astype(np.uint8)
         shape = im1.shape
         if self.first_image_transform is not None:
             im1 = self.first_image_transform(im1)

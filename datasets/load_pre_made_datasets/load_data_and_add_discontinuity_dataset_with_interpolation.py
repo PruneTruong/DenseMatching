@@ -1,7 +1,7 @@
 import torch.utils.data as data
 import os
 import os.path
-from imageio import imread
+import cv2
 import numpy as np
 import torch
 import jpeg4py
@@ -15,13 +15,16 @@ from datasets.util import define_mask_zero_borders
 
 
 def default_loader(root, path_imgs, path_flo):
-    imgs = [os.path.join(root,path) for path in path_imgs]
-    flo = os.path.join(root,path_flo)
-    # does it need to be float32 for the image ??
+    imgs = [os.path.join(root, path) for path in path_imgs]
+    flo = os.path.join(root, path_flo)
+
     if imgs[0].endswith('.jpg') or imgs[0].endswith('.jpeg'):
-        return [jpeg4py.JPEG(img).decode().astype(np.uint8) for img in imgs], load_flo(flo)
+        try:
+            return [jpeg4py.JPEG(img).decode().astype(np.uint8) for img in imgs], load_flo(flo)
+        except:
+            return [cv2.imread(img)[:, :, ::-1].astype(np.uint8) for img in imgs], load_flo(flo)
     else:
-        img_list = [imread(img).astype(np.uint8) for img in imgs]
+        img_list = [cv2.imread(img)[:, :, ::-1].astype(np.uint8) for img in imgs]
         flow = load_flo(flo)
         return img_list, flow
 

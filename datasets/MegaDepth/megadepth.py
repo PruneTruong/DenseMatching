@@ -1,15 +1,12 @@
 import os
-import pickle
 from pathlib import Path
 import numpy as np
 from torch.utils.data import Dataset
-from tqdm import tqdm
 import torch
 from ..util import pad_to_same_shape, pad_to_size, resize_keeping_aspect_ratio
 import cv2
 import random
 from datasets.util import define_mask_zero_borders
-from sys import getsizeof
 import time
 import copy
 import jpeg4py
@@ -290,8 +287,15 @@ class MegaDepthDataset(Dataset):
 
         return {'image': image}
 
-    def loader(self, path):
-        image = cv2.imread(path)
+    @staticmethod
+    def loader(path):
+        if path.endswith('.jpg') or path.endswith('.jpeg'):
+            try:
+                image = jpeg4py.JPEG(path).decode()
+            except:
+                image = cv2.imread(path)
+        else:
+            image = cv2.imread(path)
 
         if len(image.shape) != 3:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)

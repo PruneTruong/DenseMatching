@@ -151,7 +151,7 @@ conda activate dense_matching_env
 
 * Install all dependencies (except for cupy, see below) by running the following command:
 ```bash
-pip install numpy opencv-python torch torchvision matplotlib imageio jpeg4py scipy pandas tqdm gdown
+pip install numpy opencv-python torch torchvision matplotlib imageio jpeg4py scipy pandas tqdm gdown pycocotools
 ```
 
 **Note**: CUDA is required to run the code. Indeed, the correlation layer is implemented in CUDA using CuPy, 
@@ -172,6 +172,7 @@ pip install cupy-cuda100==7.8.0 --no-cache-dir
 You need to pull submodules with 
 ```bash
 git submodule update --init --recursive
+git submodule update --recursive --remote
 ```
 
 * Create admin/local.py by running the following command and update the paths to the dataset. 
@@ -834,7 +835,7 @@ Here, train_module is the sub-module inside train_settings and train_name is the
 
 For example, you can train using the included default PDCNet_stage1 settings by running:
 ```bash
-python run_training PDCNet PDCNet_stage1
+python run_training.py PDCNet PDCNet_stage1
 ```
 
 ### Training datasets downloading <a name="scanNet"></a>
@@ -1016,4 +1017,4 @@ We borrow code from public projects, such as [pytracking](https://github.com/vis
 
 * 06/21: Added evaluation code
 * 07/21: Added training code and more options for evaluation
-* 08/21: Fixed memory leak in mixture dataset + added other sampling for megadepth dataset
+* 08/21: Fixed memory leak in mixture dataset + forgotten .item() in multiscale loss + added other sampling for megadepth dataset

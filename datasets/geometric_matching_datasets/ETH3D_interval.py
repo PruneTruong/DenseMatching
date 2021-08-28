@@ -2,7 +2,7 @@ from __future__ import division
 import os.path
 import torch.utils.data as data
 import numpy as np
-from imageio import imread
+import cv2
 import pickle
 import torch
 
@@ -60,14 +60,14 @@ class ETHInterval(data.Dataset):
         if not os.path.isfile(source_image_path):
             print('Problem reading image at {}. Check your paths !'.format(source_image_path))
             exit(1)
-        source_image = imread(source_image_path).astype(np.uint8)
+        source_image = cv2.imread(source_image_path)[:, :, ::-1].astype(np.uint8)
         source_size = source_image.shape
 
         target_image_path = os.path.join(self.root, target_image_path)
         if not os.path.isfile(target_image_path):
             print('Problem reading image at {}. Check your paths !'.format(target_image_path))
             exit(1)
-        target_image = imread(target_image_path).astype(np.uint8)
+        target_image = cv2.imread(target_image_path)[:, :, ::-1].astype(np.uint8)
         inputs = [source_image, target_image]
         h, w = target_image.shape[:2]
 

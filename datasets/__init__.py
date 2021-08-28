@@ -1,5 +1,4 @@
-from datasets.optical_flow_datasets.mpisintel import mpi_sintel_clean, mpi_sintel_final, mpi_sintel, \
-    mpi_sintel_both, MPISintelTestData
+from datasets.optical_flow_datasets.mpisintel import mpi_sintel_clean, mpi_sintel_final, mpi_sintel, MPISintelTestData
 from datasets.geometric_matching_datasets.hpatches import HPatchesdataset
 from datasets.geometric_matching_datasets.training_dataset import HomoAffTpsDataset
 from datasets.semantic_matching_datasets.tss import TSSDataset
@@ -10,6 +9,6 @@ from datasets.semantic_matching_datasets.spair import SPairDataset
 from datasets.geometric_matching_datasets.ETH3D_interval import ETHInterval
 
 __all__ = ('KITTI_occ', 'KITTI_noc', 'KITTI_only_occ', 'mpi_sintel_clean', 'mpi_sintel',
-           'mpi_sintel_final', 'mpi_sintel_both', 'SPairDataset',
+           'mpi_sintel_final', 'SPairDataset',
            'MPISintelTestData', 'ETHInterval',
            'HPatchesdataset', 'HomoAffTpsDataset', 'TSSDataset', 'PFPascalDataset', 'PFWillowDataset')
