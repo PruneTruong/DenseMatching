@@ -145,8 +145,8 @@ if __name__ == "__main__":
     if not os.path.isdir(args.write_dir):
         os.makedirs(args.write_dir)
     try:
-        query_image = imageio.imread(args.path_query_image)
-        reference_image = imageio.imread(args.path_reference_image)
+        query_image = cv2.imread(args.path_query_image, 1)[:, :, ::- 1]
+        reference_image = cv2.imread(args.path_reference_image, 1)[:, :, ::- 1]
         query_image, reference_image = pad_to_same_shape(query_image, reference_image)
     except:
         raise ValueError('It seems that the path for the images you provided does not work ! ')

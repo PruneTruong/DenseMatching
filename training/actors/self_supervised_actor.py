@@ -149,7 +149,8 @@ class GLUNetBasedActor(BaseActor):
             if self.best_val_epe:
                 stats['best_value'] = stats['EPE_HNet_reso_{}x{}/EPE'.format(h_original//4, w_original//4)]
             else:
-                stats['best_value'] = stats['PCK_1_HNet_reso_{}x{}/EPE'.format(h_original//4, w_original//4)]
+                stats['best_value'] = - stats['PCK_1_HNet_reso_{}x{}/EPE'.format(h_original//4, w_original//4)]
+                # we want the best_value to decrease, whereas PCK should increase
 
         # plot images
         if iter < self.nbr_images_to_plot:
