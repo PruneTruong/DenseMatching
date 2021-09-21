@@ -45,9 +45,15 @@ def test_model_on_image_pair(args, query_image, reference_image):
             args.model, args.pre_trained_model, args, args.optim_iter, local_optim_iter,
             path_to_pre_trained_models=args.pre_trained_models_dir)
 
-        # convert numpy to torch tensor and put it in right shape
-        query_image_ = torch.from_numpy(query_image).permute(2, 0, 1).unsqueeze(0)
-        reference_image_ = torch.from_numpy(reference_image).permute(2, 0, 1).unsqueeze(0)
+        # save original ref image shape
+        ref_image_shape = reference_image.shape[:2]
+
+        # pad both images to the same size, to be processed by network
+        query_image_, reference_image_ = pad_to_same_shape(query_image, reference_image)
+        # convert numpy to torch tensor and put it in right format
+        query_image_ = torch.from_numpy(query_image_).permute(2, 0, 1).unsqueeze(0)
+        reference_image_ = torch.from_numpy(reference_image_).permute(2, 0, 1).unsqueeze(0)
+
         # ATTENTION, here source and target images are Torch tensors of size 1x3xHxW, without further pre-processing
         # specific pre-processing (/255 and rescaling) are done within the function.
 
@@ -61,6 +67,7 @@ def test_model_on_image_pair(args, query_image, reference_image):
                                                                                               reference_image_,
                                                                                               mode='channel_first')
             confidence_map = uncertainty_components['p_r'].squeeze().detach().cpu().numpy()
+            confidence_map = confidence_map[:ref_image_shape[0], :ref_image_shape[1]]
         else:
             if args.flipping_condition and 'GLUNet' in args.model:
                 estimated_flow = network.estimate_flow_with_flipping_condition(query_image_, reference_image_,
@@ -68,16 +75,19 @@ def test_model_on_image_pair(args, query_image, reference_image):
             else:
                 estimated_flow = network.estimate_flow(query_image_, reference_image_, mode='channel_first')
         estimated_flow_numpy = estimated_flow.squeeze().permute(1, 2, 0).cpu().numpy()
-        warped_query_image = remap_using_flow_fields(query_image, estimated_flow.squeeze()[0].cpu().numpy(),
-                                                     estimated_flow.squeeze()[1].cpu().numpy()).astype(np.uint8)
+        estimated_flow_numpy = estimated_flow_numpy[:ref_image_shape[0], :ref_image_shape[1]]
+        # removes the padding
+
+        warped_query_image = remap_using_flow_fields(query_image, estimated_flow_numpy[:, :, 0],
+                                                     estimated_flow_numpy[:, :, 1]).astype(np.uint8)
 
         # save images
-        '''
-        imageio.imwrite(os.path.join(args.write_dir, 'query.png'), query_image)
-        imageio.imwrite(os.path.join(args.write_dir, 'reference.png'), reference_image)
-        imageio.imwrite(os.path.join(args.write_dir, 'warped_query_{}_{}.png'.format(args.model, args.pre_trained_model)),
-                        warped_query_image)
-        '''
+        if args.save_ind_images:
+            imageio.imwrite(os.path.join(args.write_dir, 'query.png'), query_image)
+            imageio.imwrite(os.path.join(args.write_dir, 'reference.png'), reference_image)
+            imageio.imwrite(os.path.join(args.write_dir, 'warped_query_{}_{}.png'.format(args.model, args.pre_trained_model)),
+                            warped_query_image)
+
         if estimate_uncertainty:
             color = [255, 102, 51]
             fig, axis = plt.subplots(1, 5, figsize=(30, 30))
@@ -126,6 +136,8 @@ if __name__ == "__main__":
                         help='Path to the target image.', required=True)
     parser.add_argument('--write_dir', type=str,
                         help='Directory where to write output figure.')
+    parser.add_argument('--save_ind_images', dest='save_ind_images',  default=False, type=boolean_string,
+                        help='Save individual images? ')
     subparsers = parser.add_subparsers(dest='network_type')
     define_pdcnet_parser(subparsers)
     args = parser.parse_args()
@@ -147,7 +159,6 @@ if __name__ == "__main__":
     try:
         query_image = cv2.imread(args.path_query_image, 1)[:, :, ::- 1]
         reference_image = cv2.imread(args.path_reference_image, 1)[:, :, ::- 1]
-        query_image, reference_image = pad_to_same_shape(query_image, reference_image)
     except:
         raise ValueError('It seems that the path for the images you provided does not work ! ')
 
