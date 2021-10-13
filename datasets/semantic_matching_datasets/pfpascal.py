@@ -115,10 +115,10 @@ class PFPascalDataset(SemanticKeypointsDataset):
         if self.split != 'test':
             # for training, might want to have different output flow sizes
             if self.training_cfg['augment_with_crop']:
-                batch['src_img'], batch['src_kps'] = random_crop(batch['src_img'], batch['src_kps'],
+                batch['src_img'], batch['src_kps'] = random_crop(batch['src_img'], batch['src_kps'].clone(),
                                                                  batch['src_bbox'].int(),
                                                                  size=self.training_cfg['crop_size'])
-                batch['trg_img'], batch['trg_kps'] = random_crop(batch['trg_img'], batch['trg_kps'],
+                batch['trg_img'], batch['trg_kps'] = random_crop(batch['trg_img'], batch['trg_kps'].clone(),
                                                                  batch['trg_bbox'].int(),
                                                                  size=self.training_cfg['crop_size'])
 
@@ -145,8 +145,8 @@ class PFPascalDataset(SemanticKeypointsDataset):
             '''
 
             source, target, flow, mask = self.recover_image_pair_for_training(batch['src_img'], batch['trg_img'],
-                                                                              kp_source=torch.t(batch['src_kps']),
-                                                                              kp_target=torch.t(batch['trg_kps']))
+                                                                              kp_source=torch.t(batch['src_kps']).clone(),
+                                                                              kp_target=torch.t(batch['trg_kps']).clone())
 
             if self.source_image_transform is not None:
                 source = self.source_image_transform(source)
@@ -190,169 +190,11 @@ class PFPascalDataset(SemanticKeypointsDataset):
                     'flow_map': flow,
                     'correspondence_mask': mask.bool() if float(torch.__version__[:3]) >= 1.1 \
                         else mask.byte(),
-                    'source_coor': torch.t(batch['src_kps']),
-                    'target_coor': torch.t(batch['trg_kps']),
+                    'source_coor': torch.t(batch['src_kps']).clone(),
+                    'target_coor': torch.t(batch['trg_kps']).clone(),
                     'L_bounding_box': batch['pckthres'], 'sparse': True}
 
     def get_bbox(self, bbox_list, idx):
         r"""Returns object bounding-box"""
         bbox = bbox_list[idx].clone()
         return bbox
-
-
-'''
-# Alternative    
-class PFPascalDataset(Dataset):
-    """
-    Proposal Flow image pair dataset (PF-Pascal).
-    There is a certain number of pairs per category and the number of keypoints per pair also varies
-    """
-    def __init__(self, root, path_list=None, labels=None, category=None, source_image_transform=None,
-                 target_image_transform=None, flow_transform=None, pck_procedure='scnet', evaluate_at_original_image_reso=True,
-                 normalize=False, apply_padding_to_same_shape=True):
-        """
-
-        Args:
-            root:
-            path_list: path to csv file containing ground-truth info
-            labels:
-            category:
-            source_image_transform: image transformations to apply to source images
-            target_image_transform: image transformations to apply to target images
-            flow_transform: flow transformations to apply to ground-truth flow fields
-            pck_procedure:
-            evaluate_at_original_image_reso:
-            normalize:
-            apply_padding_to_same_shape:
-        """
-
-        self.category_names=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow',
-                             'diningtable','dog','horse','motorbike','person','pottedplant','sheep','sofa','train','tvmonitor']
-
-        if path_list is None:
-            pairs = pd.read_csv(os.path.join(root, 'PF-dataset-PASCAL', 'original_csv_files_weakalign',
-                                             'test_pairs_pf_pascal.csv'))
-        else:
-            pairs = pd.read_csv(path_list)
-
-        if labels is not None or category is not None:
-            # select pairs we want based on the class
-            # label is list of class index that we want or category is list of classes name that we want
-            if category is not None:
-                self.labels = float(np.where(np.array(self.category_names) == category)[0][0] + 1)
-                # list of indices corresponding to the category name
-            else:
-                # labels is not None
-                self.labels = labels
-        else:
-            # takes all pairs
-            self.pairs = pairs
-
-        self.img_A_names = self.pairs.iloc[:,0]
-        self.img_B_names = self.pairs.iloc[:,1]
-        self.point_A_coords = self.pairs.iloc[:, 3:5]
-        self.point_B_coords = self.pairs.iloc[:, 5:]
-        self.root = root
-        self.first_image_transform = source_image_transform
-        self.second_image_transform = target_image_transform
-        self.flow_transform = flow_transform
-        self.pck_procedure = pck_procedure
-        self.apply_padding_to_same_shape = apply_padding_to_same_shape
-        self.evaluate_at_original_image_reso = evaluate_at_original_image_reso
-              
-    def __len__(self):
-        return len(self.pairs)
-
-    def __getitem__(self, idx):
-        # get pre-processed images
-        img_target = imread(os.path.join(self.root, self.img_B_names.iloc[idx])).astype(np.uint8)
-        img_source = imread(os.path.join(self.root, self.img_A_names.iloc[idx])).astype(np.uint8)
-        image_source_size = np.float32(img_source.shape)
-        image_target_size = np.float32(img_target.shape)  # load_size of the original images
-
-        # get pre-processed point coords
-        point_source_coords = self.get_points(self.point_A_coords, idx)
-        point_target_coords = self.get_points(self.point_B_coords, idx)
-
-        N_pts = point_source_coords.shape[0]
-
-        if self.pck_procedure == 'pf':
-            # max dimension of bouding box
-            img_source, img_target = pad_to_same_shape(img_source, img_target)
-
-            point_A_coords = torch.t(torch.Tensor(point_source_coords))
-            L_pck = torch.FloatTensor([torch.max(point_A_coords[:, :N_pts].max(1)[0]-
-                                                 point_A_coords[:, :N_pts].min(1)[0])])
-            h_size, w_size, _ = img_target.shape
-        elif self.pck_procedure == 'scnet':
-            # modification to follow the evaluation procedure of SCNet
-            # need to resize images to 224x224
-
-            if self.evaluate_at_original_image_reso:
-                img_source, img_target = pad_to_same_shape(img_source, img_target)
-            else:
-                img_target = cv2.resize(img_target, dsize=(224, 224), interpolation=cv2.INTER_LINEAR)
-                img_source = cv2.resize(img_source, dsize=(224, 224), interpolation=cv2.INTER_LINEAR)
-                image_source_size[0:2] = 224
-                image_target_size[0:2] = 224
-
-            point_source_coords[:, 0] *= 224.0/image_source_size[1]
-            point_source_coords[:, 1] *= 224.0/image_source_size[0]
-            point_target_coords[:, 0] *= 224.0/image_target_size[1]
-            point_target_coords[:, 1] *= 224.0/image_target_size[0]
-
-            L_pck = torch.FloatTensor([224.0])  # image load_size
-            h_size = w_size = 224
-        else:
-            img_source, img_target = pad_to_same_shape(img_source, img_target)
-            L_pck = max(image_source_size[0], image_source_size[1])  # original images load_size
-            h_size, w_size, _ = img_target.shape
-
-        flow = np.zeros((h_size, w_size, 2), dtype=np.float32)
-        mask = np.zeros((h_size, w_size), dtype=np.uint8)
-
-        # computes the flow
-        valid_target = np.logical_and(np.int32(np.round(point_target_coords[:, 0])) < w_size,
-                                      np.int32(np.round(point_target_coords[:, 1])) < h_size)
-        # valid = valid_source * valid_target
-        valid = valid_target
-        point_target_coords = point_target_coords[valid]
-        point_source_coords = point_source_coords[valid]
-
-        flow[np.int32(np.round(point_target_coords[:, 1])), np.int32(np.round(point_target_coords[:, 0]))] = \
-            point_source_coords - point_target_coords
-        mask[np.int32(np.round(point_target_coords[:, 1])), np.int32(np.round(point_target_coords[:, 0]))] = 1
-
-        if self.first_image_transform is not None:
-            img_source = self.first_image_transform(img_source)
-        if self.second_image_transform is not None:
-            img_target = self.second_image_transform(img_target)
-        if self.flow_transform is not None:
-            flow = self.flow_transform(flow)
-
-        output = {'source_image': img_source,
-                  'target_image': img_target,
-                  'source_image_size': image_source_size,
-                  'target_image_size': image_target_size,
-                  'flow_map': flow,
-                  'correspondence_mask': mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 \
-                    else mask.astype(np.uint8),
-                  'source_coor': point_source_coords,  # shape N,2
-                  'target_coor': point_target_coords,  # shape N,2 not rounded yet
-                  'L_bounding_box': L_pck}
-        if self.evaluate_at_original_image_reso and self.pck_procedure == 'scnet':
-            output['resizing_to'] = 224
-        return output
-
-    def get_points(self, point_coords_list, idx):
-        X = np.fromstring(point_coords_list.iloc[idx, 0],sep=';')
-        Y = np.fromstring(point_coords_list.iloc[idx, 1],sep=';')
-        N_points = X.shape[0]
-
-        point_coords = np.concatenate((X.reshape(N_points, 1), Y.reshape(N_points, 1)), axis=1)
-        
-        # make arrays float tensor for subsequent processing
-        # point_coords = torch.Tensor(point_coords.astype(np.float32))
-        return point_coords.astype(np.float32)
-
-'''

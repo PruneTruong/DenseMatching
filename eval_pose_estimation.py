@@ -16,7 +16,6 @@ from validation.utils import (compute_pose_error, compute_epipolar_error,
                               scale_intrinsics)
 from admin.stats import merge_dictionaries
 import admin.settings as ws_settings
-from utils_data.euler_wrapper import prepare_data
 from validation.test_parser import define_model_parser, boolean_string
 torch.set_grad_enabled(False)
 
@@ -238,7 +237,7 @@ if __name__ == "__main__":
     # ransac
     parser.add_argument('--ransac', default=True, type=boolean_string,
                         help="using ransac to filter the outlier or not (default True )")
-    parser.add_argument('--ransac_thresh', type=int, default=1, help='threshold used for RANSAC')
+    parser.add_argument('--ransac_thresh', type=float, default=1.0, help='threshold used for RANSAC')
     parser.add_argument('--save_dir', type=str, default='evaluation/',
                         help='path to directory to save the results')
     args = parser.parse_args()

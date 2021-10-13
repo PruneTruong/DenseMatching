@@ -7,6 +7,10 @@ For any questions, issues or recommendations, please contact Prune at prune.truo
 <br />
 
 
+**13/10/2021: Pre-trained models for WarpCGLUNet and WarpCSemantic are here. Models for WarpCRANSACFlow will come. 
+Training code of WarpC will also be published soon.**
+
+
 ## Highlights
 
 Libraries for implementing, training and evaluating dense matching networks. It includes
@@ -21,8 +25,8 @@ Libraries for implementing, training and evaluating dense matching networks. It 
     * Functions for data sampling, processing etc.
     * And much more...
 
-* **Official implementation** of GLU-Net (CVPR 2021), GLU-Net-GOCor (NeurIPS 2020), PWC-Net-GOCor (NeurIPS 2021), 
-PDC-Net (CVPR 2021), including trained models and respective results.
+* **Official implementation** of GLU-Net (CVPR 2020), GLU-Net-GOCor (NeurIPS 2020), PWC-Net-GOCor (NeurIPS 2020), 
+PDC-Net (CVPR 2021), WarpC models (ICCV 2021) including trained models and respective results.
 
 <br />
 
@@ -31,7 +35,39 @@ PDC-Net (CVPR 2021), including trained models and respective results.
 The repo contains the implementation of the following matching models. 
 We provide pre-trained model weights, data preparation, evaluation commands, and results for each dataset and method. 
 
-### PDC-Net: Learning Accurate Correspondences and When to Trust Them. (CVPR 2021 - ORAL)
+### [4] WarpC: Warp Consistency for Unsupervised Learning of Dense Correspondences. (ICCV 2021 - ORAL)
+Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/), 
+[Fisher Yu](https://www.yf.io/), Luc Van Gool<br />
+
+\[[Paper](https://arxiv.org/abs/2104.03308)\]
+\[[Website](https://prunetruong.com/research/warpc)\]
+\[[Poster](https://drive.google.com/file/d/1PCXkjxvVsjHAbYzsBtgKWLO1uE6oGP6p/view?usp=sharing)\]
+\[[Slides](https://drive.google.com/file/d/1mVpLBW55nlNJZBsvxkBCti9_KhH1r9V_/view?usp=sharing)\]
+\[[Video](https://www.youtube.com/watch?v=IsMotj7-peA)\]
+
+Warp Consistency Graph            |  Results 
+:-------------------------:|:-------------------------:
+![alt text](/images/warpc_thumbnail.png) |  ![](/images/warpc_banner.png) 
+
+
+
+
+The key challenge in learning dense correspondences lies in the lack of ground-truth matches for real image pairs. 
+While photometric consistency losses provide unsupervised alternatives, they struggle with large appearance changes, 
+which are ubiquitous in geometric and semantic matching tasks. Moreover, methods relying on synthetic training pairs 
+often suffer from poor generalisation to real data.
+We propose Warp Consistency, an unsupervised learning objective for dense correspondence regression. 
+Our objective is effective even in settings with large appearance and view-point changes. Given a pair of 
+real images, we first construct an image triplet by applying a randomly sampled warp to one of the original images. 
+We derive and analyze all flow-consistency constraints arising between the triplet. From our observations and 
+empirical results, we design a general unsupervised objective employing two of the derived constraints.
+We validate our warp consistency loss by training three recent dense correspondence networks for the geometric and 
+semantic matching tasks. Our approach sets a new state-of-the-art on several challenging benchmarks, including MegaDepth, 
+RobotCar and TSS. 
+
+
+
+### [3] PDC-Net: Learning Accurate Correspondences and When to Trust Them. (CVPR 2021 - ORAL)
 Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/), Luc Van Gool, Radu Timofte<br />
 
 \[[Paper](https://arxiv.org/abs/2101.01710)\]
@@ -54,7 +90,7 @@ Moreover, we develop an architecture and training strategy tailored for robust a
 prediction in the context of self-supervised training. 
 
 
-### GOCor: Bringing Globally Optimized Correspondence Volumes into Your Neural Network. (NeurIPS 2020)
+### [2] GOCor: Bringing Globally Optimized Correspondence Volumes into Your Neural Network. (NeurIPS 2020)
 Authors: [Prune Truong](https://prunetruong.com/) *, [Martin Danelljan](https://martin-danelljan.github.io/) *, Luc Van Gool, Radu Timofte<br />
 
 \[[Paper](https://arxiv.org/abs/2009.07823)\]
@@ -78,7 +114,7 @@ capable of effectively learning spatial matching priors to resolve further match
 
 
 
-### GLU-Net: Global-Local Universal Network for dense flow and correspondences (CVPR 2020 - ORAL).
+### [1] GLU-Net: Global-Local Universal Network for dense flow and correspondences (CVPR 2020 - ORAL).
 Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/) and Radu Timofte <br />
 \[[Paper](https://arxiv.org/abs/1912.05524)\]
 \[[Website](https://prunetruong.com/research/glu-net)\]
@@ -94,16 +130,24 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 
 ## Pre-trained weights
 
-| Model        | Pre-trained model type | Description                         | Link |
-|--------------|------------------------|-------------------------------------|------|
-| PDCNet       | megadepth              |                                     |  [model](https://drive.google.com/file/d/1nOpC0MFWNV8N6ue0csed4I2K_ffX64BL/view?usp=sharing)    |
-| GLUNet_GOCor_star | megadepth              | corresponds to GLU-Net-GOCor* in [PDCNet](https://arxiv.org/abs/2101.01710) |    [model](https://drive.google.com/file/d/1bU6ZPMGsyzZJdAE5gmuxYjgxyVzwcLPj/view?usp=sharing)  |
-| GLUNet_GOCor | dynamic                |                                     | [model](https://drive.google.com/file/d/1j8lUIRf39wECSNMHJqnu42VoBi6mWd-v/view?usp=sharing)     |
-| GLUNet_GOCor | static                 |                                     |  [model](https://drive.google.com/file/d/1f-XOVJlMUmmFsQojB7KuiBfX3nXJA_Er/view?usp=sharing)    |
-| PWCNet_GOCor | chairs_things_ft_sintel                        |                                     |  [model](https://drive.google.com/file/d/1oL07Fv5qz_H3EzZE2NmmZRR06x8fK3Jn/view?usp=sharing)    |
-| PWCNet_GOCor | chairs_things          |                                     | [model](https://drive.google.com/file/d/1ofkmCZR7xyUgzreyL7B5QXSl5ZljkMLo/view?usp=sharing)     |
-| GLUNet       | dynamic     |                                     |   [model](https://drive.google.com/file/d/1SoCEg0IKfbkTu7aD5HnxIRKirjn3EJte/view?usp=sharing)   |
-| GLUNet       | static (CityScape-DPED-ADE)     |                                     |  [model](https://drive.google.com/file/d/1cu_8lwhuqeNsIxEsuB6ihDBzz-yLW_L5/view?usp=sharing)    |
+| Model        | Pre-trained model type | Paper | Description | Link [all](https://drive.google.com/drive/folders/1LVrwAHDvVxsqzaGtd409wHv8cSPeLj1i?usp=sharing) |
+|--------------|------------------------|-------------------------------------|------|------|
+| WarpCSemanticGLUNet       | spair  |  [4] |       |  [model](https://drive.google.com/file/d/1aLZ8MoV_fHFScx__WWmqxZMm3k3MuEpr/view?usp=sharing)
+| WarpCSemanticGLUNet       | pfpascal  |  [4] |    Original SemanticGLU-Net is finetuned using our warp consistency objective    |  [model](https://drive.google.com/file/d/1m_1dSa3cmUOmDWL4A1PBLEm6VW8O7x2x/view?usp=sharing)
+| SemanticGLUNet      | pfpascal  |   [4] |  Original SemanticGLU-Net is finetuned using warp supervision                               |  [model](https://drive.google.com/file/d/1rhOXoYjO5QPnvcmHX45NCyevqCUx2YmH/view?usp=sharing)
+| WarpCRANSACFlow       | megadepth   |        [4]                             |  
+| WarpCGLUNet      | megadepth  /    megadepth_stage1  |  [4] |                                     |  [megadepth](https://drive.google.com/file/d/1ztQL04eSxleXAIRmInFjHY3tqK6n_iyA/view?usp=sharing) / [megadepth_stage1](https://drive.google.com/file/d/1vnYpYoqBNWg1EcBSkQm65en_IdsEbbX2/view?usp=sharing)
+| GLUNet_star       | megadepth /    megadepth_stage1  |  [4] |        Baseline for WarpCGLU-Net, trained with warp-supervision loss only   |  [megadepth](https://drive.google.com/file/d/1udUBzDkHoe6AggpZ8tRjYrljt3au0-rh/view?usp=sharing)  / [megadepth_stage1](https://drive.google.com/file/d/1PtLuTtO9kOCM_IO7WtW8xqbQDzQ9xixi/view?usp=sharing)
+| PDCNet       | megadepth              |  [3] |                                   |  [model](https://drive.google.com/file/d/1nOpC0MFWNV8N6ue0csed4I2K_ffX64BL/view?usp=sharing)    |
+| GLUNet_GOCor_star | megadepth              | [3] |corresponds to GLU-Net-GOCor* in [PDCNet](https://arxiv.org/abs/2101.01710) |    [model](https://drive.google.com/file/d/1bU6ZPMGsyzZJdAE5gmuxYjgxyVzwcLPj/view?usp=sharing)  |
+| GLUNet_GOCor | dynamic                |  [2] |                                   | [model](https://drive.google.com/file/d/1j8lUIRf39wECSNMHJqnu42VoBi6mWd-v/view?usp=sharing)     |
+| GLUNet_GOCor | static                 | [2] |                                    |  [model](https://drive.google.com/file/d/1f-XOVJlMUmmFsQojB7KuiBfX3nXJA_Er/view?usp=sharing)    |
+| PWCNet_GOCor | chairs_things_ft_sintel   |            [2]          |                                     |  [model](https://drive.google.com/file/d/1oL07Fv5qz_H3EzZE2NmmZRR06x8fK3Jn/view?usp=sharing)    |
+| PWCNet_GOCor | chairs_things          | [2] |                                    | [model](https://drive.google.com/file/d/1ofkmCZR7xyUgzreyL7B5QXSl5ZljkMLo/view?usp=sharing)     |
+| GLUNet       | dynamic     |  [2] |                                   |   [model](https://drive.google.com/file/d/1SoCEg0IKfbkTu7aD5HnxIRKirjn3EJte/view?usp=sharing)   |
+| GLUNet       | static (CityScape-DPED-ADE)     | [1] |                                    |  [model](https://drive.google.com/file/d/1cu_8lwhuqeNsIxEsuB6ihDBzz-yLW_L5/view?usp=sharing)    |
+| WarpCSemanticGLUNet   | static (CityScape-DPED-ADE) |  [1] |     |  [model](https://drive.google.com/file/d/15cDS1tyySMn-SHBUIa-pS1VY8-zbp0hO/view?usp=sharing)
+
 
 To download all of them, run the command ```bash assets/download_pre_trained_models.sh```. 
 
@@ -1017,4 +1061,4 @@ We borrow code from public projects, such as [pytracking](https://github.com/vis
 
 * 06/21: Added evaluation code
 * 07/21: Added training code and more options for evaluation
-* 08/21: Fixed memory leak in mixture dataset + forgotten .item() in multiscale loss + added other sampling for megadepth dataset
+* 08/21: Fixed memory leak in mixture dataset + added other sampling for megadepth dataset

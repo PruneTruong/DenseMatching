@@ -13,6 +13,67 @@ from third_party.GOCor.GOCor.optimizer_selection_functions import define_optimiz
 from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow, convert_flow_to_mapping
 
 
+def pre_process_image_glunet_normalized(source_img, device, mean_vector=[0.485, 0.456, 0.406],
+                                        std_vector=[0.229, 0.224, 0.225]):
+    """
+
+    Args:
+        source_img: torch tensor, bx3xHxW in range [0, 1]
+        device:
+        mean_vector:
+        std_vector:
+
+    Returns:
+
+    """
+    # img has shape bx3xhxw
+    b, _, h_scale, w_scale = source_img.shape
+    source_img_copy = source_img.float().to(device)
+
+    mean = torch.as_tensor(mean_vector, dtype=source_img_copy.dtype, device=source_img_copy.device)
+    std = torch.as_tensor(std_vector, dtype=source_img_copy.dtype, device=source_img_copy.device)
+    source_img_copy.sub_(mean[:, None, None]).div_(std[:, None, None])
+
+    # resolution 256x256
+    source_img_256 = torch.nn.functional.interpolate(input=source_img.float().to(device),
+                                                     size=(256, 256),
+                                                     mode='area').byte()
+
+    source_img_256.sub_(mean[:, None, None]).div_(std[:, None, None])
+    return source_img_copy.to(device), source_img_256.to(device)
+
+
+def pre_process_image_glunet(source_img, device, mean_vector=[0.485, 0.456, 0.406],
+                             std_vector=[0.229, 0.224, 0.225]):
+    """
+
+    Args:
+        source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+        device:
+        mean_vector:
+        std_vector:
+
+    Returns:
+
+    """
+    # img has shape bx3xhxw
+    b, _, h_scale, w_scale = source_img.shape
+    source_img_copy = source_img.float().to(device).div(255.0)
+
+    mean = torch.as_tensor(mean_vector, dtype=source_img_copy.dtype, device=source_img_copy.device)
+    std = torch.as_tensor(std_vector, dtype=source_img_copy.dtype, device=source_img_copy.device)
+    source_img_copy.sub_(mean[:, None, None]).div_(std[:, None, None])
+
+    # resolution 256x256
+    source_img_256 = torch.nn.functional.interpolate(input=source_img.float().to(device),
+                                                     size=(256, 256),
+                                                     mode='area').byte()
+
+    source_img_256 = source_img_256.float().div(255.0)
+    source_img_256.sub_(mean[:, None, None]).div_(std[:, None, None])
+    return source_img_copy.to(device), source_img_256.to(device)
+
+
 def pre_process_data_GLUNet(source_img, target_img, device, mean_vector=[0.485, 0.456, 0.406],
                             std_vector=[0.229, 0.224, 0.225], apply_flip=False):
     """
@@ -334,30 +395,44 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
         res = self.l_dc_conv7(x)
         return x, res
 
+    def extract_pyramid(self, im, im_256):
+        # pyramid for the high resolution image
+        im_pyr = self.pyramid(im, eigth_resolution=True)
+
+        # pyramid for the 256x256 image
+        if self.params.make_two_feature_copies:
+            im_pyr_256 = self.pyramid_256(im_256)
+        else:
+            im_pyr_256 = self.pyramid(im_256)
+        return im_pyr, im_pyr_256
+
     def extract_features(self, im_target, im_source, im_target_256, im_source_256,
-                         im1_pyr=None, im2_pyr=None, im1_pyr_256=None, im2_pyr_256=None):
+                         im_target_pyr=None, im_source_pyr=None, im_target_pyr_256=None, im_source_pyr_256=None):
         # pyramid, original reso
-        if im1_pyr is None:
-            im1_pyr = self.pyramid(im_target, eigth_resolution=True)
-        if im2_pyr is None:
-            im2_pyr = self.pyramid(im_source, eigth_resolution=True)
-        c11 = im1_pyr[-2]  # load_size original_res/4xoriginal_res/4
-        c21 = im2_pyr[-2]
-        c12 = im1_pyr[-1]  # load_size original_res/8xoriginal_res/8
-        c22 = im2_pyr[-1]
+        if im_target_pyr is None:
+            im_target_pyr = self.pyramid(im_target, eigth_resolution=True)
+        if im_source_pyr is None:
+            im_source_pyr = self.pyramid(im_source, eigth_resolution=True)
+        c11 = im_target_pyr[-2]  # load_size original_res/4xoriginal_res/4
+        c21 = im_source_pyr[-2]
+        c12 = im_target_pyr[-1]  # load_size original_res/8xoriginal_res/8
+        c22 = im_source_pyr[-1]
 
         # pyramid, 256 reso
-        if im1_pyr_256 is None:
+        if im_target_pyr_256 is None:
             if self.params.make_two_feature_copies:
-                im1_pyr_256 = self.pyramid_256(im_target_256)
-                im2_pyr_256 = self.pyramid_256(im_source_256)
+                im_target_pyr_256 = self.pyramid_256(im_target_256)
             else:
-                im1_pyr_256 = self.pyramid(im_target_256)
-                im2_pyr_256 = self.pyramid(im_source_256)
-        c13 = im1_pyr_256[-2]
-        c23 = im2_pyr_256[-2]
-        c14 = im1_pyr_256[-1]
-        c24 = im2_pyr_256[-1]
+                im_target_pyr_256 = self.pyramid(im_target_256)
+        if im_source_pyr_256 is None:
+            if self.params.make_two_feature_copies:
+                im_source_pyr_256 = self.pyramid_256(im_source_256)
+            else:
+                im_source_pyr_256 = self.pyramid(im_source_256)
+        c13 = im_target_pyr_256[-2]
+        c23 = im_source_pyr_256[-2]
+        c14 = im_target_pyr_256[-1]
+        c24 = im_source_pyr_256[-1]
         return c14, c24, c13, c23, c12, c22, c11, c21
 
     def pre_process_data(self, source_img, target_img, apply_flip=False):

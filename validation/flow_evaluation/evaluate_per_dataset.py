@@ -10,8 +10,6 @@ from validation.flow_evaluation.metrics_uncertainty import (compute_average_of_u
 from datasets.geometric_matching_datasets.ETH3D_interval import ETHInterval
 from torch.utils.data import DataLoader
 from validation.plot import plot_sparse_keypoints, plot_flow_and_uncertainty, plot_individual_images
-from utils_flow.pixel_wise_mapping import warp
-from models.inference_utils import estimate_mask
 
 
 def resize_images_to_min_resolution(minSize, I, x, y, strideNet=16):  # for consistency with RANSAC-Flow

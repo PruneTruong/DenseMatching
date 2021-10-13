@@ -123,7 +123,7 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
         self.pyramid = feature_extractor
 
     def forward(self, im_target, im_source, im_target_256, im_source_256, im_target_pyr=None, im_source_pyr=None,
-                im_target_pyt_256=None, im_source_pyr_256=None):
+                im_target_pyr_256=None, im_source_pyr_256=None):
         # im1 is target image, im2 is source image
         b, _, h_original, w_original = im_target.size()
         b, _, h_256, w_256 = im_target_256.size()
@@ -131,7 +131,7 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
 
         c14, c24, c13, c23, c12, c22, c11, c21 = self.extract_features(im_target, im_source, im_target_256,
                                                                        im_source_256, im_target_pyr,
-                                                                       im_source_pyr, im_target_pyt_256,
+                                                                       im_source_pyr, im_target_pyr_256,
                                                                        im_source_pyr_256)
         # RESOLUTION 256x256
         # level 4: 16x16

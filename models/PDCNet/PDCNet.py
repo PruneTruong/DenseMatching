@@ -419,13 +419,33 @@ class PDCNetModel(ProbabilisticGLU):
 
         return up_flow, up_log_var_map, up_probability_map, up_feat
 
-    def forward(self, im_target, im_source, im_target_256, im_source_256):
+    def forward(self, im_target, im_source, im_target_256, im_source_256, im_target_pyr=None,
+                im_source_pyr=None, im_target_pyr_256=None, im_source_pyr_256=None):
+        """
+
+        Args:
+            im_target: torch Tensor Bx3xHxW, normalized with imagenet weights
+            im_source: torch Tensor Bx3xHxW, normalized with imagenet weights
+            im_target_256: torch Tensor Bx3x256x256, normalized with imagenet weights
+            im_source_256: torch Tensor Bx3x256x256, normalized with imagenet weights
+            im_target_pyr:
+            im_source_pyr:
+            im_target_pyr_256:
+            im_source_pyr_256:
+
+        Returns:
+
+        """
         # im1 is target image, im2 is source image
         b, _, h_original, w_original = im_target.size()
         b, _, h_256, w_256 = im_target_256.size()
 
         c14, c24, c13, c23, c12, c22, c11, c21 = self.extract_features(im_target, im_source,
-                                                                       im_target_256, im_source_256)
+                                                                       im_target_256, im_source_256,
+                                                                       im_target_pyr=im_target_pyr,
+                                                                       im_source_pyr=im_source_pyr,
+                                                                       im_target_pyr_256=im_target_pyr_256,
+                                                                       im_source_pyr_256=im_source_pyr_256)
 
         # RESOLUTION 256x256
         # level 4

@@ -1,6 +1,5 @@
 import os
 import random
-import imageio
 import torch
 import cv2
 from torch.utils.data import Dataset
@@ -13,7 +12,7 @@ def resize(img, kps, size=(256, 256)):
     h, w = img.shape[:2]
     resized_img = cv2.resize(img, dsize=(size[1], size[0]), interpolation=cv2.INTER_LINEAR)
 
-    kps = kps.t()
+    kps = kps.t().clone()
     resized_kps = torch.zeros_like(kps, dtype=torch.float)
     resized_kps[:, 0] = kps[:, 0] * (size[1] / w)
     resized_kps[:, 1] = kps[:, 1] * (size[0] / h)
@@ -25,7 +24,7 @@ def random_crop(img, kps, bbox, size=(256, 256), p=0.5):
     if random.uniform(0, 1) > p:
         return resize(img, kps, size)
     h, w = img.shape[:2]
-    kps = kps.t()
+    kps = kps.t().clone()
     left = random.randint(0, bbox[0])
     top = random.randint(0, bbox[1])
     height = random.randint(bbox[3], h) - top
@@ -172,7 +171,7 @@ class SemanticKeypointsDataset(Dataset):
     def get_image(self, imnames, idx):
         """Reads numpy image from path"""
         path = os.path.join(self.img_path, imnames[idx])
-        return imageio.imread(path)
+        return cv2.imread(path)[:, :, ::-1]
 
     def get_pckthres(self, batch, imsize):
         """Computes PCK threshold"""
@@ -220,6 +219,8 @@ class SemanticKeypointsDataset(Dataset):
             # either pad to same shape
             source, target = pad_to_same_shape(source, target)
 
+        kp_target = kp_target.clone()
+        kp_source = kp_source.clone()
         if self.training_cfg['output_image_size'] is not None:
             if isinstance(self.training_cfg['output_image_size'], list):
                 # resize to a fixed load_size and rescale the keypoints accordingly
@@ -254,7 +255,7 @@ class SemanticKeypointsDataset(Dataset):
             size_of_flow = self.training_cfg['output_flow_size']
 
         if not isinstance(size_of_flow[0], list):
-            # must be list of sizes
+            # must be a list of sizes
             size_of_flow = [size_of_flow]
 
         list_of_flow = []
@@ -285,6 +286,7 @@ class SemanticKeypointsDataset(Dataset):
         tmp = bbox[0].clone()
         bbox[0] = img.shape[1] - bbox[2]
         bbox[2] = img.shape[1] - tmp
+        kp = kp.clone()
         kp[0] = img.shape[1] - kp[0]
         img = np.flip(img, 1)
         return img, bbox, kp
@@ -343,7 +345,7 @@ class ImagePairDataset(Dataset):
             self.images = self.train_data.iloc[:, 0]
             self.images.append(self.train_data.iloc[:, 1])
 
-        self.dataset_image_path = dataset_image_path
+        self.dataset_image_path = os.path.dirname(dataset_image_path)  # because the csv file starts from the folder
         self.transform_source = source_image_transform
         self.transform_target = target_image_transform
 
@@ -374,7 +376,7 @@ class ImagePairDataset(Dataset):
 
     def get_image(self, img_name_list, idx, flip):
         img_name = os.path.join(self.dataset_image_path, img_name_list.iloc[idx])
-        image = imageio.imread(img_name)
+        image = cv2.imread(img_name)[:, :, ::-1]
 
         # if grayscale convert to 3-channel image
         if image.ndim == 2:

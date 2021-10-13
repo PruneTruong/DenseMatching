@@ -1,6 +1,7 @@
 from models.GLUNet.GLU_Net import GLUNetModel
 from models.PWCNet.pwc_net import PWCNetModel
 from models.PDCNet.PDCNet import PDCNet_vgg16
+from models.GLUNet.Semantic_GLUNet import SemanticGLUNetModel
 import os.path as osp
 import torch
 import os
@@ -28,8 +29,11 @@ def load_network(net, checkpoint_path=None, **kwargs):
     return net
 
 
-model_type = ['GLUNet', 'GLUNet_GOCor', 'PWCNet', 'PWCNet_GOCor', 'GLUNet_GOCor_star', 'PDCNet']
-pre_trained_model_types = ['static', 'dynamic', 'chairs_things', 'chairs_things_ft_sintel', 'megadepth']
+model_type = ['GLUNet', 'GLUNet_GOCor', 'PWCNet', 'PWCNet_GOCor', 'GLUNet_GOCor_star', 'PDCNet',
+              'GLUNet_star', 'WarpCGLUNet', 'SemanticGLUNet', 'WarpCSemanticGLUNet']
+pre_trained_model_types = ['static', 'dynamic', 'chairs_things', 'chairs_things_ft_sintel', 'megadepth',
+                           'megadepth_stage1',
+                           'pfpascal', 'spair']
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -139,7 +143,15 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
                                corr_for_corr_uncertainty_decoder='corr',
                                give_layer_before_flow_to_uncertainty_decoder=True,
                                var_2_plus=520 ** 2, var_2_plus_256=256 ** 2, var_1_minus_plus=1.0, var_2_minus=2.0)
-
+    elif model_name == 'GLUNet_star' or model_name == 'WarpCGLUNet':
+        # replaced the DenseNet connections in original network by residual connections to make the network lighter.
+        network = GLUNetModel(iterative_refinement=True, global_corr_type='feature_corr_layer',
+                              normalize='relu_l2norm', cyclic_consistency=True,
+                              local_corr_type='feature_corr_layer',
+                              local_decoder_type='OpticalFlowEstimatorResidualConnection',
+                              global_decoder_type='CMDTopResidualConnection')
+    elif model_name == 'SemanticGLUNet' or model_name == 'WarpCSemanticGLUNet':
+        network = SemanticGLUNetModel(iterative_refinement=True)
     else:
         raise NotImplementedError('the model that you chose does not exist: {}'.format(model_name))
 
