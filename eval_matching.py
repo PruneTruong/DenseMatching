@@ -6,16 +6,13 @@ import argparse
 import datasets
 from utils_data.image_transforms import ArrayToTensor
 import json
-from validation.flow_evaluation.evaluate_per_dataset import run_evaluation_generic, run_evaluation_kitti, run_evaluation_megadepth_or_robotcar, \
-    run_evaluation_sintel, run_evaluation_eth3d, run_evaluation_semantic
+from validation.flow_evaluation.evaluate_per_dataset import (run_evaluation_generic, run_evaluation_kitti,
+                                                             run_evaluation_megadepth_or_robotcar,
+                                                             run_evaluation_sintel, run_evaluation_eth3d,
+                                                             run_evaluation_semantic, run_evaluation_caltech)
 from model_selection import select_model
-import sys
-env_path = os.path.join(os.path.dirname(__file__), '..')
-if env_path not in sys.path:
-    sys.path.append(env_path)
 import admin.settings as ws_settings
 from admin.stats import merge_dictionaries
-from utils_data.euler_wrapper import prepare_data
 from validation.test_parser import define_model_parser, boolean_string
 torch.set_grad_enabled(False)
 
@@ -169,6 +166,15 @@ def main(args, settings):
                                              flipping_condition=args.flipping_condition,
                                              path_to_save=path_to_save, plot=args.plot, plot_100=args.plot_100,
                                              plot_ind_images=args.plot_individual_images)
+
+        elif args.datasets == 'caltech':
+            test_set = datasets.CaltechDataset(settings.env.caltech, source_image_transform=input_transform,
+                                               target_image_transform=input_transform, split='test',
+                                               flow_transform=target_transform)
+            test_dataloader = DataLoader(test_set, batch_size=1, num_workers=8)
+            output = run_evaluation_caltech(network, test_dataloader, device, estimate_uncertainty=estimate_uncertainty,
+                                            flipping_condition=args.flipping_condition, path_to_save=path_to_save,
+                                            plot_ind_images=args.plot_individual_images)
 
         elif args.datasets == 'sintel':
             output = {}

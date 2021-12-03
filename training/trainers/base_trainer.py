@@ -145,7 +145,6 @@ class BaseTrainer:
             'optimizer': self.optimizer.state_dict(),
             'lr_scheduler': self.lr_scheduler.state_dict(),
             'stats': self.stats,
-            'settings': self.settings,
             'best_val': self.best_val,
             'epoch_of_best_val': self.epoch_of_best_val
         }

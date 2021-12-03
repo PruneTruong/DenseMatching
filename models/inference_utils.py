@@ -7,6 +7,7 @@ from scipy import ndimage
 import cv2
 from .PDCNet.mod_uncertainty import (estimate_average_variance_of_mixture_density,
                                      estimate_probability_of_confidence_interval_of_mixture_density)
+from utils_flow.flow_and_mapping_operations import unnormalize, normalize
 
 
 def estimate_mask(mask_type, uncertainty_est, list_item=-1):
@@ -265,12 +266,19 @@ def estimate_homography_and_correspondence_map(flow_estimated, binary_mask, orig
 
                 if mapping_output_shape is not None:
                     mapping_from_homography_torch = torch.nn.functional.interpolate(
+                        input=normalize(mapping_from_homography_torch).to(device), size=mapping_output_shape, mode='bilinear',
+                        align_corners=False)
+                    mapping_from_homography_torch = unnormalize(mapping_from_homography_torch)
+                '''
+                if mapping_output_shape is not None:
+                    mapping_from_homography_torch = torch.nn.functional.interpolate(
                         input=mapping_from_homography_torch.to(device), size=mapping_output_shape, mode='bilinear',
                         align_corners=False)
                     mapping_from_homography_torch[:, 0] *= float(mapping_output_shape[1]) / float(original_shape[1])
                     mapping_from_homography_torch[:, 1] *= float(mapping_output_shape[0]) / float(original_shape[0])
+                '''
             else:
-                print('rejected a homography')
+                # print('rejected a homography')
                 H = None
         except:
             mapping_from_homography_torch = None

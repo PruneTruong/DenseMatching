@@ -10,6 +10,8 @@ from validation.flow_evaluation.metrics_uncertainty import (compute_average_of_u
 from datasets.geometric_matching_datasets.ETH3D_interval import ETHInterval
 from torch.utils.data import DataLoader
 from validation.plot import plot_sparse_keypoints, plot_flow_and_uncertainty, plot_individual_images
+from .metrics_segmentation_matching import poly_str_to_mask, intersection_over_union, label_transfer_accuracy
+from utils_flow.pixel_wise_mapping import warp
 
 
 def resize_images_to_min_resolution(minSize, I, x, y, strideNet=16):  # for consistency with RANSAC-Flow
@@ -399,8 +401,9 @@ def run_evaluation_semantic(network, test_dataloader, device, estimate_uncertain
         target_img = mini_batch['target_image']
         flow_gt = mini_batch['flow_map'].to(device)
         mask_valid = mini_batch['correspondence_mask'].to(device)
-        if 'L_bounding_box' in list(mini_batch.keys()):
-            L_pck = mini_batch['L_bounding_box'][0].float().item()
+
+        if 'pckthres' in list(mini_batch.keys()):
+            L_pck = mini_batch['pckthres'][0].float().item()
         else:
             raise ValueError('No pck threshold in mini_batch')
 
@@ -418,11 +421,11 @@ def run_evaluation_semantic(network, test_dataloader, device, estimate_uncertain
             plot_individual_images(path_to_save, 'image_{}'.format(i_batch), source_img, target_img, flow_est)
 
         if plot or (plot_100 and i_batch < 100):
-            if 'source_coor' in list(mini_batch.keys()):
+            if 'source_kps' in list(mini_batch.keys()):
                 # I = estimate_probability_of_confidence_interval_of_mixture_density(log_var_map_padded, R=1.0)
                 plot_sparse_keypoints(path_to_save, 'image_{}'.format(i_batch), source_img, target_img, flow_est,
-                                      mini_batch['source_coor'][0][:, 0], mini_batch['source_coor'][0][:, 1],
-                                      mini_batch['target_coor'][0][:, 0], mini_batch['target_coor'][0][:, 1],
+                                      mini_batch['source_kps'][0][:, 0], mini_batch['source_kps'][0][:, 1],
+                                      mini_batch['target_kps'][0][:, 0], mini_batch['target_kps'][0][:, 1],
                                       uncertainty_comp_est=uncertainty_est)
             else:
                 plot_flow_and_uncertainty(path_to_save, 'image_{}'.format(i_batch), source_img, target_img,
@@ -432,9 +435,6 @@ def run_evaluation_semantic(network, test_dataloader, device, estimate_uncertain
         flow_gt = flow_gt.permute(0, 2, 3, 1)[mask_valid]
 
         epe = torch.sum((flow_est - flow_gt) ** 2, dim=1).sqrt()
-
-        if 'n_pts' in mini_batch.keys():
-            assert len(epe.view(-1)) == mini_batch['n_pts']
 
         epe_all_list.append(epe.view(-1).cpu().numpy())
         mean_epe_list.append(epe.mean().item())
@@ -468,4 +468,57 @@ def run_evaluation_semantic(network, test_dataloader, device, estimate_uncertain
         for uncertainty_name in dict_list_uncertainties.keys():
             output['uncertainty_dict_{}'.format(uncertainty_name)] = compute_average_of_uncertainty_metrics(
                 dict_list_uncertainties[uncertainty_name])
+    return output
+
+
+def run_evaluation_caltech(network, test_dataloader, device, estimate_uncertainty=False, flipping_condition=False,
+                           path_to_save=None, plot_ind_images=False,):
+
+    def compute_mean(results):
+        good_idx = np.flatnonzero((results != -1) * ~np.isnan(results))
+        filtered_results = np.float64(results)[good_idx]
+        return np.mean(filtered_results)
+
+    pbar = tqdm(enumerate(test_dataloader), total=len(test_dataloader))
+    list_intersection_over_union, list_label_transfer_accuracy, list_localization_error = [], [], []
+
+    for i_batch, mini_batch in pbar:
+        mini_batch['nbr'] = i_batch
+        source_img = mini_batch['source_image']
+        target_img = mini_batch['target_image']
+        h_src, w_src = mini_batch['source_image_size'][0]
+        h_tgt, w_tgt = mini_batch['source_image_size'][0]
+
+        target_mask_np, target_mask = poly_str_to_mask(
+            mini_batch['target_kps'][0, :mini_batch['n_pts'][0], 0],
+            mini_batch['target_kps'][0, :mini_batch['n_pts'][0], 1], h_tgt, w_tgt)
+
+        source_mask_np, source_mask = poly_str_to_mask(
+            mini_batch['source_kps'][0, :mini_batch['n_pts'][0], 0],
+            mini_batch['source_kps'][0, :mini_batch['n_pts'][0], 1], h_src, w_src)
+
+        if estimate_uncertainty:
+            flow_est, uncertainty_est = network.estimate_flow_and_confidence_map(source_img, target_img)
+        else:
+            if flipping_condition:
+                flow_est = network.estimate_flow_with_flipping_condition(source_img, target_img)
+            else:
+                flow_est = network.estimate_flow(source_img, target_img)
+
+        flow_est = flow_est[:, :, :h_tgt, :w_tgt]  # remove the padding, to original images.
+
+        warped_mask_1 = warp(source_mask, flow_est)
+
+        list_intersection_over_union.append(intersection_over_union(warped_mask_1, target_mask).item())
+        list_label_transfer_accuracy.append(label_transfer_accuracy(warped_mask_1, target_mask).item())
+
+        if plot_ind_images:
+            mask = None
+            plot_individual_images(path_to_save, 'image_{}'.format(i_batch), source_img, target_img, flow_est, mask)
+
+    output = {'intersection_over_union': compute_mean(list_intersection_over_union),
+              'label_transfer_accuracy': compute_mean(list_label_transfer_accuracy)
+              }
+    print("Validation IoU: %f, transfer Acc: %f" % (output['intersection_over_union'],
+                                                    output['label_transfer_accuracy']))
     return output

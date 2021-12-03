@@ -7,7 +7,7 @@ matplotlib.use('Agg')
 from imageio import imread
 import math
 from skimage.feature import peak_local_max
-from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
+from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping, normalize, unnormalize
 from utils_data.geometric_transformation_sampling.homography_parameters_sampling import from_homography_to_pixel_wise_mapping
 
 
@@ -356,10 +356,9 @@ def estimate_homography_and_correspondence_map(flow_estimated, binary_mask, orig
 
                 if mapping_output_shape is not None:
                     mapping_from_homography_torch = torch.nn.functional.interpolate(
-                        input=mapping_from_homography_torch.to(device), size=mapping_output_shape, mode='bilinear',
-                        align_corners=False)
-                    mapping_from_homography_torch[:, 0] *= float(mapping_output_shape[1]) / float(original_shape[1])
-                    mapping_from_homography_torch[:, 1] *= float(mapping_output_shape[0]) / float(original_shape[0])
+                        input=normalize(mapping_from_homography_torch).to(device), size=mapping_output_shape,
+                        mode='bilinear', align_corners=False)
+                    mapping_from_homography_torch = unnormalize(mapping_from_homography_torch)
             else:
                 print('rejected a homography')
                 H = None

@@ -351,3 +351,74 @@ def unormalise_flow_or_mapping(map, output_channel_first=True):
             if output_channel_first:
                 mapping = mapping.transpose(2, 0, 1)
         return mapping.astype(np.float32)
+
+
+def unnormalize(tensor, output_channel_first=True):
+    if len(tensor.shape) == 4:
+        if tensor.shape[1] != 2:
+            if not isinstance(map, np.ndarray):
+                tensor = tensor.permute(0, 3, 1, 2)
+            else:
+                tensor = tensor.transpose(0, 3, 1, 2)
+
+        B, C, H, W = tensor.size()
+        tensor_unnorm = torch.zeros_like(tensor)
+        # mesh grid
+        tensor_unnorm[:, 0, :, :] = (tensor[:, 0, :, :] + 1) * (W - 1) / 2.0  # unormalise
+        tensor_unnorm[:, 1, :, :] = (tensor[:, 1, :, :] + 1) * (H - 1) / 2.0  # unormalise
+
+        if not output_channel_first:
+            tensor_unnorm = tensor_unnorm.permute(0, 2, 3, 1)
+    else:
+        if tensor.shape[0] != 2:
+            if not isinstance(map, np.ndarray):
+                tensor = tensor.permute(2, 0, 1)
+            else:
+                tensor = tensor.transpose(2, 0, 1)
+
+
+        C, H, W = tensor.size()
+        tensor_unnorm = torch.zeros_like(tensor)
+        # mesh grid
+        tensor_unnorm[0, :, :] = (tensor[0, :, :] + 1) * (W - 1) / 2.0  # unormalise
+        tensor_unnorm[1, :, :] = (tensor[1, :, :] + 1) * (H - 1) / 2.0  # unormalise
+
+        if not output_channel_first:
+            tensor_unnorm = tensor_unnorm.permute(0, 2, 3, 1)
+
+    return tensor_unnorm
+
+
+def normalize(tensor, output_channel_first=True):
+    if len(tensor.shape) == 4:
+        if tensor.shape[1] != 2:
+            if not isinstance(map, np.ndarray):
+                tensor = tensor.permute(0, 3, 1, 2)
+            else:
+                tensor = tensor.transpose(0, 3, 1, 2)
+
+        B, C, H, W = tensor.size()
+        tensor_norm = torch.zeros_like(tensor)
+        # mesh grid
+        tensor_norm[:, 0, :, :] = 2 * tensor[:, 0, :, :] / (W - 1) - 1.0
+        tensor_norm[:, 1, :, :] = 2 * tensor[:, 1, :, :] / (H - 1) - 1.0
+
+        if not output_channel_first:
+            tensor_norm = tensor_norm.permute(0, 2, 3, 1)
+    else:
+        if tensor.shape[0] != 2:
+            if not isinstance(map, np.ndarray):
+                tensor = tensor.permute(2, 0, 1)
+            else:
+                tensor = tensor.transpose(2, 0, 1)
+
+        C, H, W = tensor.size()
+        tensor_norm = torch.zeros_like(tensor)
+        # mesh grid
+        tensor_norm[0, :, :] = 2 * tensor[0, :, :] / (W - 1) - 1.0
+        tensor_norm[1, :, :] = 2 * tensor[1, :, :] / (H - 1) - 1.0
+
+        if not output_channel_first:
+            tensor_norm = tensor_norm.permute(0, 2, 3, 1)
+
+    return tensor_norm

@@ -291,7 +291,6 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
                                                                mask_fg, bg_frame_list[1],  # original target image
                                                                (loc_x_target, loc_y_target))
 
-
                 # computes the geometric transformation applied to the object to paste it in the source image
                 # the transformation is defined in self.foreground_transform and we additionally add translation
                 # to decide more or less the location of object in the source image

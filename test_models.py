@@ -134,7 +134,7 @@ if __name__ == "__main__":
                         help='Path to the source image.', required=True)
     parser.add_argument('--path_reference_image', type=str,
                         help='Path to the target image.', required=True)
-    parser.add_argument('--write_dir', type=str,
+    parser.add_argument('--write_dir', type=str, required=True,
                         help='Directory where to write output figure.')
     parser.add_argument('--save_ind_images', dest='save_ind_images',  default=False, type=boolean_string,
                         help='Save individual images? ')

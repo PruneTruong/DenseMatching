@@ -29,11 +29,10 @@ def load_network(net, checkpoint_path=None, **kwargs):
     return net
 
 
-model_type = ['GLUNet', 'GLUNet_GOCor', 'PWCNet', 'PWCNet_GOCor', 'GLUNet_GOCor_star', 'PDCNet',
+model_type = ['GLUNet', 'GLUNet_GOCor', 'PWCNet', 'PWCNet_GOCor', 'GLUNet_GOCor_star', 'PDCNet', 'PDCNet_plus',
               'GLUNet_star', 'WarpCGLUNet', 'SemanticGLUNet', 'WarpCSemanticGLUNet']
 pre_trained_model_types = ['static', 'dynamic', 'chairs_things', 'chairs_things_ft_sintel', 'megadepth',
-                           'megadepth_stage1',
-                           'pfpascal', 'spair']
+                           'megadepth_stage1', 'pfpascal', 'spair']
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -126,7 +125,7 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
                               local_decoder_type='OpticalFlowEstimatorResidualConnection',
                               global_decoder_type='CMDTopResidualConnection', make_two_feature_copies=True)
 
-    elif model_name == 'PDCNet':
+    elif model_name == 'PDCNet' or model_name == 'PDCNet_plus':
         estimate_uncertainty = True
         # for global gocor, we apply L_r and L_q within the optimizer module
         global_gocor_arguments = {'optim_iter': global_optim_iter, 'steplength_reg': 0.1, 'train_label_map': False,
@@ -135,14 +134,25 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
 
         # for global gocor, we apply L_r only
         local_gocor_arguments = {'optim_iter': local_optim_iter, 'steplength_reg': 0.1}
-        network = PDCNet_vgg16(global_corr_type='GlobalGOCor', global_gocor_arguments=global_gocor_arguments,
-                               normalize='leakyrelu', same_local_corr_at_all_levels=True,
-                               local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,
-                               local_decoder_type='OpticalFlowEstimatorResidualConnection',
-                               global_decoder_type='CMDTopResidualConnection',
-                               corr_for_corr_uncertainty_decoder='corr',
-                               give_layer_before_flow_to_uncertainty_decoder=True,
-                               var_2_plus=520 ** 2, var_2_plus_256=256 ** 2, var_1_minus_plus=1.0, var_2_minus=2.0)
+        if model_name == 'PDCNet':
+            network = PDCNet_vgg16(global_corr_type='GlobalGOCor', global_gocor_arguments=global_gocor_arguments,
+                                   normalize='leakyrelu', same_local_corr_at_all_levels=True,
+                                   local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,
+                                   local_decoder_type='OpticalFlowEstimatorResidualConnection',
+                                   global_decoder_type='CMDTopResidualConnection',
+                                   corr_for_corr_uncertainty_decoder='corr',
+                                   give_layer_before_flow_to_uncertainty_decoder=True,
+                                   var_2_plus=520 ** 2, var_2_plus_256=256 ** 2, var_1_minus_plus=1.0, var_2_minus=2.0)
+        else:
+            network = PDCNet_vgg16(global_corr_type='GlobalGOCor', global_gocor_arguments=global_gocor_arguments,
+                                   normalize='leakyrelu', same_local_corr_at_all_levels=True,
+                                   local_corr_type='LocalGOCor', local_gocor_arguments=local_gocor_arguments,
+                                   local_decoder_type='OpticalFlowEstimatorResidualConnection',
+                                   global_decoder_type='CMDTopResidualConnection',
+                                   corr_for_corr_uncertainty_decoder='corr',
+                                   give_layer_before_flow_to_uncertainty_decoder=True,
+                                   var_2_plus=520 ** 2, var_2_plus_256=256 ** 2, var_1_minus_plus=1.0, var_2_minus=2.0,
+                                   make_two_feature_copies=True)
     elif model_name == 'GLUNet_star' or model_name == 'WarpCGLUNet':
         # replaced the DenseNet connections in original network by residual connections to make the network lighter.
         network = GLUNetModel(iterative_refinement=True, global_corr_type='feature_corr_layer',

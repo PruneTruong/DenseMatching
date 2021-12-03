@@ -268,44 +268,37 @@ def plot_during_training_with_uncertainty(save_path, epoch, batch, source_image,
                 proba_map_numpy = proba_map[ind][0, ind_mode].cpu().detach().numpy().astype(np.float32)
                 axis[1 + ind][ind_mode * 2].imshow(proba_map_numpy, vmin=0.0, vmax=1.0)
                 axis[1 + ind][ind_mode * 2].set_title(
-                    "uncertainty_{} \n Mixture component {} Proba map \n min={}, max={}".format(ind, ind_mode,
-                                                                                       round(proba_map_numpy.min()),
-                                                                                       round(proba_map_numpy.max())))
+                    "uncertainty_{} \n Mixture component {} Proba map \n min={:.2f}, max={:.2f}"
+                        .format(ind, ind_mode, proba_map_numpy.min(), proba_map_numpy.max()))
                 log_var_numpy = log_var[ind][0, ind_mode].cpu().detach().numpy().astype(np.float32)
                 axis[1 + ind][ind_mode * 2 + 1].imshow(log_var_numpy)
                 axis[1 + ind][ind_mode * 2 + 1].set_title(
-                    "uncertainty_{} \n Mixture component {} Log Variance:\n var min={}, max={}"
-                    .format(ind, ind_mode, round(np.exp(log_var_numpy).min()),
-                            round(np.exp(log_var_numpy).max())))
+                    "uncertainty_{} \n Mixture component {} Log Variance:\n var min={:.2f}, max={:.2f}"
+                    .format(ind, ind_mode, np.exp(log_var_numpy).min(), np.exp(log_var_numpy).max()))
 
             avg_variance = torch.sum(proba_map[ind].detach() * torch.exp(log_var[ind].detach()), dim=1, keepdim=True).squeeze()[
                 0].cpu().numpy().astype(np.float32)
             axis[1 + ind][num_mixture_mode * 2].imshow(avg_variance, vmin=1.0, vmax=10.0)
-            axis[1 + ind][num_mixture_mode * 2].set_title("uncertainty_{} \n variance of the mixture\n min={}, max={}"
-                                                          .format(ind, round(avg_variance.min()),
-                                                                  round(avg_variance.max())))
+            axis[1 + ind][num_mixture_mode * 2].set_title("uncertainty_{} \n variance of the mixture\n min={:.2f}, max={:.2f}"
+                                                          .format(ind, avg_variance.min(), avg_variance.max()))
 
     else:
         for ind_mode in range(num_mixture_mode):
             proba_map_numpy = proba_map[0, ind_mode].cpu().detach().numpy().astype(np.float32)
             axis[1][ind_mode * 2].imshow(proba_map_numpy, vmin=0.0, vmax=1.0)
-            axis[1][ind_mode * 2].set_title("Mixture component {} Proba map \n, min={}, max={}".format(ind_mode,
-                                                                                              round(
-                                                                                                  proba_map_numpy.min()),
-                                                                                              round(
-                                                                                                  proba_map_numpy.max())))
+            axis[1][ind_mode * 2].set_title("Mixture component {} Proba map \n, min={:.2f}, max={:.2f}"
+                                            .format(ind_mode, proba_map_numpy.min(), proba_map_numpy.max()))
             log_var_numpy = log_var[0, ind_mode].cpu().detach().numpy().astype(np.float32)
             axis[1][ind_mode * 2 + 1].imshow(log_var_numpy)
-            axis[1][ind_mode * 2 + 1].set_title("Mixture component {} Log Variance:\n var min={}, max={}"
-                                                .format(ind_mode, round(np.exp(log_var_numpy).min()),
-                                                        round(np.exp(log_var_numpy).max())))
+            axis[1][ind_mode * 2 + 1].set_title("Mixture component {} Log Variance:\n var min={:.2f}, max={:.2f}"
+                                                .format(ind_mode, np.exp(log_var_numpy).min(),
+                                                        np.exp(log_var_numpy).max()))
 
         avg_variance = torch.sum(proba_map * torch.exp(log_var), dim=1, keepdim=True).squeeze()[
             0].cpu().numpy().astype(np.float32)
         axis[1][num_mixture_mode * 2].imshow(avg_variance, vmin=1.0, vmax=10.0)
-        axis[1][num_mixture_mode * 2].set_title("variance of the mixture\n, min={}, max={}"
-                                                .format(round(avg_variance.min()),
-                                                        round(avg_variance.max())))
+        axis[1][num_mixture_mode * 2].set_title("variance of the mixture\n min={:.2f}, max={:.2f}"
+                                                .format(avg_variance.min(), avg_variance.max()))
 
     axis[n1][0].imshow(image_1_256.numpy())
     axis[n1][0].set_title("reso 256: \nsource image")
@@ -328,44 +321,36 @@ def plot_during_training_with_uncertainty(save_path, epoch, batch, source_image,
                 proba_map_numpy = proba_map_256[ind][0, ind_mode].cpu().detach().numpy().astype(np.float32)
                 axis[n1+1 + ind][ind_mode * 2].imshow(proba_map_numpy, vmin=0.0, vmax=1.0)
                 axis[n1+1 + ind][ind_mode * 2].set_title(
-                    "uncertainty_{} \n Mixture component {} Proba map \n min={}, max={}".format(ind, ind_mode,
-                                                                                       round(proba_map_numpy.min()),
-                                                                                       round(proba_map_numpy.max())))
+                    "uncertainty_{} \n Mixture component {} Proba map \n min={:.2f}, max={:.2f}"
+                        .format(ind, ind_mode, proba_map_numpy.min(), proba_map_numpy.max()))
                 log_var_numpy = log_var_256[ind][0, ind_mode].cpu().detach().numpy().astype(np.float32)
                 axis[n1+1 + ind][ind_mode * 2 + 1].imshow(log_var_numpy)
                 axis[n1+1 + ind][ind_mode * 2 + 1].set_title(
-                    "uncertainty_{} \n Mixture component {} Log Variance:\n var min={}, max={}"
-                    .format(ind, ind_mode, round(np.exp(log_var_numpy).min()),
-                            round(np.exp(log_var_numpy).max())))
+                    "uncertainty_{} \n Mixture component {} Log Variance:\n var min={:.2f}, max={:.2f}"
+                    .format(ind, ind_mode, np.exp(log_var_numpy).min(), np.exp(log_var_numpy).max()))
 
             avg_variance = torch.sum(proba_map_256[ind].detach() * torch.exp(log_var_256[ind].detach()), dim=1, keepdim=True).squeeze()[
                 0].cpu().numpy().astype(np.float32)
             axis[n1+1 + ind][num_mixture_mode * 2].imshow(avg_variance, vmin=1.0, vmax=10.0)
-            axis[n1+1 + ind][num_mixture_mode * 2].set_title("uncertainty_{} \n variance of the mixture\n min={}, max={}"
-                                                          .format(ind, round(avg_variance.min()),
-                                                                  round(avg_variance.max())))
+            axis[n1+1 + ind][num_mixture_mode * 2].set_title("uncertainty_{} \n variance of the mixture\n min={:.2f}, max={:.2f}"
+                                                          .format(ind, avg_variance.min(), avg_variance.max()))
 
     else:
         for ind_mode in range(num_mixture_mode):
             proba_map_numpy = proba_map_256[0, ind_mode].cpu().detach().numpy().astype(np.float32)
             axis[n1+1][ind_mode * 2].imshow(proba_map_numpy, vmin=0.0, vmax=1.0)
-            axis[n1+1][ind_mode * 2].set_title("Mixture component {} Proba map \n, min={}, max={}".format(ind_mode,
-                                                                                              round(
-                                                                                                  proba_map_numpy.min()),
-                                                                                              round(
-                                                                                                  proba_map_numpy.max())))
+            axis[n1+1][ind_mode * 2].set_title("Mixture component {} Proba map \n, min={:.2f}, max={:.2f}"
+                                               .format(ind_mode, proba_map_numpy.min(), proba_map_numpy.max()))
             log_var_numpy = log_var_256[0, ind_mode].cpu().detach().numpy().astype(np.float32)
             axis[n1+1][ind_mode * 2 + 1].imshow(log_var_numpy)
-            axis[n1+1][ind_mode * 2 + 1].set_title("Mixture component {} Log Variance:\n var min={}, max={}"
-                                                .format(ind_mode, round(np.exp(log_var_numpy).min()),
-                                                        round(np.exp(log_var_numpy).max())))
+            axis[n1+1][ind_mode * 2 + 1].set_title("Mixture component {} Log Variance:\n var min={:.2f}, max={:.2f}"
+                                                .format(ind_mode, np.exp(log_var_numpy).min(), np.exp(log_var_numpy).max()))
 
         avg_variance = torch.sum(proba_map_256 * torch.exp(log_var_256), dim=1, keepdim=True).squeeze()[
             0].cpu().numpy().astype(np.float32)
         axis[n1+1][num_mixture_mode * 2].imshow(avg_variance, vmin=1.0, vmax=10.0)
-        axis[n1+1][num_mixture_mode * 2].set_title("Variance of the mixture:\n min={}, max={}"
-                                                .format(round(avg_variance.min()),
-                                                        round(avg_variance.max())))
+        axis[n1+1][num_mixture_mode * 2].set_title("Variance of the mixture:\n min={:.2f}, max={:.2f}"
+                                                .format(avg_variance.min(), avg_variance.max()))
 
     fig.tight_layout()
     fig.savefig('{}/epoch{}_batch{}.png'.format(save_path, epoch, batch))

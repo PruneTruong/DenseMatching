@@ -1,10 +1,10 @@
 from __future__ import division
 import os.path
-from datasets.listdataset import ListDataset
 import numpy as np
 import torch.utils.data as data
 import cv2
 from utils_data.io import load_flo
+import torch
 
 
 def pad_to_same_shape(im1, im2, flow, mask):
@@ -97,10 +97,10 @@ def flow_loader_with_paths(root, path_imgs, path_flo):
     flo = os.path.join(root, path_flo)
     flow = load_flo(flo)
     base_path = os.path.dirname(path_flo)
-    image_number = path_flo[-5] # getting the mask number, either 1 or 2 depending which image is the target !
+    image_number = path_flo[-5]  # getting the mask number, either 1 or 2 depending which image is the target !
     path_mask = os.path.join(root, base_path, 'mask{}.png'.format(image_number))
-    mask = cv2.imread(path_mask, 0)/255 # before it was 255, we want mask in range 0,1
-    images = [cv2.imread(img)[:,:,::-1].astype(np.uint8) for img in imgs]
+    mask = cv2.imread(path_mask, 0)/255  # before it was 255, we want mask in range 0,1
+    images = [cv2.imread(img)[:, :, ::-1].astype(np.uint8) for img in imgs]
     source_size = images[0].shape # threshold is max load_size of source image for pck
     target_size = images[1].shape
     im1, im2, flow, mask = pad_to_same_shape(images[0], images[1], flow, mask)
@@ -162,10 +162,11 @@ class TSSDataset(data.Dataset):
         return {'source_image': inputs[0],
                 'target_image': inputs[1],
                 'flow_map': target,
-                'correspondence_mask': mask.astype(np.bool),  # in torch will be torch.uint8
-                'source_image_size': source_size,
-                'target_image_size': target_size,
-                'L_bounding_box': L_pck
+                'correspondence_mask': mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 else
+                mask.astype(np.uint8),
+                'source_image_size': np.array(source_size),
+                'target_image_size': np.array(target_size),
+                'pckthres': L_pck
                 }
 
     def __len__(self):

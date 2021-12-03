@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from utils_flow.pixel_wise_mapping import warp
 from utils_flow.flow_and_mapping_operations import create_border_mask
+from datasets.util import define_mask_zero_borders
 
 
 class BatchedImageTripletCreation:
@@ -17,7 +18,7 @@ class BatchedImageTripletCreation:
     """
 
     def __init__(self, settings, synthetic_flow_generator, compute_mask_zero_borders=False,
-                 min_percent_valid_corr=0.1, crop_size=256, output_size=256):
+                 min_percent_valid_corr=0.1, crop_size=256, output_size=256, padding_mode='zeros'):
         """
         Args:
             settings: settings
@@ -44,6 +45,7 @@ class BatchedImageTripletCreation:
             output_size = (output_size, output_size)
         self.output_size = output_size
         self.min_percent_valid_corr = min_percent_valid_corr
+        self.padding_mode = padding_mode
 
     def __call__(self, mini_batch, net=None, training=True,  *args, **kwargs):
         """
@@ -64,9 +66,11 @@ class BatchedImageTripletCreation:
         target_image = mini_batch['target_image'].to(self.device)
         b, _, h, w = source_image.shape
 
+        '''
         if h <= self.output_size[0] or w <= self.output_size[1]:
             # should be larger, otherwise the warping will create huge black borders
             print('Image or flow is the same size than desired output size in warping dataset ! ')
+        '''
 
         # get synthetic homography transformation from the synthetic flow generator
         # flow_gt here is between target prime and target
@@ -78,7 +82,7 @@ class BatchedImageTripletCreation:
             flow_gt = F.interpolate(flow_gt, (h, w), mode='bilinear', align_corners=False)
             flow_gt[:, 0] *= float(w) / float(w_f)
             flow_gt[:, 1] *= float(h) / float(h_f)
-        target_image_prime = warp(target_image, flow_gt).byte()
+        target_image_prime = warp(target_image, flow_gt, padding_mode=self.padding_mode).byte()
 
         # if there exists a ground-truth flow between the source and target image, also modify it so it corresponds
         # to the new source and target images.
@@ -111,6 +115,14 @@ class BatchedImageTripletCreation:
                 mask_gt_target_to_source = mask_gt_target_to_source[:, y_start: y_start + self.crop_size[0],
                                                                     x_start: x_start + self.crop_size[1]]
 
+        if 'target_kps' in mini_batch.keys():
+            target_kp = mini_batch['target_kps'].to(self.device).clone()  # b, N, 2
+            source_kp = mini_batch['source_kps'].to(self.device).clone()  # b, N, 2
+            source_kp[:, :, 0] = source_kp[:, :, 0] - x_start   # will just make the not valid part even smaller
+            source_kp[:, :, 1] = source_kp[:, :, 1] - y_start
+            target_kp[:, :, 0] = target_kp[:, :, 0] - x_start
+            target_kp[:, :, 1] = target_kp[:, :, 1] - y_start
+
         # resize to final outptu load_size, this is to prevent the crop from removing all common areas
         if self.output_size != self.crop_size:
             source_image_resized = F.interpolate(source_image_resized, self.output_size,
@@ -136,6 +148,13 @@ class BatchedImageTripletCreation:
                     mask_gt_target_to_source = mask_gt_target_to_source.bool() if float(torch.__version__[:3]) >= 1.1 \
                         else mask_gt_target_to_source.byte()
 
+            # if target kps, also resize them
+            if 'target_kps' in mini_batch.keys():
+                source_kp[:, :, 0] *= float(self.output_size[1]) / float(self.crop_size[1])
+                source_kp[:, :, 1] *= float(self.output_size[0]) / float(self.crop_size[0])
+                target_kp[:, :, 0] *= float(self.output_size[1]) / float(self.crop_size[1])
+                target_kp[:, :, 1] *= float(self.output_size[0]) / float(self.crop_size[0])
+
         # create ground truth correspondence mask for flow between target prime and target
         mask_gt = create_border_mask(flow_gt_resized)
         mask_gt = mask_gt.bool() if float(torch.__version__[:3]) >= 1.1 else mask_gt.byte()
@@ -145,12 +164,13 @@ class BatchedImageTripletCreation:
             if mask_gt.sum() < mask_gt.shape[-1] * mask_gt.shape[-2] * self.min_percent_valid_corr:
                 mask = mask_gt
             else:
-                # mask black borders that might have appeared from the warping
-                occ_mask = target_image_prime_resized[:, 0, :, :].le(1e-8) & \
-                           target_image_prime_resized[:, 1, :, :].le(1e-8) & \
-                           target_image_prime_resized[:, 2, :, :].le(1e-8)
-                mask = ~occ_mask
-            mini_batch['mask_zero_borders'] = mask  # just to be used for GLUNet
+                # mask black borders that might have appeared from the warping, when creating target_image_prime
+                mask = define_mask_zero_borders(target_image_prime_resized)
+            mini_batch['mask_zero_borders'] = mask
+
+        if 'target_kps' in mini_batch.keys():
+            mini_batch['target_kps'] = target_kp  # b, N, 2
+            mini_batch['source_kps'] = source_kp  # b, N, 2
 
         if 'flow_map' in list(mini_batch.keys()):
             # gt between target and source (what we are trying to estimate during training unsupervised)
@@ -158,9 +178,9 @@ class BatchedImageTripletCreation:
             mini_batch['correspondence_mask_target_to_source'] = mask_gt_target_to_source
 
         # save the new batch information
-        mini_batch['source_image'] = source_image_resized
-        mini_batch['target_image'] = target_image_resized
-        mini_batch['target_image_prime'] = target_image_prime_resized
+        mini_batch['source_image'] = source_image_resized.byte()
+        mini_batch['target_image'] = target_image_resized.byte()
+        mini_batch['target_image_prime'] = target_image_prime_resized.byte()  # if apply transfo after
         mini_batch['correspondence_mask'] = mask_gt
         mini_batch['flow_map'] = flow_gt_resized  # between target_prime and target, replace the old one
         return mini_batch
@@ -181,7 +201,7 @@ class BatchedImageTripletCreation2Flows:
 
     def __init__(self, settings, synthetic_flow_generator_for_unsupervised,
                  synthetic_flow_generator_for_self_supervised, compute_mask_zero_borders=False,
-                 min_percent_valid_corr=0.1, crop_size=256, output_size=256):
+                 min_percent_valid_corr=0.1, crop_size=256, output_size=256, padding_mode='zeros'):
         """
         Args:
             settings: settings
@@ -211,6 +231,7 @@ class BatchedImageTripletCreation2Flows:
         self.output_size = output_size
         self.min_percent_valid_corr = min_percent_valid_corr
         self.compute_mask_zero_borders = compute_mask_zero_borders
+        self.padding_mode = padding_mode
 
     def compute_correspondence_mask(self, flow_gt_resized, target_image_prime_resized):
         # compute mask gt
@@ -265,7 +286,8 @@ class BatchedImageTripletCreation2Flows:
                                                      mode='bilinear', align_corners=False)
             flow_gt_for_unsupervised[:, 0] *= float(w) / float(w_f)
             flow_gt_for_unsupervised[:, 1] *= float(h) / float(h_f)
-        target_image_prime_for_unsupervised = warp(target_image, flow_gt_for_unsupervised).byte()
+        target_image_prime_for_unsupervised = warp(target_image, flow_gt_for_unsupervised,
+                                                   padding_mode=self.padding_mode).byte()
 
         # for self-supervised
         flow_gt_for_self_supervised = self.synthetic_flow_generator_for_self_supervised(mini_batch=mini_batch,
@@ -310,12 +332,20 @@ class BatchedImageTripletCreation2Flows:
                 mask_gt_target_to_source = mask_gt_target_to_source[:, y_start: y_start + self.crop_size[0],
                                                                     x_start: x_start + self.crop_size[1]]
 
-        if 'flow_map_target_to_source' in mini_batch:
+        if 'flow_map_target_to_source' in mini_batch.keys():
             # just for sanity check
             mini_batch['flow_map_target_to_source'] = mini_batch['flow_map_target_to_source']\
                 [:, :, y_start: y_start + self.crop_size[0], x_start: x_start + self.crop_size[1]]
             mini_batch['flow_map_source_to_target'] = mini_batch['flow_map_source_to_target']\
                 [:, :, y_start: y_start + self.crop_size[0], x_start: x_start + self.crop_size[1]]
+
+        if 'target_kps' in mini_batch.keys():
+            target_kp = mini_batch['target_kps'].to(self.device).clone()  # b, N, 2
+            source_kp = mini_batch['source_kps'].to(self.device).clone()  # b, N, 2
+            source_kp[:, :, 0] = source_kp[:, :, 0] - x_start   # will just make the not valid part even smaller
+            source_kp[:, :, 1] = source_kp[:, :, 1] - y_start
+            target_kp[:, :, 0] = target_kp[:, :, 0] - x_start
+            target_kp[:, :, 1] = target_kp[:, :, 1] - y_start
 
         # resize to final outptu load_size, this is to prevent the crop from removing all common areas
         if self.output_size != self.crop_size:
@@ -353,6 +383,12 @@ class BatchedImageTripletCreation2Flows:
                     mask_gt_target_to_source = mask_gt_target_to_source.bool() if float(torch.__version__[:3]) >= 1.1 \
                         else mask_gt_target_to_source.byte()
 
+            if 'target_kps' in mini_batch.keys():
+                source_kp[:, :, 0] *= float(self.output_size[1]) / float(self.crop_size[1])
+                source_kp[:, :, 1] *= float(self.output_size[0]) / float(self.crop_size[0])
+                target_kp[:, :, 0] *= float(self.output_size[1]) / float(self.crop_size[1])
+                target_kp[:, :, 1] *= float(self.output_size[0]) / float(self.crop_size[0])
+
         mask_for_unsupervised, mask_gt_for_unsupervised = self.compute_correspondence_mask(
             flow_gt_for_unsupervised_resized, target_image_prime_for_unsupervised_resized)
 
@@ -364,9 +400,13 @@ class BatchedImageTripletCreation2Flows:
             mini_batch['flow_map_target_to_source'] = flow_gt_target_to_source
             mini_batch['correspondence_mask_target_to_source'] = mask_gt_target_to_source
 
+        if 'target_kps' in mini_batch.keys():
+            mini_batch['target_kps'] = target_kp  # b, N, 2
+            mini_batch['source_kps'] = source_kp  # b, N, 2
+
         # save the new batch information
-        mini_batch['source_image'] = source_image_resized
-        mini_batch['target_image'] = target_image_resized
+        mini_batch['source_image'] = source_image_resized.byte()
+        mini_batch['target_image'] = target_image_resized.byte()
 
         # for unsupervised estimation
         mini_batch['target_image_prime'] = target_image_prime_for_unsupervised_resized

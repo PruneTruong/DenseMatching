@@ -55,7 +55,7 @@ def realEPE(output, target, mask_gt, ratio_x=None, ratio_y=None):
     return EPE.mean()
 
 
-def real_metrics(output, target, mask_gt, ratio_x=None, ratio_y=None):
+def real_metrics(output, target, mask_gt, ratio_x=None, ratio_y=None, thresh_1=1.0, thresh_2=3.0, thresh_3=5.0):
     """
     Computes real EPE, PCK-1, PCK-3 and PCK-3:
     the network output (quarter of original resolution) is upsampled to the load_size of
@@ -95,9 +95,9 @@ def real_metrics(output, target, mask_gt, ratio_x=None, ratio_y=None):
         torch.cat((flow_est_x[mask_gt].unsqueeze(1),
                    flow_est_y[mask_gt].unsqueeze(1)), dim=1)
     EPE = torch.norm(flow_est-flow_target, 2, 1)
-    PCK_1 = EPE.le(1.0).float()
-    PCK_3 = EPE.le(3.0).float()
-    PCK_5 = EPE.le(5.0).float()
+    PCK_1 = EPE.le(thresh_1).float()
+    PCK_3 = EPE.le(thresh_2).float()
+    PCK_5 = EPE.le(thresh_3).float()
     return EPE.mean(), PCK_1.mean(), PCK_3.mean(), PCK_5.mean()
 
 

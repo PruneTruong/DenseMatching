@@ -4,7 +4,8 @@ import torch.nn.functional as F
 from models.base_matching_net import BaseGLUMultiScaleMatchingNet
 from models.inference_utils import estimate_homography_and_inliers, estimate_homography_and_correspondence_map, \
     estimate_mask, matches_from_flow, from_homography_to_pixel_wise_mapping
-from .mod_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density, estimate_average_variance_of_mixture_density
+from .mod_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density, \
+    estimate_average_variance_of_mixture_density
 import cv2
 import numpy as np
 from datasets.util import pad_to_size

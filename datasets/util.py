@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 
-def define_mask_zero_borders(image, epsilon=1e-8):
+def define_mask_zero_borders(image, epsilon=1e-6):
     """Computes the binary mask, equal to 0 when image is 0 and 1 otherwise."""
     if isinstance(image, np.ndarray):
         if len(image.shape) == 4:

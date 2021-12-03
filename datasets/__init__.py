@@ -6,9 +6,10 @@ from datasets.optical_flow_datasets.KITTI_optical_flow import KITTI_noc, KITTI_o
 from datasets.semantic_matching_datasets.pfpascal import PFPascalDataset
 from datasets.semantic_matching_datasets.pfwillow import PFWillowDataset
 from datasets.semantic_matching_datasets.spair import SPairDataset
+from datasets.semantic_matching_datasets.caltech_dataset import CaltechDataset
 from datasets.geometric_matching_datasets.ETH3D_interval import ETHInterval
 
 __all__ = ('KITTI_occ', 'KITTI_noc', 'KITTI_only_occ', 'mpi_sintel_clean', 'mpi_sintel',
-           'mpi_sintel_final', 'SPairDataset',
+           'mpi_sintel_final', 'SPairDataset', 'CaltechDataset',
            'MPISintelTestData', 'ETHInterval',
            'HPatchesdataset', 'HomoAffTpsDataset', 'TSSDataset', 'PFPascalDataset', 'PFWillowDataset')

@@ -7,9 +7,6 @@ For any questions, issues or recommendations, please contact Prune at prune.truo
 <br />
 
 
-**13/10/2021: Pre-trained models for WarpCGLUNet and WarpCSemantic are here. Models for WarpCRANSACFlow will come. 
-Training code of WarpC will also be published soon.**
-
 
 ## Highlights
 
@@ -34,6 +31,15 @@ PDC-Net (CVPR 2021), WarpC models (ICCV 2021) including trained models and respe
 
 The repo contains the implementation of the following matching models. 
 We provide pre-trained model weights, data preparation, evaluation commands, and results for each dataset and method. 
+
+
+### [5] PDC-Net+: Enhanced Probabilistic Dense Correspondence Network. (Preprint)
+Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/), Radu Timofte, Luc Van Gool <br />
+
+\[[Paper](https://arxiv.org/abs/2109.13912)\]
+\[[Website](https://prunetruong.com/research/pdcnet+)\]
+
+
 
 ### [4] WarpC: Warp Consistency for Unsupervised Learning of Dense Correspondences. (ICCV 2021 - ORAL)
 Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/), 
@@ -132,9 +138,10 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 
 | Model        | Pre-trained model type | Paper | Description | Link [all](https://drive.google.com/drive/folders/1LVrwAHDvVxsqzaGtd409wHv8cSPeLj1i?usp=sharing) |
 |--------------|------------------------|-------------------------------------|------|------|
-| WarpCSemanticGLUNet       | spair  |  [4] |       |  [model](https://drive.google.com/file/d/1aLZ8MoV_fHFScx__WWmqxZMm3k3MuEpr/view?usp=sharing)
+| PDCNet_plus      | megadepth  |  [3], [5] |   PDC-Net+       |  [model](https://drive.google.com/file/d/151X9ovbOG35tbPjioV5CYk_5GKQ8FErw/view?usp=sharing)
+| WarpCSemanticGLUNet       | spair  |  [4] |   Original SemanticGLU-Net is finetuned using our warp consistency objective      |  [model](https://drive.google.com/file/d/1aLZ8MoV_fHFScx__WWmqxZMm3k3MuEpr/view?usp=sharing)
 | WarpCSemanticGLUNet       | pfpascal  |  [4] |    Original SemanticGLU-Net is finetuned using our warp consistency objective    |  [model](https://drive.google.com/file/d/1m_1dSa3cmUOmDWL4A1PBLEm6VW8O7x2x/view?usp=sharing)
-| SemanticGLUNet      | pfpascal  |   [4] |  Original SemanticGLU-Net is finetuned using warp supervision                               |  [model](https://drive.google.com/file/d/1rhOXoYjO5QPnvcmHX45NCyevqCUx2YmH/view?usp=sharing)
+| SemanticGLUNet      | pfpascal  |   [4] |   Original SemanticGLU-Net is finetuned using warp supervision                             |  [model](https://drive.google.com/file/d/1rhOXoYjO5QPnvcmHX45NCyevqCUx2YmH/view?usp=sharing)
 | WarpCRANSACFlow       | megadepth   |        [4]                             |  
 | WarpCGLUNet      | megadepth  /    megadepth_stage1  |  [4] |                                     |  [megadepth](https://drive.google.com/file/d/1ztQL04eSxleXAIRmInFjHY3tqK6n_iyA/view?usp=sharing) / [megadepth_stage1](https://drive.google.com/file/d/1vnYpYoqBNWg1EcBSkQm65en_IdsEbbX2/view?usp=sharing)
 | GLUNet_star       | megadepth /    megadepth_stage1  |  [4] |        Baseline for WarpCGLU-Net, trained with warp-supervision loss only   |  [megadepth](https://drive.google.com/file/d/1udUBzDkHoe6AggpZ8tRjYrljt3au0-rh/view?usp=sharing)  / [megadepth_stage1](https://drive.google.com/file/d/1PtLuTtO9kOCM_IO7WtW8xqbQDzQ9xixi/view?usp=sharing)
@@ -146,7 +153,7 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 | PWCNet_GOCor | chairs_things          | [2] |                                    | [model](https://drive.google.com/file/d/1ofkmCZR7xyUgzreyL7B5QXSl5ZljkMLo/view?usp=sharing)     |
 | GLUNet       | dynamic     |  [2] |                                   |   [model](https://drive.google.com/file/d/1SoCEg0IKfbkTu7aD5HnxIRKirjn3EJte/view?usp=sharing)   |
 | GLUNet       | static (CityScape-DPED-ADE)     | [1] |                                    |  [model](https://drive.google.com/file/d/1cu_8lwhuqeNsIxEsuB6ihDBzz-yLW_L5/view?usp=sharing)    |
-| WarpCSemanticGLUNet   | static (CityScape-DPED-ADE) |  [1] |     |  [model](https://drive.google.com/file/d/15cDS1tyySMn-SHBUIa-pS1VY8-zbp0hO/view?usp=sharing)
+| SemanticGLUNet   | static (CityScape-DPED-ADE) |  [1] |     |  [model](https://drive.google.com/file/d/15cDS1tyySMn-SHBUIa-pS1VY8-zbp0hO/view?usp=sharing)
 
 
 To download all of them, run the command ```bash assets/download_pre_trained_models.sh```. 
@@ -172,6 +179,7 @@ All networks are created in 'model_selection.py'. Weights should be put in pre_t
         8. [PF-Pascal](#pfpascal)
         9. [PF-Willow](#pfwillow)
         10. [Spair-71k](#spair)
+        11. [Caltech-101](#caltech)
     2. [Pose estimation](#pose_estimation)
         1. [YFCC100M](#yfcc)
         2. [ScanNet](#scannet)
@@ -231,16 +239,18 @@ python -c "from admin.environment import create_default_local_file; create_defau
 
 ## 2. Test on your own image pairs!  <a name="Test"></a>
 
-Possible model choices are : PDCNet, GLUNet_GOCor_star, GLUNet, GLUNet_GOCor, PWCNet, PWCNet_GOCor
+Possible model choices are : WarpCGLUNet, GLUNet_star, WarpCSemanticGLUNet, PDCNet_plus, PDCNet, GLUNet_GOCor_star, SemanticGLUNet, 
+GLUNet, GLUNet_GOCor, PWCNet, PWCNet_GOCor
 
-Possible pre-trained model choices are: static, dynamic, chairs_things, chairs_things_ft_sintel, megadepth
+Possible pre-trained model choices are: static, dynamic, chairs_things, chairs_things_ft_sintel, megadepth, 
+megadepth_stage1, pfpascal, spair
 
 <br />
 
 <details>
-  <summary><b>Note on PDCNet inference options</b></summary>
+  <summary><b>Note on PDCNet and PDC-Net+ inference options</b></summary>
 
-PDC-Net has multiple inference alternative options. 
+PDC-Net and PDC-Net+ have multiple inference alternative options. 
 if model is PDC-Net, add options:  
 * --confidence_map_R, for computation of the confidence map p_r, default is 1.0
 * --multi_stage_type in 
@@ -257,7 +267,7 @@ Use direct (D) when image pairs only show limited view-point changes (for exampl
 like in the optical flow task). For larger view-point changes, use homography (H) or multi-scale (MS). 
 
 
-For example, to run PDC-Net with multi-scale, add at the end of the command
+For example, to run PDC-Net or PDC-Net+ with multi-scale, add at the end of the command
 ```bash
 PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10
 ```
@@ -369,7 +379,7 @@ You need to update the paths of admin/local.py before running the evaluation.
 <details>
   <summary><b>Note on PDCNet inference options</b></summary>
 
-PDC-Net has multiple inference alternative options. 
+PDC-Net and PDC-Net+ has multiple inference alternative options. 
 if model if PDC-Net, add options:  
 * --confidence_map_R, for computation of the confidence map p_r, default is 1.0
 * --multi_stage_type in 
@@ -382,7 +392,7 @@ homography and multiscale multi-stage types, default is proba_interval_1_above_5
 * --homography_visibility_mask, default is True
 * --scaling_factors', used for multi-scale, default are \[0.5, 0.6, 0.88, 1, 1.33, 1.66, 2\]
 
-For example, to run PDC-Net with multi-scale, add at the end of the command
+For example, to run PDC-Net or PDC-Net+ with multi-scale, add at the end of the command
 ```bash
 PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10
 ```
@@ -448,8 +458,15 @@ Similar results should be obtained:
 | GLU-Net-GOCor* (paper) | megadepth                   | 57.77 | 78.61 | 82.24 | 
 | PDC-Net  (D)   (this repo)  | megadepth                   | 68.97 | 84.03 | 85.68 | 
 | PDC-Net  (H)   (paper)   | megadepth                   | 70.75 | 86.51 | 88.00 | 
-| PDC-Net (MS)  (paper) | megadepth                   | **71.81** | **89.36** | **91.18** | 
-
+| PDC-Net (MS)  (paper) | megadepth                   | 71.81 | 89.36 | 91.18 | 
+| PDC-Net+ (D) (paper)  | megadepth |  72.41 | 86.70 | 88.13  |
+| PDC-Net+ (H) (paper)  | megadepth |  73.92  |  89.21 |  90.48  |
+| PDC-Net+ (MS) (paper)  | megadepth |  **74.51**  |  **90.69**  | **92.10** |
+|----------------|-----------------------------|-------|-------|-------|
+| GLU-Net*  (paper)   | megadepth  |  38.50 | 54.66 | 59.60 | 
+| GLU-Net*  (this repo)   | megadepth  |  38.62 | 54.70 |  59.76 | 
+| WarpC-GLU-Net (paper) | megadepth | 50.61 | 73.80 | 78.61 | 
+| WarpC-GLU-Net (this repo) | megadepth | **50.77** | **73.91** | **78.73** | 
 </details>
 
 
@@ -479,13 +496,18 @@ Similar results should be obtained:
  | Model          | Pre-trained model type      | PCK-1 (%) | PCK-3 (%) | PCK-5 (%) |
 |----------------|-----------------------------|-------|-------|-------|
 | GLU-Net     (paper)   | static (CityScape-DPED-ADE)          | 2.30  | 17.15 | 33.87 |
-| GLU-Net-GOCor  (paper) | static | 2.31  | 17.62 | 35.18 |
+| GLU-Net-GOCor  (paper) | static | **2.31**  | **17.62** | **35.18** |
 | GLU-Net-GOCor  (paper) | dynamic                     | 2.10  | 16.07 | 31.66 |
 |----------------|-----------------------------|-------|-------|-------|
 | GLU-Net-GOCor* (paper) | megadepth                   | 2.33  | 17.21 | 33.67 |
-| PDC-Net  (H)    (paper)   | megadepth                   | 2.54  | **18.97** | **36.37** |
-| PDC-Net (MS)   (paper) | megadepth                   | **2.58**  | 18.87 | 36.19 |
-
+| PDC-Net  (H)    (paper)   | megadepth                   | 2.54  | 18.97 | 36.37 |
+| PDC-Net (MS)   (paper) | megadepth                   | 2.58  | 18.87 | 36.19 |
+| PDC-Net+ (D)  (paper)  | megadepth |  2.57  | **19.12** | **36.71**  |
+| PDC-Net+ (H)  (paper)  | megadepth |  2.56 | 19.00 | 36.56 |
+| PDC-Net+ (MS)  (paper)  | megadepth |  **2.63** | 19.01 | 36.57 |
+|----------------|-----------------------------|-------|-------|-------|
+| GLU-Net* (paper) | megadepth | 2.36 | 17.18 | 33.28 |
+| WarpC-GLU-Net (paper) | megadepth | **2.51** | **18.59** | **35.92** | 
 </details>
 
 
@@ -544,9 +566,10 @@ AEPE for different rates of intervals between image pairs.
 |---------------|------------------------|--------|--------|--------|--------|---------|---------|---------|
 | GLU-Net-GOCor*| megadepth              |  1.68 | 1.92 | 2.18 | 2.43 |  2.89 | 3.31 |  4.27 |
 | PDC-Net  (D) (paper) | megadepth       | 1.60   | 1.79   | 2.03   |  2.26  |  2.58   | 2.92    | 3.69    |
-| PDC-Net  (H)  | megadepth              | **1.58**   | **1.77**   | **1.98**   |  **2.24**  |  **2.56**   | 2.91    | 3.73    |
-| PDC-Net  (MS)  | megadepth             |  1.60 |  1.79  |  2.00  | 2.26   | 2.57   | **2.90**    |  **3.56**   |
-
+| PDC-Net  (H)  | megadepth              | 1.58   | 1.77   | 1.98   |  2.24  |  2.56   | 2.91    | 3.73    |
+| PDC-Net  (MS)  | megadepth             |  1.60 |  1.79  |  2.00  | 2.26   | 2.57   | 2.90    |  3.56   |
+| PDC-Net+  (H) (paper) | megadepth  | **1.56** | **1.74** | **1.96** | **2.18** | **2.48** |  **2.73** | **3.24** |
+| PDC-Net+  (MS) (paper) | megadepth  | 1.58 | 1.76 | 1.96 | 2.16 | 2.49 | **2.73** | **3.24** |
 
 
 PCK-1 for different rates of intervals between image pairs: 
@@ -555,7 +578,7 @@ Note that the PCKs are computed **per image**, and
 then averaged per sequence. The final metrics is the average over all sequences. It corresponds to the results 
 '_per_image' in the outputted metric file. 
 Note that this is not the metrics used in the [PDC-Net paper](https://arxiv.org/abs/2101.01710), where the PCKs are c
-omputed **per sequence** instead, using the PDC-Net direct approach (corresponds to results '_per_dataset' 
+omputed **per sequence** instead, using the PDC-Net direct approach (corresponds to results '-per-rate' 
 in outputted metric file). 
 
 
@@ -572,9 +595,10 @@ in outputted metric file).
 |---------------|------------------------|--------|--------|--------|--------|---------|---------|---------|
 | GLU-Net-GOCor*| megadepth              | 59.40 |  55.15 | 51.18 |  47.86 | 44.46 | 41.78 | 38.91 |
 | PDC-Net  (D)  | megadepth              |  61.82 | 58.41  | 55.02 |  52.40 | 49.61 | 47.43 | 45.01 | 
-| PDC-Net  (H)  | megadepth              |  **62.63**  | **59.29** | **56.09** | **53.31** | **50.69** | **48.46** | **46.17** | 
-| PDC-Net  (MS) | megadepth              |  62.29 | 59.14   | 55.87 | 53.23 | 50.59 | 48.45 | **46.17** |
-
+| PDC-Net  (H)  | megadepth              |  62.63  | 59.29 | 56.09 | 53.31 | 50.69 | 48.46 | 46.17 | 
+| PDC-Net  (MS) | megadepth              |  62.29 | 59.14   | 55.87 | 53.23 | 50.59 | 48.45 | 46.17 |
+| PDC-Net+  (H) | megadepth              | **63.12** | **59.93** | **56.81** | **54.12** | **51.59** | **49.55** | **47.32** |
+| PDC-Net+  (MS) | megadepth              | 62.95 | 59.76 | 56.64 | 54.02 | 51.50 | 49.38 | 47.24 | 
 
 
 
@@ -592,10 +616,11 @@ PCK-5 for different rates of intervals between image pairs:
 | GLU-Net-GOCor | dynamic                | **92.08**   | **89.87**   | **87.77**   | **85.88**   | **83.69**    | **81.12**    | **77.90**    |
 |---------------|------------------------|--------|--------|--------|--------|---------|---------|---------|
 | GLU-Net-GOCor*| megadepth              |  93.03 |92.13 | 91.04 | 90.19 | 88.98 |  87.81 |  85.93 | 
-| PDC-Net  (D) (paper) | megadepth       | 93.47 | **92.72** | 91.84 | 91.15 | 90.23 | 89.45 | 88.10 | 
-| PDC-Net  (H)  | megadepth              | **93.50** | 92.71  | **91.93** | **91.16** | **90.35** | 89.52 | 88.32 | 
-| PDC-Net  (MS)  | megadepth             |  93.47 | 92.69 | 91.85 | 91.15 | 90.33 | **89.55** | **88.43** | 
-
+| PDC-Net  (D) (paper) | megadepth       | 93.47 | 92.72 | 91.84 | 91.15 | 90.23 | 89.45 | 88.10 | 
+| PDC-Net  (H)  | megadepth              | 93.50 | 92.71  | 91.93 | 91.16 | 90.35 | 89.52 | 88.32 | 
+| PDC-Net  (MS)  | megadepth             |  93.47 | 92.69 | 91.85 | 91.15 | 90.33 | 89.55 | 88.43 | 
+| PDC-Net+  (H)  | megadepth             |  **93.54** | 92.78 |  **92.04** | 91.30 | **90.60** | 89.9 | **89.03** |
+| PDC-Net+  (MS)  | megadepth             | 93.50 |  **92.79** | **92.04** | **91.35** | **90.60** | **89.97** | 88.97 | 
 
 
 
@@ -664,10 +689,10 @@ Similar results should be obtained:
 | GLU-Net-GOCor  (paper) | dynamic                 | 2.68       | 15.43       | 6.68       | **27.57**     |
 |----------------|-------------------------|------------|-------------|------------|-----------|
 | GLU-Net-GOCor* (paper) | megadepth               | 2.26       | 9.89        | 5.53       | 18.27     |
-| PDC-Net **(D)**    (paper and this repo) | megadepth               | **2.08**       | **7.98**        | **5.22**       | **15.13**     |
+| PDC-Net **(D)**    (paper and this repo) | megadepth               | 2.08       | 7.98        | 5.22       | 15.13     |
 | PDC-Net (H)    (this repo) | megadepth               | 2.16       | 8.19        | 5.31      | 15.23     |
 | PDC-Net (MS)    (this repo) | megadepth               | 2.16       | 8.13        | 5.40      | 15.33     |
-
+| PDC-Net+ **(D)**    (paper) | megadepth    | **1.76** | **6.60** | **4.53** | **12.62**  |
 
 </details>
 
@@ -689,16 +714,16 @@ python eval_matching.py --datasets sintel --model PDCNet --pre_trained_models me
 
 Similar results should be obtained:
 |               | Pre-trained model type         | AEPE   | PCK-1 / dataset (\%) | PCK-5 / dataset  (\%)  | AEPE   | PCK-1  / dataset (\%) | PCK-5 / dataset  (\%)  |
-|---------------|--------------------------------|--------|-------------|--------------|--------|-------------|--------------|
+|---------------|---------------------|--------|-------------|--------------|--------|-------------|--------------|
 | PWC-Net-GOCor (this repo) | chairs-things          | 2.38   | 82.18       | 94.14        | 3.70   | 77.36       | 91.20        |
 | PWC-Net-GOCor (paper) | chairs-things          | 2.38   | 82.17       | 94.13        | 3.70   | 77.34       | 91.20        |
 | PWC-Net-GOCor (paper) | chairs-things ft sintel  | (1.74) | (87.93)     | (95.54)      | (2.28) | (84.15)     | (93.71)      |
-|---------------|--------------------------------|--------|-------------|--------------|--------|-------------|--------------|
+|---------------|--------------------|--------|-------------|--------------|--------|-------------|--------------|
 | GLU-Net   (this repo)     | dynamic                | 4.24   | 62.21       | 88.47        | 5.49   | 58.10       | 85.16        |
 | GLU-Net    (paper)     | dynamic               | 4.25   | 62.08       | 88.40        | 5.50   | 57.85       | 85.10        |
 | GLU-Net-GOCor (this repo) | dynamic                | **3.77**   | 67.11       | **90.47**        | **4.85**   | 63.36       | **87.76**        |
 | GLU-Net-GOCor (paper) | dynamic                | 3.80   | **67.12**       | 90.41        | 4.90   | **63.38**       | 87.69        |
-|---------------|--------------------------------|--------|-------------|--------------|--------|-------------|--------------|
+|---------------|-----------------|--------|-------------|--------------|--------|-------------|--------------|
 | GLU-Net-GOCor* (paper) | megadepth         | **3.12** | 80.00 | 92.68 | **4.46** | 73.10 | 88.94 | 
 | PDC-Net (D)   (this repo)     |  megadepth     | 3.30  | **85.06**      | **93.38**       | 4.48  | **78.07**       | **90.07**        |
 | PDC-Net (H)   (this repo)     |  megadepth     | 3.38   | 84.95       | 93.35        | 4.50   | 77.62       | 90.07      |
@@ -721,15 +746,16 @@ bash assets/download_tss.sh
 python eval_matching.py --datasets TSS --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --flipping_condition True --save_dir path_to_save_dir
 ```
 Similar results should be obtained:
-|                                |        | FGD3Car | JODS | PASCAL | All  |
+| Model          | Pre-trained model type      | FGD3Car | JODS | PASCAL | All  |
 |--------------------------------|--------|---------|------|--------|------|
-| Semantic-GLU-Net \[GLUNet\] |        | 94.4    | 75.5 | 78.3   | 82.8 |
+| Semantic-GLU-Net \[1\] |   Static     | 94.4    | 75.5 | 78.3   | 82.8 |
 | GLU-Net (our repo)                | Static | 93.2    | 73.69 | 71.1   | 79.33 |
 | GLU-Net (paper)                | Static | 93.2    | 73.3 | 71.1   | 79.2 |
-| GLU-Net-GOCor (our repo, GOCor iter=3, 3)          | Static | **94.6**   | **77.9** | **77.7**   | **83.4** |
-| GLU-Net-GOCor (our repo, GOCor iter=3, 7)          | Static | **94.6**    | 77.6 | 77.1   | 83.1 |
-| GLU-Net-GOCor (paper)          | Static | **94.6**    | **77.9** | **77.7**   | **83.4** |
-
+| GLU-Net-GOCor (our repo, GOCor iter=3, 3)          | Static | 94.6   | 77.9 | 77.7   | 83.4 |
+| GLU-Net-GOCor (our repo, GOCor iter=3, 7)          | Static | 94.6    | 77.6 | 77.1   | 83.1 |
+| GLU-Net-GOCor (paper)          | Static | 94.6    | 77.9 | 77.7   | 83.4 |
+| Semantic-GLU-Net  \[4\]  |  pfpascal | 95.3 | 82.2 | 78.2 | 
+| WarpC-SemanticGLU-Net  | pfpascal |  **97.1** | **84.7** | **79.7** | **87.2** |
 
 </details>
 
@@ -745,8 +771,17 @@ bash assets/download_pf_pascal.sh
 
 **Evaluation**: After updating the path of 'PFPascal' in admin/local.py, evaluation is run with
  ```bash
-python eval_matching.py --datasets PFPascal --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --flipping_condition True --save_dir path_to_save_dir
+python eval_matching.py --datasets PFPascal --model WarpCSemanticGLUNet --pre_trained_models pfpascal --flipping_condition False --save_dir path_to_save_dir
 ```
+Similar results should be obtained:
+| Model          | Pre-trained model type     |  alpha=0.05 | alpha=0.1  
+|--------------------------------|--------|---------|---------|
+| Semantic-GLU-Net  \[1\]  |  static (paper) | 46.0 | 70.6 | 
+| Semantic-GLU-Net  \[1\]  |  static (this repo) | 45.3 |  70.3 | 
+| Semantic-GLU-Net  \[4\]  (this repo)  |  pfpascal | 48.4  | 72.4 |
+| WarpC-SemanticGLU-Net  \[4\] (paper)  | pfpascal |   62.1 | **81.7** |
+| WarpC-SemanticGLU-Net  \[4\]  (this repo) | pfpascal  |   **62.7** |  **81.7** | 
+
 </details>
 
 <details>
@@ -761,8 +796,16 @@ bash assets/download_pf_willow.sh
 
 **Evaluation**: After updating the path of 'PFWillow' in admin/local.py, evaluation is run with
  ```bash
-python eval_matching.py --datasets PFWillow --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --flipping_condition True --save_dir path_to_save_dir
+python eval_matching.py --datasets PFWillow --model WarpCSemanticGLUNet --pre_trained_models pfpascal --flipping_condition False --save_dir path_to_save_dir
 ```
+Similar results should be obtained:
+| Model          | Pre-trained model type     |  alpha=0.05  |  alpha=0.1  
+|--------------------------------|--------|---------|---------|
+| Semantic-GLU-Net  \[1\]  (paper) |  static | 36.4 | 63.8 |
+| Semantic-GLU-Net  \[1\]  (this repo) |  static | 36.2 | 63.7 |
+| Semantic-GLU-Net  \[4\]  |  pfpascal | 39.7 | 67.6 |
+| WarpC-SemanticGLU-Net  \[4\] (paper)  | pfpascal |  **49.0** | 75.1 | 
+| WarpC-SemanticGLU-Net  \[4\] (this repo)  | pfpascal |  48.9 | **75.2** | 
 
 </details>
 
@@ -778,10 +821,37 @@ bash assets/download_spair.sh
 
 **Evaluation**: After updating the path of 'spair' in admin/local.py, evaluation is run with
  ```bash
-python eval_matching.py --datasets spair --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --flipping_condition True --save_dir path_to_save_dir
+python eval_matching.py --datasets spair --model WarpCSemanticGLUNet --pre_trained_models pfpascal  --flipping_condition False --save_dir path_to_save_dir
 ```
-
+Similar results should be obtained:
+| Model          | Pre-trained model type     |  alpha=0.1  
+|--------------------------------|--------|---------|
+| Semantic-GLU-Net  \[1\]  |  static |  15.1
+| Semantic-GLU-Net  \[4\]  |  pfpascal | 16.5 |
+| WarpC-SemanticGLU-Net   | spair |   23.5 |
+| WarpC-SemanticGLU-Net  \[4\] | pfpascal |   **23.8** |
 </details>
+
+
+<details>
+  <summary><b>Caltech-101 <a name="caltech"></a></b></summary>
+
+**Data preparation**: To download the images, run:
+```bash
+bash assets/download_caltech.sh
+```
+ 
+<br />
+
+**Evaluation**: After updating the path of 'spair' in admin/local.py, evaluation is run with
+ ```bash
+python eval_matching.py --datasets caltech --model WarpCSemanticGLUNet --pre_trained_models pfpascal  --flipping_condition False --save_dir path_to_save_dir
+```
+</details>
+
+
+
+
 
 ### 4.2 Pose estimation <a name="pose_estimation"></a>
 
@@ -825,6 +895,8 @@ You should get similar metrics (not exactly the same because of RANSAC):
 | PDC-Net (D)  | 60.52  | 70.91   | 80.30   | 0.         |
 | PDC-Net (H)  | 63.90  | 73.00   | 81.22   | 0.74         |
 | PDC-Net (MS) | 65.18  | 74.21   | 82.42   | 2.55         |
+| PDC-Net+ (D) |  63.93 | 73.81 | 82.74 |
+| PDC-Net+ (H) | **67.35** | **76.56** | **84.56** | 0.74 | 
 
 </details>
 
@@ -852,6 +924,9 @@ You should get similar metrics (not exactly the same because of RANSAC):
 | PDC-Net (D)  | 39.93  | 50.17   | 60.87   |
 | PDC-Net (H)  | 42.87  | 53.07   | 63.25   |
 | PDC-Net (MS) | 42.40  | 52.83   | 63.13   | 
+| PDC-Net+ (D) |  42.93 | 53.13 | 63.95 |
+| PDC-Net+ (H) |  **45.66** | **56.67** | **67.07** |
+
 
 </details>
 
@@ -877,9 +952,9 @@ python run_training.py train_module train_name
 
 Here, train_module is the sub-module inside train_settings and train_name is the name of the train setting file to be used.
 
-For example, you can train using the included default PDCNet_stage1 settings by running:
+For example, you can train using the included default train_PDCNet_stage1 settings by running:
 ```bash
-python run_training.py PDCNet PDCNet_stage1
+python run_training.py PDCNet train_PDCNet_stage1
 ```
 
 ### Training datasets downloading <a name="scanNet"></a>
@@ -897,13 +972,6 @@ It results in 40.000 original images, used to create pairs of training images by
 The path to the original images as well as the geometric transformation parameters are given in the csv files
 'assets/csv_files/homo_aff_tps_train_DPED_CityScape_ADE.csv' and 'assets/csv_files/homo_aff_tps_test_DPED_CityScape_ADE.csv'.
 
-**Apparently, the structure of the ADE-20K dataset has changed and the provided paths in the csv files are not valid anymore**. 
-I am working on a fix for the ADE-20K images. 
-In the meantime, use 'assets/csv_files/homo_aff_tps_train_DPED_CityScape.csv' and 
-'assets/csv_files/homo_aff_tps_test_DPED_CityScape.csv' to exclude the ADE images (you don't need to download the ADE-20K dataset in that case). 
-Resulting training data is 31K images. Performance of the resulting trained model might be a bit different. 
-
- 
 1. Download the original images
 
 * Download the [DPED dataset](http://people.ee.ethz.ch/~ihnatova/) (54 GB) ==> images are created in original_images/
@@ -911,7 +979,7 @@ Resulting training data is 31K images. Performance of the resulting trained mode
     - download 'leftImg8bit_trainvaltest.zip' (11GB, left 8-bit images - train, val, and test sets', 5000 images) ==> images are created in CityScape/
     - download leftImg8bit_trainextra.zip (44GB, left 8-bit images - trainextra set, 19998 images) ==> images are created in CityScape_extra/
 
-* Download the [ADE-20K dataset](https://groups.csail.mit.edu/vision/datasets/ADE20K/) (3.8 GB, 20.210 images) ==> images are created in ADE20K_2016_07_26/
+* Download the [ADE-20K dataset](https://drive.google.com/file/d/19r7dsYraHsNGI1ViZi4VwCfQywdODCDU/view?usp=sharing) (3.8 GB, 20.210 images) ==> images are created in ADE20K_2016_07_26/
 
 
 Put all the datasets in the same directory. 
@@ -986,45 +1054,87 @@ The framework currently contains the training code for the following matching ne
 The setting files can be used train the networks, or to know the exact training details.
 
 
-**Warp Consistency**: TO COME 
+<details>
+  <summary><b>Warp Consistency <a name="warpc"></a></b></summary>
+
+* WarpC.train_WarpC_GLUNet_stage1: The default settings used for first stage network training without visibility mask. 
+We train on real image pairs of the MegaDepth dataset. 
+
+* WarpC.train_WarpC_GLUNet_stage2: We further finetune the network trained with stage1, by including our visibility mask. 
+The network corresponds to our final WarpC-GLU-Net (see [WarpC paper](https://arxiv.org/abs/2104.03308)). 
+
+* WarpC.train_ft_WarpCSemanticGLUNet: The default settings used for training the final WarpC-SemanticGLU-Net 
+(see [WarpC paper](https://arxiv.org/abs/2104.03308)). 
+We finetune the original SemanticGLUNet (trained on the static/CAD synthetic data) on PF-Pascal using Warp Consistency. 
+
+
+</details>
+
 
 
 <details>
-  <summary><b>PDC-Net <a name="pdcnet"></a></b></summary>
+  <summary><b>PDC-Net and PDC-Net+<a name="pdcnet"></a></b></summary>
 
-* PDCNet.PDCNet_stage1: The default settings used for first stage network training with fixed backbone weights. 
+* PDCNet.train_PDCNet_plus_stage1: The default settings used for first stage network training with fixed backbone weights. 
+We train first on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved), 
+on which we add MULTIPLE independently moving objects and perturbations. We also train by applying our object reprojection mask. 
+
+* PDCNet.train_PDCNet_plus_stage2: The default settings used for training the final PDC-Net+ model (see [PDC-Net+ paper](https://arxiv.org/abs/2109.13912)). 
+This setting fine-tunes all layers in the model trained using PDCNet_stage1 (including the feature backbone). As training
+dataset, we use a combination of the same dataset than in stage 1 as well as image pairs from the MegaDepth dataset 
+and their sparse ground-truth correspondence data. We also apply the reprojection mask. 
+
+
+
+* PDCNet.train_PDCNet_stage1: The default settings used for first stage network training with fixed backbone weights. 
 We initialize the backbone VGG-16 with pre-trained ImageNet weights. We train first on synthetically generated image 
 pairs from the DPED, CityScape and ADE dataset (pre-computed and saved), on which we add independently moving objects and perturbations. 
 
-* PDCNet.PDCNet_stage2: The default settings used for training the final PDC-Net model. 
+* PDCNet.train_PDCNet_stage2: The default settings used for training the final PDC-Net model (see [PDC-Net paper](https://arxiv.org/abs/2101.01710)). 
 This setting fine-tunes all layers in the model trained using PDCNet_stage1 (including the feature backbone). As training
 dataset, we use a combination of the same dataset than in stage 1 as well as image pairs from the MegaDepth dataset 
 and their sparse ground-truth correspondence data. 
 
-* PDCNet.GLUNet_GOCor_star_stage1: Same settings than for PDCNet_stage1, with different model (non probabilistic baseline). 
+* PDCNet.train_GLUNet_GOCor_star_stage1: Same settings than for PDCNet_stage1, with different model (non probabilistic baseline). 
 The loss is changed accordingly to the L1 loss instead of the negative log likelihood loss. 
 
-* PDCNet.GLUNet_GOCor_star_stage2: The default settings used for training the final GLU-Net-GOCor* 
+* PDCNet.train_GLUNet_GOCor_star_stage2: The default settings used for training the final GLU-Net-GOCor* 
 (see [PDCNet paper](https://arxiv.org/abs/2101.01710)). 
 
 </details>
 
 
+
+<details>
+  <summary><b>Example training with randomly generated data <a name="glunet"></a></b></summary>
+
+* GLUNet.train_GLUNet_with_synthetically_generated_data: This is a simple example of how to generate random transformations
+on the fly, and to apply them to original images, in order to create training image pairs and their corresponding 
+ground-truth flow. Here, the random transformations are applied to MegaDepth images. On the created image pairs and 
+ground-truth flows, we additionally add a randomly moving object. 
+
+
+</details>
+ 
+ 
+ 
+
 <details>
   <summary><b>GLU-Net <a name="glunet"></a></b></summary>
 
-* GLUNet.GLUNet_static: The default settings used training the final GLU-Net (of the paper
+* GLUNet.train_GLUNet_static: The default settings used training the final GLU-Net (of the paper
  [GLU-Net](https://arxiv.org/abs/1912.05524)).  
 We fix the  backbone weights and initialize the backbone VGG-16 with pre-trained ImageNet weights. 
 We train on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved),
 which is later ([GOCor paper](https://arxiv.org/abs/2009.07823)) referred to as 'static' dataset. 
 
-* GLUNet.GLUNet_dynamic: The default settings used training the final GLU-Net trained on the dynamic 
+* GLUNet.train_GLUNet_dynamic: The default settings used training the final GLU-Net trained on the dynamic 
 dataset (of the paper [GOCor](https://arxiv.org/abs/2009.07823)).  
 We fix the  backbone weights and initialize the backbone VGG-16 with pre-trained ImageNet weights. 
 We train on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved), 
 on which we add one independently moving object. 
 This dataset is referred to as 'dynamic' dataset in [GOCor paper](https://arxiv.org/abs/2009.07823). 
+
 
 </details>
 
@@ -1032,7 +1142,7 @@ This dataset is referred to as 'dynamic' dataset in [GOCor paper](https://arxiv.
 ### Training your own networks
 
 To train a custom network using the toolkit, the following components need to be specified in the train settings. 
-For reference, see [GLUNet_static.py](https://github.com/PruneTruong/DenseMatching/train_settings/GLUNet/GLUNet_static.py).
+For reference, see [train_GLUNet_static.py](https://github.com/PruneTruong/DenseMatching/train_settings/GLUNet/train_GLUNet_static.py).
 
 * Datasets: The datasets to be used for training. A number of standard matching datasets are already available in 
 the datasets module. The dataset class can be passed a processing function, which should perform the necessary 
@@ -1062,3 +1172,5 @@ We borrow code from public projects, such as [pytracking](https://github.com/vis
 * 06/21: Added evaluation code
 * 07/21: Added training code and more options for evaluation
 * 08/21: Fixed memory leak in mixture dataset + added other sampling for megadepth dataset
+* 10/21: Added pre-trained models of WarpC 
+* 12/21: Added training code for WarpC and PDC-Net+, + randomly generated data + Caltech evaluation, + pre-trained models of PDC-Net+

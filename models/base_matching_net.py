@@ -35,9 +35,7 @@ def pre_process_image_glunet_normalized(source_img, device, mean_vector=[0.485, 
     source_img_copy.sub_(mean[:, None, None]).div_(std[:, None, None])
 
     # resolution 256x256
-    source_img_256 = torch.nn.functional.interpolate(input=source_img.float().to(device),
-                                                     size=(256, 256),
-                                                     mode='area').byte()
+    source_img_256 = torch.nn.functional.interpolate(input=source_img.float().to(device), size=(256, 256), mode='area')
 
     source_img_256.sub_(mean[:, None, None]).div_(std[:, None, None])
     return source_img_copy.to(device), source_img_256.to(device)
@@ -65,9 +63,7 @@ def pre_process_image_glunet(source_img, device, mean_vector=[0.485, 0.456, 0.40
     source_img_copy.sub_(mean[:, None, None]).div_(std[:, None, None])
 
     # resolution 256x256
-    source_img_256 = torch.nn.functional.interpolate(input=source_img.float().to(device),
-                                                     size=(256, 256),
-                                                     mode='area').byte()
+    source_img_256 = torch.nn.functional.interpolate(input=source_img.float().to(device), size=(256, 256), mode='area')
 
     source_img_256 = source_img_256.float().div(255.0)
     source_img_256.sub_(mean[:, None, None]).div_(std[:, None, None])
@@ -122,34 +118,29 @@ def pre_process_data_GLUNet(source_img, target_img, device, mean_vector=[0.485, 
 
     source_img_copy = torch.nn.functional.interpolate(input=source_img.float().to(device),
                                                       size=(int_preprocessed_height, int_preprocessed_width),
-                                                      mode='area').byte()
+                                                      mode='area')
     target_img_copy = torch.nn.functional.interpolate(input=target_img.float().to(device),
                                                       size=(int_preprocessed_height, int_preprocessed_width),
-                                                      mode='area').byte()
-    source_img_copy = source_img_copy.float().to(device).div(255.0)
-    target_img_copy = target_img_copy.float().to(device).div(255.0)
+                                                      mode='area')
+    source_img_copy = source_img_copy.div(255.0)
+    target_img_copy = target_img_copy.div(255.0)
     mean = torch.as_tensor(mean_vector, dtype=source_img_copy.dtype, device=source_img_copy.device)
     std = torch.as_tensor(std_vector, dtype=source_img_copy.dtype, device=source_img_copy.device)
     source_img_copy.sub_(mean[:, None, None]).div_(std[:, None, None])
     target_img_copy.sub_(mean[:, None, None]).div_(std[:, None, None])
 
     # resolution 256x256
-    source_img_256 = torch.nn.functional.interpolate(input=source_img.float().to(device),
-                                                      size=(256, 256),
-                                                      mode='area').byte()
-    target_img_256 = torch.nn.functional.interpolate(input=target_img.float().to(device),
-                                                      size=(256, 256),
-                                                      mode='area').byte()
-
-    source_img_256 = source_img_256.float().div(255.0)
-    target_img_256 = target_img_256.float().div(255.0)
+    source_img_256 = torch.nn.functional.interpolate(input=source_img.float().to(device), size=(256, 256), mode='area')
+    target_img_256 = torch.nn.functional.interpolate(input=target_img.float().to(device), size=(256, 256), mode='area')
+    source_img_256 = source_img_256.div(255.0)
+    target_img_256 = target_img_256.div(255.0)
     source_img_256.sub_(mean[:, None, None]).div_(std[:, None, None])
     target_img_256.sub_(mean[:, None, None]).div_(std[:, None, None])
 
     ratio_x = float(w_scale) / float(int_preprocessed_width)
     ratio_y = float(h_scale) / float(int_preprocessed_height)
     return source_img_copy.to(device), target_img_copy.to(device), source_img_256.to(device), \
-           target_img_256.to(device), ratio_x, ratio_y
+        target_img_256.to(device), ratio_x, ratio_y
 
 
 class MatchingNetParams:

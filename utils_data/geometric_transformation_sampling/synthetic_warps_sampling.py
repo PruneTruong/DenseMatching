@@ -1,3 +1,4 @@
+""" Modified from NC-Net. """
 import torch
 import numpy as np
 from utils_flow.pixel_wise_mapping import warp, warp_with_mapping
