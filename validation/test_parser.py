@@ -48,8 +48,6 @@ def define_model_parser(parser):
                         help='Model to use')
     parser.add_argument('--flipping_condition', default=False, type=boolean_string,
                         help='Apply flipping condition for semantic data and GLU-Net-based networks? ')
-    parser.add_argument('--iterative_refinement', default=False, type=boolean_string,
-                        help='Apply iterative refinement GLU-Net-based networks? ')
     parser.add_argument('--optim_iter', type=int, default=3,
                         help='number of optim iter for global GOCor, when applicable')
     parser.add_argument('--local_optim_iter', dest='local_optim_iter', default=None,

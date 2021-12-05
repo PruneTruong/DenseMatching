@@ -17,17 +17,16 @@ def estimate_mask(mask_type, uncertainty_est, list_item=-1):
         mask_type: str, specifying what condition to use for the mask
         uncertainty_est: dict with uncertainty components. can have multiple fields such as 'log_var_map', 'weight_map',
                          'cyclic_consistency_error'.
-        list_item:
 
     Returns:
-        mask with shape (b, h, w) when uncertainty components are (b, 1, h, w).
+        mask: bool tensor with shape (b, h, w) when uncertainty components are (b, 1, h, w).
     """
     # all inputs should be b, 1, h, w
     # return b, h, w
 
-    if mask_type == 'log_sigma_below_2':
-        mask = uncertainty_est['log_var_map'].le(2.0).squeeze(1)
-    elif 'cyclic_consistency_error_below' in mask_type:
+    # choice = ['cyclic_consistency_error_below_x', 'x_percent_most_certain', 'variance_below_x',
+    #           'proba_interval_z_above_x_NMS_y',  'proba_interval_z_above_x_grid_y', 'proba_interval_z_above_x']
+    if 'cyclic_consistency_error_below' in mask_type:
         min_confidence = float(mask_type.split('below_', 1)[-1])
         if 'cyclic_consistency_error' not in uncertainty_est.keys():
             raise ValueError('Cyclic consistency error not computed! Check the arguments.')
@@ -91,7 +90,6 @@ def estimate_mask(mask_type, uncertainty_est, list_item=-1):
 
         YA = YA.flatten()
         XA = XA.flatten()
-        print(len(XA))
         valid_kp = mask_valid[YA, XA]
         mask = torch.zeros_like(mask_valid)
         mask[YA[valid_kp], XA[valid_kp]] = True
@@ -100,11 +98,17 @@ def estimate_mask(mask_type, uncertainty_est, list_item=-1):
         # ex 'proba_interval_1_above_10'
         min_confidence = float(mask_type.split('above_', 1)[-1])
         R = float((mask_type.split('interval_', 1)[1]).split('_above_', 1)[0])
-        if uncertainty_est['inference_parameters']['R'] == R:
-            p_r = uncertainty_est['p_r']
+        if 'p_r' in uncertainty_est.keys():
+            if uncertainty_est['inference_parameters']['R'] == R:
+                p_r = uncertainty_est['p_r']
+            else:
+                p_r = estimate_probability_of_confidence_interval_of_mixture_density(uncertainty_est['weight_map'],
+                                                                                     uncertainty_est['log_var_map'],
+                                                                                     R=R)
         else:
-            p_r = estimate_probability_of_confidence_interval_of_mixture_density(uncertainty_est['weight_map'],
-                                                                                 uncertainty_est['log_var_map'], R=R)
+            if 'inv_cyclic_consistency_error' not in uncertainty_est.keys():
+                raise ValueError('Cyclic consistency error not computed! Check the arguments.')
+            p_r = uncertainty_est['inv_cyclic_consistency_error']
 
         mask = p_r.ge(min_confidence/100).squeeze(1)
     else:

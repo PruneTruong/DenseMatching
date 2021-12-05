@@ -41,6 +41,33 @@ def draw_matches(img1, img2, kp1, kp2):
     return img
 
 
+def error_colormap(x):
+    return np.clip(
+        np.stack([2-x*2, x*2, np.zeros_like(x), np.ones_like(x)], -1), 0, 1)
+
+
+def make_sparse_matching_plot(image0, image1, mkpts0, mkpts1, color, margin=10):
+    H0, W0 = image0.shape[:2]
+    H1, W1 = image1.shape[:2]
+    H, W = max(H0, H1), W0 + W1 + margin
+
+    out = 255*np.ones((H, W, 3), np.uint8)
+    out[:H0, :W0] = image0
+    out[:H1, W0+margin:] = image1
+
+    mkpts0, mkpts1 = np.round(mkpts0).astype(int), np.round(mkpts1).astype(int)
+    color = (np.array(color[:, :3])*255).astype(int)[:, ::-1]
+    for (x0, y0), (x1, y1), c in zip(mkpts0, mkpts1, color):
+        c = c.tolist()
+        cv2.line(out, (x0, y0), (x1 + margin + W0, y1),
+                 color=c, thickness=1, lineType=cv2.LINE_AA)
+        # display line end-points as circles
+        cv2.circle(out, (x0, y0), 2, c, -1, lineType=cv2.LINE_AA)
+        cv2.circle(out, (x1 + margin + W0, y1), 2, c, -1,
+                   lineType=cv2.LINE_AA)
+    return out
+
+
 def draw_keypoints(img, kp):
     """
 

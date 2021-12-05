@@ -177,14 +177,15 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
     network = network.to(device)
 
     # define inference arguments
-    if arguments.network_type == 'PDCNet':
+    if arguments.network_type == 'PDCNet' or arguments.network_type == 'PDCNet_plus':
         # define inference parameters for PDC-Net and particularly the ones needed for multi-stage alignment
         network.set_inference_parameters(confidence_R=arguments.confidence_map_R,
                                          ransac_thresh=arguments.ransac_thresh,
                                          multi_stage_type=arguments.multi_stage_type,
                                          mask_type_for_2_stage_alignment=arguments.mask_type,
                                          homography_visibility_mask=arguments.homography_visibility_mask,
-                                         list_resizing_ratios=arguments.scaling_factors)
+                                         list_resizing_ratios=arguments.scaling_factors,
+                                         compute_cyclic_consistency_error=arguments.compute_cyclic_consistency_error)
 
     '''
     to plot GOCor weights

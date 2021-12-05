@@ -337,10 +337,12 @@ python test_models.py --model PWCNet --pre_trained_model chairs_things --path_qu
 <br />
 
 
-### Demo with videos 
+## Demo with videos 
 
-TO COME
+* demo/demo_single_pair.ipynb: Play around with our models on different image pairs, compute the flow field 
+relating an image pair and visualize the warped images and confident matches. 
 
+* More to come!
 
 
 ## 3. Overview  <a name="overview"></a>
@@ -1142,7 +1144,7 @@ This dataset is referred to as 'dynamic' dataset in [GOCor paper](https://arxiv.
 ### Training your own networks
 
 To train a custom network using the toolkit, the following components need to be specified in the train settings. 
-For reference, see [train_GLUNet_static.py](https://github.com/PruneTruong/DenseMatching/train_settings/GLUNet/train_GLUNet_static.py).
+For reference, see [train_GLUNet_static.py](https://github.com/PruneTruong/DenseMatching/blob/main/train_settings/GLUNet/train_GLUNet_static.py).
 
 * Datasets: The datasets to be used for training. A number of standard matching datasets are already available in 
 the datasets module. The dataset class can be passed a processing function, which should perform the necessary 

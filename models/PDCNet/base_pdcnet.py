@@ -4,8 +4,7 @@ import torch.nn.functional as F
 from models.base_matching_net import BaseGLUMultiScaleMatchingNet
 from models.inference_utils import estimate_homography_and_inliers, estimate_homography_and_correspondence_map, \
     estimate_mask, matches_from_flow, from_homography_to_pixel_wise_mapping
-from .mod_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density, \
-    estimate_average_variance_of_mixture_density
+from .mod_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density, estimate_average_variance_of_mixture_density
 import cv2
 import numpy as np
 from datasets.util import pad_to_size
@@ -128,6 +127,7 @@ class UncertaintyPredictionInference(nn.Module):
             cyclic_consistency_error = torch.norm(flow_est + self.warp(flow_est_backward, flow_est), dim=1,
                                                   keepdim=True)
             uncertainty_est['cyclic_consistency_error'] = cyclic_consistency_error
+            uncertainty_est['inv_cyclic_consistency_error'] = 1.0 / (1.0 + cyclic_consistency_error)
         return flow_est, uncertainty_est
 
     def estimate_flow_and_confidence_map_(self, source_img, target_img, output_shape=None,

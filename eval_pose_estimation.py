@@ -89,7 +89,6 @@ def main(args, settings):
 
             # scaling defines the final outputted shape by the network.
             if not estimate_uncertainty:
-                uncertainty_est_padded = None
                 flow_estimated_padded = network.estimate_flow(Is, It, scaling=1.0/scaling)
             else:
                 flow_estimated_padded,  uncertainty_est_padded = network.estimate_flow_and_confidence_map(Is, It,
@@ -99,7 +98,7 @@ def main(args, settings):
                     mask_padded = uncertainty_est_padded['warping_mask'] * mask_padded
 
                 # get the mask according to uncertainty estimation
-                mask_padded = estimate_mask(args.mask_type_for_pose_estimation, uncertainty_est_padded, list_item=-1) \
+                mask_padded = estimate_mask(args.mask_type_for_pose_estimation, uncertainty_est_padded) \
                             * mask_padded
 
             # remove the padding

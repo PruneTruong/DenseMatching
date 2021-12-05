@@ -468,7 +468,8 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
         flow_est_backward[:, 1, :, :] *= ratio_y
 
         cyclic_consistency_error = torch.norm(flow_est + self.warp(flow_est_backward, flow_est), dim=1)
-        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error}
+        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error,
+                           'inv_cyclic_consistency_error': 1.0 / (1.0 + cyclic_consistency_error)}
 
         if mode == 'channel_first':
             return flow_est, uncertainty_est
