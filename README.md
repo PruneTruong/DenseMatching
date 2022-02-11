@@ -1167,7 +1167,7 @@ network correctly, and calculating the training loss. The batch preprocessing is
 We borrow code from public projects, such as [pytracking](https://github.com/visionml/pytracking), [GLU-Net](https://github.com/PruneTruong/GLU-Net), 
 [DGC-Net](https://github.com/AaltoVision/DGC-Net), [PWC-Net](https://github.com/NVlabs/PWC-Net), 
 [NC-Net](https://github.com/ignacio-rocco/ncnet), [Flow-Net-Pytorch](https://github.com/ClementPinard/FlowNetPytorch), 
-[RAFT](https://github.com/princeton-vl/RAFT), [CATs](https://github.com/SunghwanHong/CATs)...
+[RAFT](https://github.com/princeton-vl/RAFT), [CATs](https://github.com/SunghwanHong/Cost-Aggregation-transformers)...
 
 ## 7. ChangeLog <a name="changelog"></a>
 
@@ -1175,4 +1175,5 @@ We borrow code from public projects, such as [pytracking](https://github.com/vis
 * 07/21: Added training code and more options for evaluation
 * 08/21: Fixed memory leak in mixture dataset + added other sampling for megadepth dataset
 * 10/21: Added pre-trained models of WarpC 
-* 12/21: Added training code for WarpC and PDC-Net+, + randomly generated data + Caltech evaluation, + pre-trained models of PDC-Net+
+* 12/21: Added training code for WarpC and PDC-Net+, + randomly generated data + Caltech evaluation, + pre-trained models of PDC-Net+ + demo on notebook
+* 02/22: Small modifications 

@@ -25,7 +25,7 @@ from admin.loading import partial_load
 def run(settings):
     settings.description = 'Default train settings for PDC-Net stage 1'
     settings.data_mode = 'euler'
-    settings.batch_size = 3  # train on 2 GPU of 24GB
+    settings.batch_size = 10  # train on 2 GPU of 24GB
     settings.n_threads = 8
     settings.multi_gpu = True
     settings.print_interval = 500
@@ -36,7 +36,7 @@ def run(settings):
     settings.dataset_callback_fn = 'sample_new_items'  # use to resample image pair at each epoch
     # initialize with PDCNet stage 1 model
     settings.initial_pretrained_model = os.path.join(settings.env.workspace_dir,
-                                                     'train_settings/PDCNet/train_PDCNet_plus_stage1',
+                                                     'train_settings/PDCNet/train_PDCNet_stage1',
                                                      'PDCNetModel_model_best.pth.tar')
 
     # Training dataset:
@@ -104,6 +104,7 @@ def run(settings):
                                 list_overwrite_mask=[True, False], list_sparse=[False, True])
 
     # validation data: only megadepth sparse data
+    megadepth_cfg['exchange_images_with_proba'] = 0.
     val_dataset = MegaDepthDataset(root=settings.env.megadepth_training, cfg=megadepth_cfg, split='val',
                                    source_image_transform=img_transforms,
                                    target_image_transform=img_transforms,

@@ -60,12 +60,10 @@ def run(settings):
                             max_shear=0, max_ar_factor=0.,
                             max_scale=0.3, pad_amount=0)
 
-    prepare_data(settings.env.coco_tar, mode=settings.data_mode)
     coco_dataset_train = MSCOCO(root=settings.env.coco, split='train', version='2014',
                                 min_area=settings.min_area_objects)
 
     # base dataset with image pairs and ground-truth flow field + adding perturbations
-    prepare_data(settings.env.training_cad_520_tar, mode=settings.data_mode)
     train_dataset_, _ = PreMadeDataset(root=settings.env.training_cad_520,
                                        source_image_transform=None,
                                        target_image_transform=None,
@@ -94,7 +92,6 @@ def run(settings):
     # 2nd training dataset: MegaDepth data
     source_img_transforms = transforms.Compose([ArrayToTensor(get_float=False)])
 
-    prepare_data(settings.env.megadepth_training_tar, mode=settings.data_mode)
     megadepth_cfg = {'scene_info_path': os.path.join(settings.env.megadepth_training, 'scene_info'),
                      'train_num_per_scene': 300, 'val_num_per_scene': 25,
                      'output_image_size': [520, 520], 'pad_to_same_shape': True,
@@ -110,6 +107,7 @@ def run(settings):
                                 list_overwrite_mask=[False, False], list_sparse=[False, True])
 
     # validation data
+    megadepth_cfg['exchange_images_with_proba'] = 0.
     val_dataset = MegaDepthDataset(root=settings.env.megadepth_training,
                                    cfg=megadepth_cfg, split='val',
                                    source_image_transform=source_img_transforms,

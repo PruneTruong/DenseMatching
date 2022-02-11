@@ -104,6 +104,7 @@ def run(settings):
                                 list_overwrite_mask=[True, False], list_sparse=[False, True])
 
     # validation data: only megadepth sparse data
+    megadepth_cfg['exchange_images_with_proba'] = 0.
     val_dataset = MegaDepthDataset(root=settings.env.megadepth_training, cfg=megadepth_cfg, split='val',
                                    source_image_transform=img_transforms,
                                    target_image_transform=img_transforms,
