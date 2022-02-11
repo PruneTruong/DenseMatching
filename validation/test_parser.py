@@ -15,9 +15,10 @@ def define_pdcnet_parser(subparsers):
         help='R used for confidence map computation',
     )
     PDCNet.add_argument(
-        '--multi_stage_type', default='direct', type=str, choices=['direct', 'homography_from_last_level_uncertainty',
-                                                                   'homography_from_quarter_resolution_uncertainty',
-                                                                   'multiscale_homo_from_quarter_resolution_uncertainty'],
+        '--multi_stage_type', default='direct', type=str, choices=['direct', 'd', 'D',
+                                                                   'homography_from_last_level_uncertainty',
+                                                                   'homography_from_quarter_resolution_uncertainty', 'h', 'H',
+                                                                   'multiscale_homo_from_quarter_resolution_uncertainty', 'ms', 'MS'],
         help='multi stage type',
     )
     PDCNet.add_argument(

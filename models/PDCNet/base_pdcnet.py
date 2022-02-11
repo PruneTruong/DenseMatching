@@ -140,23 +140,24 @@ class UncertaintyPredictionInference(nn.Module):
             b, _, h_ori, w_ori = target_img.shape
             output_shape = (int(h_ori * scaling), int(w_ori * scaling))
 
-        if inference_parameters['multi_stage_type'] == 'direct':
+        inference_type = inference_parameters['multi_stage_type']
+        if inference_type == 'direct' or inference_type.lower() == 'd':
             return self.estimate_flow_and_confidence_map_direct(source_img, target_img, inference_parameters,
                                                                 output_shape=output_shape, mode=mode)
 
-        elif inference_parameters['multi_stage_type'] == 'homography_from_last_level_uncertainty':
+        elif inference_type == 'homography_from_last_level_uncertainty':
             return self.estimate_flow_and_confidence_map_with_homo(source_img, target_img, inference_parameters,
                                                                    scaling=1.0, output_shape=output_shape, mode=mode)
 
-        elif inference_parameters['multi_stage_type'] == 'homography_from_quarter_resolution_uncertainty':
+        elif inference_type == 'homography_from_quarter_resolution_uncertainty' or inference_type.lower() == 'h':
             return self.estimate_flow_and_confidence_map_with_homo(source_img, target_img, inference_parameters,
                                                                    scaling=1.0 / 4.0, output_shape=output_shape,
                                                                    mode=mode)
 
-        elif inference_parameters['multi_stage_type'] == 'homography_from_L_Net_upsampled_to_quarter_reso':
+        elif inference_type == 'homography_from_L_Net_upsampled_to_quarter_reso':
             raise NotImplementedError
 
-        elif inference_parameters['multi_stage_type'] == 'multiscale_homo_from_quarter_resolution_uncertainty':
+        elif inference_type == 'multiscale_homo_from_quarter_resolution_uncertainty' or inference_type.lower() == 'ms':
             return self.estimate_flow_and_confidence_map_with_multiscale(source_img, target_img, inference_parameters,
                                                                          scaling=1.0 / 4.0, output_shape=output_shape,
                                                                          mode=mode)

@@ -254,22 +254,22 @@ PDC-Net and PDC-Net+ have multiple inference alternative options.
 if model is PDC-Net, add options:  
 * --confidence_map_R, for computation of the confidence map p_r, default is 1.0
 * --multi_stage_type in 
-    * 'direct' (D)
-    * 'homography_from_quarter_resolution_uncertainty' (H)
-    * 'multiscale_homo_from_quarter_resolution_uncertainty' (MS)
+    * 'D' (or 'direct')
+    * 'H' (or 'homography_from_quarter_resolution_uncertainty')
+    * 'MS' (or 'multiscale_homo_from_quarter_resolution_uncertainty')
 * --ransac_thresh, used for homography and multiscale multi-stages type, default is 1.0
 * --mask_type, for thresholding the estimated confidence map and using the confident matches for internal homography estimation, for 
 homography and multiscale multi-stage types, default is proba_interval_1_above_5
 * --homography_visibility_mask, default is True
 * --scaling_factors', used for multi-scale, default are \[0.5, 0.6, 0.88, 1, 1.33, 1.66, 2\]
 
-Use direct (D) when image pairs only show limited view-point changes (for example consecutive images of a video, 
-like in the optical flow task). For larger view-point changes, use homography (H) or multi-scale (MS). 
+Use direct ('D') when image pairs only show limited view-point changes (for example consecutive images of a video, 
+like in the optical flow task). For larger view-point changes, use homography ('H') or multi-scale ('MS'). 
 
 
-For example, to run PDC-Net or PDC-Net+ with multi-scale, add at the end of the command
+For example, to run PDC-Net or PDC-Net+ with homography, add at the end of the command
 ```bash
-PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10
+PDCNet --multi_stage_type H --mask_type proba_interval_1_above_10
 ```
 
 </details>
@@ -290,7 +290,7 @@ For this pair of MegaDepth images (provided to check that the code is working pr
 trained on the megadepth dataset, the output is:
 
 ```bash
-python test_models.py --model PDCNet --pre_trained_model megadepth --path_query_image images/piazza_san_marco_0.jpg --path_reference_image images/piazza_san_marco_1.jpg --write_dir evaluation/ PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10
+python test_models.py --model PDCNet --pre_trained_model megadepth --path_query_image images/piazza_san_marco_0.jpg --path_reference_image images/piazza_san_marco_1.jpg --write_dir evaluation/ PDCNet --multi_stage_type MS --mask_type proba_interval_1_above_10
 ```
 additional optional arguments: --pre_trained_models_dir (default is pre_trained_models/)
 ![alt text](/images/Warped_query_image_PDCNet_megadepth.png)
@@ -379,24 +379,24 @@ You need to update the paths of admin/local.py before running the evaluation.
 
 
 <details>
-  <summary><b>Note on PDCNet inference options</b></summary>
+  <summary><b>Note on PDCNet and PDCNet+ inference options</b></summary>
 
 PDC-Net and PDC-Net+ has multiple inference alternative options. 
 if model if PDC-Net, add options:  
 * --confidence_map_R, for computation of the confidence map p_r, default is 1.0
 * --multi_stage_type in 
-    * 'direct' (D)
-    * 'homography_from_quarter_resolution_uncertainty' (H)
-    * 'multiscale_homo_from_quarter_resolution_uncertainty' (MS)
+    * 'D' (or 'direct')
+    * 'H' (or 'homography_from_quarter_resolution_uncertainty')
+    * 'MS' (or 'multiscale_homo_from_quarter_resolution_uncertainty')
 * --ransac_thresh, used for homography and multiscale multi-stages type, default is 1.0
 * --mask_type, for thresholding the estimated confidence map and using the confident matches for internal homography estimation, for 
 homography and multiscale multi-stage types, default is proba_interval_1_above_5
 * --homography_visibility_mask, default is True
 * --scaling_factors', used for multi-scale, default are \[0.5, 0.6, 0.88, 1, 1.33, 1.66, 2\]
 
-For example, to run PDC-Net or PDC-Net+ with multi-scale, add at the end of the command
+For example, to run PDC-Net or PDC-Net+ with homography, add at the end of the command
 ```bash
-PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10
+PDCNet --multi_stage_type H --mask_type proba_interval_1_above_10
 ```
 
 </details>
@@ -443,7 +443,7 @@ megadepth_test_set/
 <br /><br />
 **Evaluation**: After updating the path of 'megadepth' and 'megadepth_csv' in admin/local.py, evaluation is run with
 ```bash
-python eval_matching.py --datasets megadepth --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty
+python eval_matching.py --datasets megadepth --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type MS
 ```
 
 
@@ -491,7 +491,7 @@ RobotCar
 <br /><br />
 **Evaluation**: After updating the path of 'robotcar' and 'robotcar_csv' in admin/local.py, evaluation is run with
 ```bash
-python eval_matching.py --datasets robotcar --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty
+python eval_matching.py --datasets robotcar --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type MS
 ```
  
 Similar results should be obtained: 
@@ -549,7 +549,7 @@ The organisation of your directories is important, since the bundle files contai
 (lakeside, delivery area and so on). The final metrics are the average over all datasets for each rate. 
 After updating the path of 'eth3d' in admin/local.py, evaluation is run with
 ```bash
-python eval_matching.py --datasets robotcar --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type direct
+python eval_matching.py --datasets robotcar --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type D
 ```
 
 <br />
@@ -884,10 +884,10 @@ YFCC
 
   
 <br /><br />
-**Evaluation**: After updating the path 'yfcc' in admin/local.py, compute metrics on YFCC100M with PDC-Net multiscale (MS) using the command:
+**Evaluation**: After updating the path 'yfcc' in admin/local.py, compute metrics on YFCC100M with PDC-Net homography (H) using the command:
 
 ```bash
-python -u eval_pose_estimation.py --datasets YFCC --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10 
+python -u eval_pose_estimation.py --datasets YFCC --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False PDCNet --multi_stage_type H --mask_type proba_interval_1_above_10 
 ```
 
 You should get similar metrics (not exactly the same because of RANSAC):
@@ -913,9 +913,9 @@ provided here in the file assets/scannet_test_pairs_with_gt.txt.
 
 
 <br /><br />
-**Evaluation**: After updating the path 'scannet_test' in admin/local.py, compute metrics on ScanNet with PDC-Net multiscale (MS) using the command:
+**Evaluation**: After updating the path 'scannet_test' in admin/local.py, compute metrics on ScanNet with PDC-Net homography (H) using the command:
 ```bash
-python -u eval_pose_estimation.py --datasets scannet --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False PDCNet --multi_stage_type multiscale_homo_from_quarter_resolution_uncertainty --mask_type proba_interval_1_above_10 
+python -u eval_pose_estimation.py --datasets scannet --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False PDCNet --multi_stage_type H --mask_type proba_interval_1_above_10 
 ```
 
 
@@ -1020,11 +1020,9 @@ organized as follows. The add the paths in admin/local.py as 'coco'.
 ```bash
 coco_root
     └── annotations
-        ├── instances_train2014.json
-        └── instances_train2017.json
+        └── instances_train2014.json
     └──images
-        ├── train2014
-        └── train2017
+        └── train2014
 ```
 </details>
 
