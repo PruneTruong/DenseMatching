@@ -39,7 +39,7 @@ def run(settings):
     # black regions, weird behavior. If valid mask, doesn't learn interpolation in non-visibile regions.
     settings.compute_mask_zero_borders = True
     settings.apply_mask = False  # valid visible matches, we apply mask_zero_borders instead
-    settings.nbr_plot_images = 5
+    settings.nbr_plot_images = 2
 
     # loss parameters
     settings.name_of_loss = 'warp_supervision_and_w_bipath'  # the warp consistency objective

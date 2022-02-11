@@ -45,7 +45,7 @@ def run(settings):
     # black regions, weird behavior. If valid mask, doesn't learn interpolation in non-visibile regions.
     settings.compute_mask_zero_borders = True
     settings.apply_mask = False  # valid visible matches, we apply mask_zero_borders instead
-    settings.nbr_plot_images = 5
+    settings.nbr_plot_images = 2
     settings.dataset_callback_fn = 'sample_new_items'  # use to resample image pair at each epoch
 
     # loss parameters
