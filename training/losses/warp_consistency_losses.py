@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from utils_flow.pixel_wise_mapping import warp
+from utils_flow.flow_and_mapping_operations import get_gt_correspondence_mask
 
 
 def weights_self_supervised_and_unsupervised(loss_su, loss_un, stats, loss_weight, apply_constant_weights=False):
@@ -121,8 +122,9 @@ class WBipathLoss:
             estimated_flow_target_prime_to_target_through_composition.append(estimated_flow)
 
             # need to also compute the mask according to warping
-            mask = (warp(torch.ones(b, 1, h_, w_, requires_grad=False).cuda(),
-                         estimated_flow_target_prime_to_source_per_level_warping.detach()).ge(0.2)).squeeze(1)
+            # mask = (warp(torch.ones(b, 1, h_, w_, requires_grad=False).cuda(),
+            #              estimated_flow_target_prime_to_source_per_level_warping.detach()).ge(0.2)).squeeze(1)
+            mask = get_gt_correspondence_mask(estimated_flow_target_prime_to_source_per_level_warping.detach())
             mask = mask & F.interpolate(mask_used.unsqueeze(1).float(), (h_, w_), mode='bilinear',
                                         align_corners=False).ge(0.98).squeeze(1) if mask_used is not None else mask
 

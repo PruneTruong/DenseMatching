@@ -8,7 +8,6 @@ from training.plot.plot_warp_consistency import plot_flows_warpc
 import os
 from admin.multigpu import is_multi_gpu
 from training.losses.warp_consistency_losses import WBipathLoss, weights_self_supervised_and_unsupervised
-from .warp_consistency_utils.mask_strategies import get_mask
 from .batch_processing import normalize_image_with_imagenet_weights
 from admin.stats import merge_dictionaries
 
@@ -42,8 +41,8 @@ class GLOCALNetWarpCUnsupervisedBatchPreprocessing:
      In that case, the ground-truth flow field used during training is the synthetic flow field relating
      target prime to target.
     """
-    def __init__(self, settings, apply_mask=False, apply_mask_zero_borders=False, mask_strategy=None,
-                 mapping=False, online_triplet_creator=None, normalize_images=False, window_center_mask=70,
+    def __init__(self, settings, apply_mask=False, apply_mask_zero_borders=False,
+                 mapping=False, online_triplet_creator=None, normalize_images=False,
                  appearance_transform_source=None, appearance_transform_target=None, appearance_transform_target_prime=None):
         """
         Args:
@@ -64,8 +63,6 @@ class GLOCALNetWarpCUnsupervisedBatchPreprocessing:
         """
         self.apply_mask = apply_mask
         self.apply_mask_zero_borders = apply_mask_zero_borders
-        self.mask_strategy = mask_strategy
-        self.window_center_mask = window_center_mask
         self.mapping = mapping
 
         self.device = getattr(settings, 'device', None)
@@ -127,17 +124,13 @@ class GLOCALNetWarpCUnsupervisedBatchPreprocessing:
         bs, _, h, w = flow_gt.shape
 
         mask = None
-
-        if self.mask_strategy is not None:
-            mask = get_mask(self.mask_strategy, mini_batch, self.window_center_mask).to(self.device)
-        else:
-            # the default
-            if self.apply_mask_zero_borders:
-                if 'mask_zero_borders' not in mini_batch.keys():
-                    raise ValueError('Mask zero borders not in mini batch, check arguments to triplet creator')
-                mask = mini_batch['mask_zero_borders'].to(self.device)
-            elif self.apply_mask:
-                mask = mini_batch['correspondence_mask'].to(self.device)
+        # the default
+        if self.apply_mask_zero_borders:
+            if 'mask_zero_borders' not in mini_batch.keys():
+                raise ValueError('Mask zero borders not in mini batch, check arguments to triplet creator')
+            mask = mini_batch['mask_zero_borders'].to(self.device)
+        elif self.apply_mask:
+            mask = mini_batch['correspondence_mask'].to(self.device)
 
         if mask is not None and (mask.shape[1] != h or mask.shape[2] != w):
             # mask_gt does not have the proper shape

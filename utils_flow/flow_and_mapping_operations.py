@@ -16,23 +16,23 @@ def get_gt_correspondence_mask(flow):
         if len(mapping.shape) == 4:
             # shape is B,C,H,W
             b, _, h, w = mapping.shape
-            mask_x = np.logical_and(mapping[:, 0] > 0, mapping[:, 0] < w)
-            mask_y = np.logical_and(mapping[:, 1] > 0, mapping[:, 1] < h)
+            mask_x = np.logical_and(mapping[:, 0] >= 0, mapping[:, 0] <= w-1)
+            mask_y = np.logical_and(mapping[:, 1] >= 0, mapping[:, 1] <= h-1)
             mask = np.logical_and(mask_x, mask_y)
         else:
             _, h, w = mapping.shape
-            mask_x = np.logical_and(mapping[0] > 0, mapping[0] < w)
-            mask_y = np.logical_and(mapping[1] > 0, mapping[1] < h)
+            mask_x = np.logical_and(mapping[0] >= 0, mapping[0] <= w - 1)
+            mask_y = np.logical_and(mapping[1] >= 0, mapping[1] <= h - 1)
             mask = np.logical_and(mask_x, mask_y)
         mask = mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 else mask.astype(np.uint8)
     else:
         if len(mapping.shape) == 4:
             # shape is B,C,H,W
             b, _, h, w = mapping.shape
-            mask = mapping[:, 0].ge(0) & mapping[:, 0].le(w) & mapping[:, 1].ge(0) & mapping[:, 1].le(h)
+            mask = mapping[:, 0].ge(0) & mapping[:, 0].le(w-1) & mapping[:, 1].ge(0) & mapping[:, 1].le(h-1)
         else:
             _, h, w = mapping.shape
-            mask = mapping[0].ge(0) & mapping[0].le(w) & mapping[1].ge(0) & mapping[1].le(h)
+            mask = mapping[0].ge(0) & mapping[0].le(w-1) & mapping[1].ge(0) & mapping[1].le(h-1)
         mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
     return mask
 

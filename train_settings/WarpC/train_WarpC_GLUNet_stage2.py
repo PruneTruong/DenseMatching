@@ -26,7 +26,7 @@ from utils_data.augmentations.color_augmentation_torch import ColorJitter, Rando
 
 def run(settings):
     settings.description = 'Default train settings for WarpCGLUNet, stage2'
-    settings.data_mode = 'euler'
+    settings.data_mode = 'scratch'
     settings.batch_size = 6
     settings.n_threads = 8
     settings.multi_gpu = True

@@ -51,7 +51,7 @@ class SynthecticAffHomoTPSTransfo:
             use_cuda: use_cuda?
         """
 
-        if not isinstance(size_output_flow, tuple):
+        if not isinstance(size_output_flow, (tuple, list)):
             size_output_flow = (size_output_flow, size_output_flow)
         self.out_h, self.out_w = size_output_flow
         self.parametrize_with_gaussian = parametrize_with_gaussian
@@ -229,14 +229,14 @@ class AddElasticTransforms:
         self.min_nbr_perturbations = min_nbr_perturbations
         self.elastic_parameters = default_elastic_parameters
 
-        if elastic_parameters is None:
+        if elastic_parameters is not None:
             self.elastic_parameters.update(elastic_parameters)
 
         self.max_sigma_mask = max_sigma_mask  # can vary this load_size if we dont want small transformations
         self.min_sigma_mask = min_sigma_mask
         self.ElasticTrans = ElasticTransform(self.elastic_parameters, get_flow=True, approximate=True)
 
-        if not isinstance(size_output_flow, tuple):
+        if not isinstance(size_output_flow, (tuple, list)):
             size_output_flow = (size_output_flow, size_output_flow)
         self.size_output_flow = size_output_flow
 
@@ -328,7 +328,7 @@ class AddGridDistortion:
 
         self.GridDistortion = GridDistortion(parameters=parameters)
 
-        if not isinstance(size_output_flow, tuple):
+        if not isinstance(size_output_flow, (tuple, list)):
             size_output_flow = (size_output_flow, size_output_flow)
         self.size_output_flow = size_output_flow
 
@@ -408,14 +408,14 @@ class AddElasticTransformsV2:
         self.min_nbr_perturbations = min_nbr_perturbations
         self.elastic_parameters = default_elastic_parameters
 
-        if elastic_parameters is None:
+        if elastic_parameters is not None:
             self.elastic_parameters.update(elastic_parameters)
 
         self.max_sigma_mask = max_sigma_mask  # can vary this load_size if we dont want small transformations
         self.min_sigma_mask = min_sigma_mask
         self.ElasticTrans = ElasticTransform(self.elastic_parameters, get_flow=True, approximate=True)
 
-        if not isinstance(size_output_flow, tuple):
+        if not isinstance(size_output_flow, (tuple, list)):
             size_output_flow = (size_output_flow, size_output_flow)
         self.size_output_flow = size_output_flow
 

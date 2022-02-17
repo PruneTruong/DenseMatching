@@ -24,7 +24,7 @@ from utils_data.euler_wrapper import prepare_data
 
 def run(settings):
     settings.description = 'Default train settings for finetuning SemanticGLU-Net with Warp Consistency'
-    settings.data_mode = 'euler'
+    settings.data_mode = 'scratch'
     settings.batch_size = 4  # 5 fit in 1 GPU with 11 G
     settings.n_threads = 8
     settings.multi_gpu = True

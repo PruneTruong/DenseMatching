@@ -24,7 +24,7 @@ from datasets.object_augmented_dataset import MSCOCO, AugmentedImagePairsDataset
 
 def run(settings):
     settings.description = 'Default train settings for DiMP with ResNet18 as backbone.'
-    settings.data_mode = 'euler'
+    settings.data_mode = 'scratch'
     settings.batch_size = 16
     settings.n_threads = 8
     settings.multi_gpu = True

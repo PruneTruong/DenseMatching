@@ -12,6 +12,12 @@ import copy
 import jpeg4py
 
 
+def valid_size(size):
+    if not isinstance(size, (tuple, list)):
+        size = (size, size)
+    return size
+
+
 class MegaDepthDataset(Dataset):
     """MegaDepth dataset. Retrieves either pairs of matching images and their corresponding ground-truth flow
     (that is actually sparse) or single images. """
@@ -85,7 +91,7 @@ class MegaDepthDataset(Dataset):
         self.two_views = self.cfg['two_views']
         self.split = split
 
-        self.output_image_size = self.cfg['output_image_size']
+        self.output_image_size = valid_size(self.cfg['output_image_size'])
         self.pad_to_same_shape = self.cfg['pad_to_same_shape']
         self.output_flow_size = self.cfg['output_flow_size']
 

@@ -1,9 +1,9 @@
-from utils_data.euler_wrapper import prepare_data
+
 from termcolor import colored
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
-from training.actors.warp_consistency_actor_GLUNet import GLUNetWarpCUnsupervisedBatchPreprocessing, GLUNetWarpCUnsupervisedActor
+from training.actors.warp_consistency_actor_BaseNet import GLOCALNetWarpCUnsupervisedBatchPreprocessing, GLOCALNetWarpCUnsupervisedActor
 from training.losses.basic_losses import L1
 from training.losses.multiscale_loss import MultiScaleFlow
 from training.trainers.matching_trainer import MatchingTrainer
@@ -17,20 +17,21 @@ from datasets.MegaDepth.megadepth import MegaDepthDataset
 import torch
 import numpy as np
 import os
-from models.GLUNet.GLU_Net import glunet_vgg16
+from models.GLUNet.BaseNet import basenet_vgg16
 from utils_data.augmentations.color_augmentation_torch import ColorJitter, RandomGaussianBlur
+from utils_data.euler_wrapper import prepare_data
 
 
 def run(settings):
-    settings.description = 'Default train settings for WarpCGLUNet, stage1'
+    settings.description = 'Default train settings for WarpCGLOCALNet, stage1'
     settings.data_mode = 'scratch'
-    settings.batch_size = 6  # 6 fit in 1 GPU with 11 G
+    settings.batch_size = 20  # fit in 1 of 11G
     settings.n_threads = 8
     settings.multi_gpu = True
     settings.print_interval = 300
     settings.lr = 0.0001
-    settings.step_size_scheduler = [50, 65]
-    settings.n_epochs = 80
+    settings.step_size_scheduler = [20, 40]
+    settings.n_epochs = 60
     settings.initial_pretrained_model = None
 
     # specific training parameters
@@ -49,8 +50,8 @@ def run(settings):
                             'warp_supervision_constant': 1.0, 'w_bipath_constant': 1.0}
 
     # transfo parameters for triplet creation
-    settings.resizing_size = 750
-    settings.crop_size = 520
+    settings.resizing_size = 320
+    settings.crop_size = 256
     settings.parametrize_with_gaussian = False
     settings.transformation_types = ['hom', 'tps', 'afftps']
     settings.random_t = 0.25
@@ -79,7 +80,7 @@ def run(settings):
     train_dataset = MegaDepthDataset(root=settings.env.megadepth_training, split='train', cfg=megadepth_cfg,
                                      source_image_transform=img_transforms, target_image_transform=img_transforms,
                                      flow_transform=flow_transform, co_transform=co_transform,
-                                     store_scene_info_in_memory=True)
+                                     store_scene_info_in_memory=False)
 
     # validation data
     megadepth_cfg['exchange_images_with_proba'] = 0.
@@ -98,9 +99,9 @@ def run(settings):
                         epoch_interval=1.0, training=False, num_workers=settings.n_threads)
 
     # models
-    model = glunet_vgg16(global_corr_type='global_corr', normalize='relu_l2norm', normalize_features=True,
-                         cyclic_consistency=True, local_decoder_type='OpticalFlowEstimatorResidualConnection',
-                         global_decoder_type='CMDTopResidualConnection')
+    model = basenet_vgg16(global_corr_type='global_corr', normalize='relu_l2norm', normalize_features=True,
+                          cyclic_consistency=True, local_decoder_type='OpticalFlowEstimatorResidualConnection',
+                          global_decoder_type='CMDTopResidualConnection')
     # if Load pre-trained weights !
     if settings.initial_pretrained_model is not None:
         model.load_state_dict(torch.load(settings.initial_pretrained_model)['state_dict'])
@@ -123,7 +124,8 @@ def run(settings):
                                                  )
 
     # sample flow, at the same resizing size than the images.
-    synthetic_flow_generator = GetRandomSyntheticAffHomoTPSFlow(settings=settings, transfo_sampling_module=sample_transfo,
+    synthetic_flow_generator = GetRandomSyntheticAffHomoTPSFlow(settings=settings,
+                                                                transfo_sampling_module=sample_transfo,
                                                                 size_output_flow=settings.resizing_size)
 
     # actual module responsable for creating the image triplet from the real image pair.
@@ -133,26 +135,24 @@ def run(settings):
 
     # batch processing module, creates the triplet,  apply appearance transformations and put all the inputs
     # to cuda as well as in the right format
-    batch_processing = GLUNetWarpCUnsupervisedBatchPreprocessing(
+    batch_processing = GLOCALNetWarpCUnsupervisedBatchPreprocessing(
         settings, apply_mask=settings.apply_mask, apply_mask_zero_borders=settings.compute_mask_zero_borders,
-        online_triplet_creator=triplet_creator,
+        online_triplet_creator=triplet_creator, normalize_images=True,
         appearance_transform_source=None, appearance_transform_target=None,
         appearance_transform_target_prime=settings.appearance_transfo_target_prime)
 
     # actual objective is L1, with different weights for the different levels.
     objective = L1()
-    weights_level_loss = [0.32, 0.08, 0.02, 0.01]
-    loss_module_256 = MultiScaleFlow(level_weights=weights_level_loss[:2], loss_function=objective,
-                                     downsample_gt_flow=True)
-    loss_module = MultiScaleFlow(level_weights=weights_level_loss[2:], loss_function=objective,
+    weights_level_loss = [0.32, 0.08, 0.02]
+    loss_module = MultiScaleFlow(level_weights=weights_level_loss, loss_function=objective,
                                  downsample_gt_flow=True)
 
     # actor
-    glunet_actor = GLUNetWarpCUnsupervisedActor(model, objective=loss_module, objective_256=loss_module_256,
-                                                batch_processing=batch_processing, loss_weight=settings.loss_weight,
-                                                name_of_loss=settings.name_of_loss,
-                                                compute_visibility_mask=settings.compute_visibility_mask,
-                                                nbr_images_to_plot=settings.nbr_plot_images)
+    glunet_actor = GLOCALNetWarpCUnsupervisedActor(model, objective=loss_module,
+                                                   batch_processing=batch_processing, loss_weight=settings.loss_weight,
+                                                   name_of_loss=settings.name_of_loss,
+                                                   compute_visibility_mask=settings.compute_visibility_mask,
+                                                   nbr_images_to_plot=settings.nbr_plot_images)
 
     # Optimizer
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=settings.lr, weight_decay=0.0004)
@@ -164,7 +164,3 @@ def run(settings):
                               make_initial_validation=True)
 
     trainer.train(settings.n_epochs, load_latest=True, fail_safe=True)
-
-
-
-

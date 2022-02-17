@@ -52,7 +52,7 @@ def remap_using_correspondence_map(image, map_x, map_y, interpolation=cv2.INTER_
     return remapped_image
 
 
-def warp(x, flo, padding_mode='zeros'):
+def warp(x, flo, padding_mode='zeros', return_mask=False):
     """
     warp an image/tensor (im2) back to im1, according to the optical flow
 
@@ -62,7 +62,7 @@ def warp(x, flo, padding_mode='zeros'):
     outputs:
         output: warped x [B, C, H, W]
     """
-    B, C, H, W = x.size()
+    B, C, H, W = flo.size()
     # mesh grid
     xx = torch.arange(0, W).view(1, -1).repeat(H, 1)
     yy = torch.arange(0, H).view(-1, 1).repeat(1, W)
@@ -85,10 +85,15 @@ def warp(x, flo, padding_mode='zeros'):
         output = nn.functional.grid_sample(x, vgrid, align_corners=True, padding_mode=padding_mode)
     else:
         output = nn.functional.grid_sample(x, vgrid, padding_mode=padding_mode)
+
+    if return_mask:
+        vgrid = vgrid.permute(0, 3, 1, 2)
+        mask = (vgrid[:, 0] > -1) & (vgrid[:, 1] > -1) & (vgrid[:, 0] < 1) & (vgrid[:, 1] < 1)
+        return output, mask
     return output
 
 
-def warp_with_mapping(x, vgrid):
+def warp_with_mapping(x, vgrid, padding_mode='zeros', return_mask=False):
     """
     warp an image/tensor (im2) back to im1, according to the mapping (in pixel coordinates)
 
@@ -107,7 +112,12 @@ def warp_with_mapping(x, vgrid):
 
     vgrid = vgrid.permute(0, 2, 3, 1)
     if float(torch.__version__[:3]) >= 1.3:
-        output = nn.functional.grid_sample(x, vgrid, align_corners=True)
+        output = nn.functional.grid_sample(x, vgrid, align_corners=True, padding_mode=padding_mode)
     else:
-        output = nn.functional.grid_sample(x, vgrid)
+        output = nn.functional.grid_sample(x, vgrid, padding_mode=padding_mode)
+
+    if return_mask:
+        vgrid = vgrid.permute(0, 3, 1, 2)
+        mask = (vgrid[:, 0] > -1) & (vgrid[:, 1] > -1) & (vgrid[:, 0] < 1) & (vgrid[:, 1] < 1)
+        return output, mask
     return output

@@ -394,7 +394,8 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
         occluded_mask = ~valid_flow | mask_of_reprojected_object_from_source_to_target
         # occluded_mask = mask_of_reprojected_object_from_source_to_target
         if self.compute_zero_border_mask:
-            mask_zero_borders = mask_zero_borders & ~mask_of_objects_in_target
+            # final mask is mask_zero_border or the object if they cover some previously invalid regions
+            mask_zero_borders = mask_zero_borders | mask_of_objects_in_target
 
         # choose what the correspondence_mask represents
         if self.compute_occlusion_mask:

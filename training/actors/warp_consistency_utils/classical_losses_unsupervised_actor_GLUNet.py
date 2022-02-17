@@ -27,7 +27,7 @@ class GLUNetImageBatchPreprocessing:
             self.device = torch.device("cuda" if torch.cuda.is_available() and settings.use_gpu else "cpu")
 
         if resizing is not None:
-            if not isinstance(resizing, tuple):
+            if not isinstance(resizing, (tuple, list)):
                 resizing = (resizing, resizing)
         self.resizing = resizing
 

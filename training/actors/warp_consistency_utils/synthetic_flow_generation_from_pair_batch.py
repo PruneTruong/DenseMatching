@@ -96,11 +96,11 @@ class GetSyntheticFlowFromNetPredictions:
         if self.device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() and settings.use_gpu else "cpu")
 
-        if not isinstance(image_prediction_size, tuple):
+        if not isinstance(image_prediction_size, (tuple, list)):
             image_prediction_size = (image_prediction_size, image_prediction_size)
         self.image_prediction_size = image_prediction_size
 
-        if not isinstance(size_output_flow, tuple):
+        if not isinstance(size_output_flow, (tuple, list)):
             size_output_flow = (size_output_flow, size_output_flow)
         self.size_output_flow = size_output_flow
 
@@ -136,14 +136,8 @@ class GetSyntheticFlowFromNetPredictions:
                                                                         estimated_flow_target_to_source)
 
             # get mask of valid correspondences
-            consistent_matches = torch.norm(cyclic_consistency, p=2, dim=1, keepdim=True).le(self.cyclic_cons_thresh)  # b, 1, h, w
-
-            '''
-            plot_synthetic_flow_creation('/cluster/work/cvl/truongp/', mini_batch['epoch'], mini_batch['iter'],
-                                         source_image_for_prediction, target_image_for_prediction,
-                                         estimated_flow_target_to_source,
-                                         estimated_flow_source_to_target, consistent_matches)
-            '''
+            consistent_matches = torch.norm(cyclic_consistency, p=2, dim=1, keepdim=True).le(self.cyclic_cons_thresh)
+            # b, 1, h, w
 
             # get scaling
             scaling_x = float(self.size_output_flow[1]) / float(w_f)
@@ -217,7 +211,7 @@ class GetSyntheticFlowFromCAD:
             self.homo_dataloader_eval = homo_dataloader_eval
             self.homography_dataloader_eval_iterator = iter(homo_dataloader_eval)
 
-        if not isinstance(size_output_flow, tuple):
+        if not isinstance(size_output_flow, (tuple, list)):
             size_output_flow = (size_output_flow, size_output_flow)
         self.size_output_flow = size_output_flow
 
@@ -273,7 +267,7 @@ class GetRandomSyntheticHomographyFlow:
                                                     border_mode='constant', pad_amount=0)
         self.homography_transform = homo_sampling_module
 
-        if not isinstance(size_output_flow, tuple):
+        if not isinstance(size_output_flow, (tuple, list)):
             size_output_flow = (size_output_flow, size_output_flow)
         self.size_output_flow = size_output_flow
 
@@ -318,7 +312,7 @@ class GetRandomSyntheticAffHomoTPSFlow:
         if self.device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() and settings.use_gpu else "cpu")
 
-        if not isinstance(size_output_flow, tuple):
+        if not isinstance(size_output_flow, (tuple, list)):
             size_output_flow = (size_output_flow, size_output_flow)
         self.size_output_flow = size_output_flow
 
