@@ -14,6 +14,7 @@ from models.GLUNet.GLU_Net import glunet_vgg16
 from datasets.load_pre_made_datasets.load_pre_made_dataset import PreMadeDataset
 from datasets.object_augmented_dataset import MSCOCO, AugmentedImagePairsDatasetMultipleObjects
 from datasets.object_augmented_dataset.synthetic_object_augmentation_for_pairs_multiple_ob import RandomAffine
+from utils_data.euler_wrapper import prepare_data
 
 
 def run(settings):
@@ -40,10 +41,12 @@ def run(settings):
 
     # object dataset
     min_target_area = 1300
+    prepare_data(settings.env.coco_tar, settings.data_mode)
     coco_dataset_train = MSCOCO(root=settings.env.coco, split='train', version='2014',
                                 min_area=min_target_area)
 
     # base training data is DPED-CityScape-ADE + 1 object from COCO
+    prepare_data(settings.env.training_cad_520_tar, settings.data_mode)
     train_dataset, _ = PreMadeDataset(root=settings.env.training_cad_520,
                                       source_image_transform=None,
                                       target_image_transform=None,
@@ -62,6 +65,7 @@ def run(settings):
                                                               co_transform=co_transform)
 
     # validation dataset: DPED-CityScape-ADE + 1 object from COCO
+    prepare_data(settings.env.validation_cad_520_tar, settings.data_mode)
     _, val_dataset = PreMadeDataset(root=settings.env.validation_cad_520,
                                     source_image_transform=None,
                                     target_image_transform=None,
@@ -97,11 +101,11 @@ def run(settings):
     if settings.multi_gpu:
         model = MultiGPU(model)
 
-    # 4. Define batch_processing and objective
+    # 4. Define batch_processing
     batch_processing = GLUNetBatchPreprocessing(settings, apply_mask=False, apply_mask_zero_borders=False,
                                                 sparse_ground_truth=False)
 
-    # 5. Define loss module
+    # 5, Define loss module
     objective = EPE()
     weights_level_loss = [0.32, 0.08, 0.02, 0.01]
     loss_module_256 = MultiScaleFlow(level_weights=weights_level_loss[:2], loss_function=objective,
@@ -127,6 +131,8 @@ def run(settings):
     trainer = MatchingTrainer(GLUNetActor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler)
 
     trainer.train(settings.n_epochs, load_latest=True, fail_safe=True)
+
+
 
 
 

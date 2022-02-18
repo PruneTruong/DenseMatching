@@ -15,19 +15,21 @@ class WarpingDataset(torch.utils.data.Dataset):
 
     def __init__(self, original_image_dataset, synthetic_flow_generator, compute_mask_zero_borders=False,
                  min_percent_valid_corr=0.1, crop_size=256, output_size=256, source_image_transform=None,
-                 target_image_transform=None, flow_transform=None, co_transform=None):
+                 target_image_transform=None, flow_transform=None, co_transform=None, padding_mode='zeros'):
         """
         Args:
             original_image_dataset: dataset for the single images
             synthetic_flow_generator: module generating the dense flow fields
             compute_mask_zero_borders: compute mask zero borders?
-            min_percent_valid_corr:
-            crop_size:
-            output_size:
+            min_percent_valid_corr: compute_mask_zero_borders is True and if the percentage of valid flow regions is
+                                    below this value, we use the ground-truth valid mask instead of the zero border mask
+            crop_size: crop size, after applying the geometric transformations
+            output_size: after the cropping, can optionally further resize the images, flow and masks
             source_image_transform: image transformations to apply to source images
             target_image_transform: image transformations to apply to target images
             flow_transform: flow transformations to apply to ground-truth flow fields
             co_transform: transforms to apply to both image pairs and corresponding flow field
+            padding_mode: padding mode for warping. 'border' could be better, instead of 'zeros'
 
         Output in __getitem__:
             source_image
@@ -42,13 +44,14 @@ class WarpingDataset(torch.utils.data.Dataset):
         """
         self.original_image_dataset = original_image_dataset
         self.apply_mask_zero_borders = compute_mask_zero_borders
+        self.padding_mode = padding_mode
 
         self.synthetic_flow_generator = synthetic_flow_generator
-        if not isinstance(crop_size, tuple):
+        if not isinstance(crop_size, (tuple, list)):
             crop_size = (crop_size, crop_size)
         self.crop_size = crop_size
 
-        if not isinstance(output_size, tuple):
+        if not isinstance(output_size, (tuple, list)):
             output_size = (output_size, output_size)
         self.output_size = output_size
         self.min_percent_valid_corr = min_percent_valid_corr
@@ -117,16 +120,18 @@ class WarpingDataset(torch.utils.data.Dataset):
             flow_gt = F.interpolate(flow_gt, (h, w), mode='bilinear', align_corners=False)
             flow_gt[:, 0] *= float(w) / float(w_f)
             flow_gt[:, 1] *= float(h) / float(h_f)
-        target_image = warp(image, flow_gt).byte()
+        target_image, mask_zero_borders = warp(image, flow_gt, padding_mode=self.padding_mode, return_mask=True)
+        target_image = target_image.byte()
+        # because here, i still have my images in [0-255] s
 
         # crop a center patch from the images and the ground-truth flow field, so that black borders are removed
         x_start = w // 2 - self.crop_size[1] // 2
         y_start = h // 2 - self.crop_size[0] // 2
-        source_image_resized = image[:, :, y_start: y_start + self.crop_size[0],
-                               x_start: x_start + self.crop_size[1]]
+        source_image_resized = image[:, :, y_start: y_start + self.crop_size[0], x_start: x_start + self.crop_size[1]]
         target_image_resized = target_image[:, :, y_start: y_start + self.crop_size[0],
-                               x_start: x_start + self.crop_size[1]]
+                                            x_start: x_start + self.crop_size[1]]
         flow_gt_resized = flow_gt[:, :, y_start: y_start + self.crop_size[0], x_start: x_start + self.crop_size[1]]
+        mask_zero_borders = mask_zero_borders[:, y_start: y_start + self.crop_size[0], x_start: x_start + self.crop_size[1]]
 
         # resize to final outptu load_size, this is to prevent the crop from removing all common areas
         if self.output_size != self.crop_size:
@@ -139,15 +144,21 @@ class WarpingDataset(torch.utils.data.Dataset):
             flow_gt_resized[:, 0] *= float(self.output_size[1]) / float(self.crop_size[1])
             flow_gt_resized[:, 1] *= float(self.output_size[0]) / float(self.crop_size[0])
 
+            mask_zero_borders = F.interpolate(mask_zero_borders.float().unsqueeze(1), self.output_size,
+                                              mode='bilinear', align_corners=False).byte().squeeze(1)
+            mask_zero_borders = mask_zero_borders.bool() if float(torch.__version__[:3]) >= 1.1 \
+                else mask_zero_borders.byte()
+
         # put back the images and flow to numpy array, channel last
+        # TO DO: change, this is not great
         source_image_resized = source_image_resized.squeeze(0).permute(1, 2, 0).numpy().astype(np.uint8)
         target_image_resized = target_image_resized.squeeze(0).permute(1, 2, 0).numpy().astype(np.uint8)
         flow_gt_resized = flow_gt_resized.squeeze(0).permute(1, 2, 0).numpy()
+        mask_zero_borders = mask_zero_borders.squeeze(0).numpy()
 
         if self.co_transform is not None:
-            [source_image_resized, target_image_resized], flow_gt_resized = self.co_transform([source_image_resized,
-                                                                                               target_image_resized],
-                                                                                              flow_gt_resized)
+            [source_image_resized, target_image_resized], flow_gt_resized, mask_zero_borders = \
+                self.co_transform([source_image_resized, target_image_resized], flow_gt_resized, mask=mask_zero_borders)
 
         # create ground truth mask (for eval at least)
         mask_gt = get_gt_correspondence_mask(flow_gt_resized)
@@ -155,10 +166,11 @@ class WarpingDataset(torch.utils.data.Dataset):
         if self.apply_mask_zero_borders:
             # if mask_gt is all zero (no commun areas), overwrite to use the mask in anycase
             if mask_gt.sum() < mask_gt.shape[-1] * mask_gt.shape[-2] * self.min_percent_valid_corr:
-                mask = mask_gt
+                mask_zero_borders = mask_gt
             else:
-                mask = define_mask_zero_borders(target_image_resized)
-                mask_gt *= mask  # also removes the black area from the valid mask
+                # if padding is 'zeros', could identify mask_zero_borders from intensity of the target image directly
+                # mask_zero_borders = define_mask_zero_borders(target_image_resized)
+                mask_gt *= mask_zero_borders  # also removes the black area from the valid mask
 
         if self.source_image_transform is not None:
             source_image_resized = self.source_image_transform(source_image_resized)
@@ -174,6 +186,6 @@ class WarpingDataset(torch.utils.data.Dataset):
                   'correspondence_mask': mask_gt
                   }
         if self.apply_mask_zero_borders:
-            output['mask_zero_borders'] = mask
+            output['mask_zero_borders'] = mask_zero_borders
         output['sparse'] = False
         return output

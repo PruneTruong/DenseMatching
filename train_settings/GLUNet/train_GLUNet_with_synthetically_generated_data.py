@@ -143,8 +143,7 @@ def run(settings):
         model = MultiGPU(model)
 
     # 4. Define batch_processing
-    batch_processing = GLUNetBatchPreprocessing(settings, apply_mask=settings.apply_mask,
-                                                apply_mask_zero_borders=settings.compute_mask_zero_borders,
+    batch_processing = GLUNetBatchPreprocessing(settings, apply_mask=False, apply_mask_zero_borders=True,
                                                 sparse_ground_truth=False)
 
     # 5, Define loss module
@@ -155,17 +154,22 @@ def run(settings):
     loss_module = MultiScaleFlow(level_weights=weights_level_loss[2:], loss_function=objective, downsample_gt_flow=True)
 
     # 6. Define actor
-    glunet_actor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
-                                    batch_processing=batch_processing)
+    GLUNetActor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
+                                   batch_processing=batch_processing)
 
     # 7. Define Optimizer
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=settings.lr, weight_decay=0.0004)
+    optimizer = \
+        optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
+                   lr=settings.lr,
+                   weight_decay=0.0004)
 
     # 8. Define Scheduler
-    scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=settings.scheduler_steps, gamma=0.5)
+    scheduler = lr_scheduler.MultiStepLR(optimizer,
+                                         milestones=settings.scheduler_steps,
+                                         gamma=0.5)
 
     # 9. Define Trainer
-    trainer = MatchingTrainer(glunet_actor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler)
+    trainer = MatchingTrainer(GLUNetActor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler)
 
     trainer.train(settings.n_epochs, load_latest=True, fail_safe=True)
 
