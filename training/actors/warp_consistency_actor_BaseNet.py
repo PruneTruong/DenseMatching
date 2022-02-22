@@ -234,11 +234,11 @@ class GLOCALNetWarpCUnsupervisedActor(BaseActor):
                                                                       im_target_pyr=im_target_prime_pyr,
                                                                       im_source_pyr=im_target_pyr)['flow_estimates']
 
-        loss_ss, un_loss = 0.0, 0.0
-        stats_ss, un_stats = {}, {}
+        ss_loss, un_loss = 0.0, 0.0
+        ss_stats, un_stats = {}, {}
         if 'warp_supervision' in self.name_of_loss:
-            loss_ss, stats_ss = self.objective(estimated_flow_target_prime_to_target_directly, mini_batch['flow_map'],
-                                         mask=mini_batch['mask'])
+            ss_loss, ss_stats = self.objective(estimated_flow_target_prime_to_target_directly, mini_batch['flow_map'],
+                                               mask=mini_batch['mask'])
 
             # log stats
             output_un = {'estimated_flow_target_prime_to_target_through_composition':
@@ -260,17 +260,14 @@ class GLOCALNetWarpCUnsupervisedActor(BaseActor):
 
             # compute self-supervised part of the loss
         if self.name_of_loss == 'warp_supervision':
-            stats = stats_ss
-            stats['Loss/total'] = loss_ss.item()
-            loss = loss_ss
+            stats = ss_stats
+            stats['Loss/total'] = ss_loss.item()
+            loss = ss_loss
         elif self.name_of_loss == 'w_bipath':
             loss = un_loss
             stats = un_stats
             stats['Loss/total'] = loss.item()
         else:
-            ss_loss, ss_stats = self.objective(estimated_flow_target_prime_to_target_directly,
-                                               mini_batch['flow_map'], mask=mini_batch['mask'])
-
             # merge stats and losses
             stats = merge_dictionaries([un_stats, ss_stats], name=['w_bipath', 'warp_sup'])
 
