@@ -54,7 +54,7 @@ def run(settings):
     settings.apply_constant_flow_weight = False
     settings.loss_weight = {'warp_supervision': 1.0, 'w_bipath': 1.0,
                             'warp_supervision_constant': 1.0, 'w_bipath_constant': 1.0,
-                            'cc_mask_alpha_1': 0.03, 'cc_mask_alpha_2': 0.5 }
+                            'cc_mask_alpha_1': 0.03, 'cc_mask_alpha_2': 0.5}
 
     # transfo parameters for triplet creation
     # in the second training stage, transfo strength are increased, and we add elastic transformations
@@ -81,7 +81,6 @@ def run(settings):
     img_transforms = transforms.Compose([ArrayToTensor(get_float=True)])  # just put channels first
     co_transform = None
 
-    prepare_data(settings.env.megadepth_training_tar, mode=settings.data_mode)
     # original images must be at the resizing size, on which are applied the transformations!
     megadepth_cfg = {'scene_info_path': os.path.join(settings.env.megadepth_training, 'scene_info'),
                      'train_num_per_scene': 300, 'val_num_per_scene': 25,
@@ -111,7 +110,10 @@ def run(settings):
     # models
     model = glunet_vgg16(global_corr_type='global_corr', normalize='relu_l2norm', normalize_features=True,
                          cyclic_consistency=True, local_decoder_type='OpticalFlowEstimatorResidualConnection',
-                         global_decoder_type='CMDTopResidualConnection')
+                         global_decoder_type='CMDTopResidualConnection',
+                         use_interp_instead_of_deconv=False)  # in original GLUNet, we set it to False
+    # but better results are obtained with using simple bilinear interpolation instead of deconvolutions.
+    print(colored('==> ', 'blue') + 'model created.')
     # if Load pre-trained weights !
     if settings.initial_pretrained_model is not None:
         model.load_state_dict(torch.load(settings.initial_pretrained_model)['state_dict'])

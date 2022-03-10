@@ -125,7 +125,7 @@ def main(args, settings):
             if rot0 != 0 or rot1 != 0:
                 print('pair {}, update intrinsic'.format(i))
                 cam0_T_w = np.eye(4)
-                cam1_T_w = T_0to1
+                cam1_T_w = T_0to1  # rotation from camera 0 to camera 1
                 if rot0 != 0:
                     K0 = rotate_intrinsics(K0, image0.shape, rot0)
                     cam0_T_w = rotate_pose_inplane(cam0_T_w, rot0)
@@ -133,7 +133,7 @@ def main(args, settings):
                     K1 = rotate_intrinsics(K1, image1.shape, rot1)
                     cam1_T_w = rotate_pose_inplane(cam1_T_w, rot1)
                 cam1_T_cam0 = cam1_T_w @ np.linalg.inv(cam0_T_w)
-                T_0to1 = cam1_T_cam0
+                T_0to1 = cam1_T_cam0  # rotation from camera 0 to camera 1, ie from source to target
 
             epi_errs = compute_epipolar_error(mkpts0, mkpts1, T_0to1, K0, K1)
             correct = epi_errs < 5e-4
@@ -142,7 +142,9 @@ def main(args, settings):
 
             thresh = 1.  # In pixels relative to resized image load_size.
             ret = estimate_pose(mkpts0, mkpts1, K0, K1, ransac=args.ransac, thresh=thresh)
+            # estimates relative pose from camera 0/source to camera 1/target
 
+            # corresponds to Rotation from camera 0 to camera 1
             if ret is None:
                 err_t, err_R = np.inf, np.inf
             else:
@@ -215,7 +217,7 @@ def main(args, settings):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Pose estimation',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--datasets', type=str, help='Dataset name', required=True)
+    parser.add_argument('--dataset', type=str, help='Dataset name', required=True)
 
     define_model_parser(parser)
     parser.add_argument('--pre_trained_models', nargs='+', required=True,
@@ -249,10 +251,10 @@ if __name__ == "__main__":
     # Create the output directories if they do not exist already.
     settings = ws_settings.Settings()
 
-    if args.datasets == 'YFCC':
+    if args.dataset == 'YFCC':
         input_dir = Path(settings.env.yfcc)
         input_pairs = 'assets/yfcc_test_pairs_with_gt_original.txt'
-    elif args.datasets == 'scannet':
+    elif args.dataset == 'scannet':
         input_dir = Path(settings.env.scannet_test)
         input_pairs = 'assets/scannet_test_pairs_with_gt.txt'
     else:

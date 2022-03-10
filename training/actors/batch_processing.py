@@ -2,30 +2,11 @@ import torch.utils.data
 import torch
 import torch.nn.functional as F
 from utils_flow.flow_and_mapping_operations import unormalise_and_convert_mapping_to_flow
+from models.base_matching_net import pre_process_image_glunet
 
 
 def no_processing(data):
     return data
-
-
-def pre_process_image_glunet(source_img, device, mean_vector=[0.485, 0.456, 0.406],
-                             std_vector=[0.229, 0.224, 0.225]):
-    # img has shape bx3xhxw
-    b, _, h_scale, w_scale = source_img.shape
-    source_img_copy = source_img.float().to(device).div(255.0)
-
-    mean = torch.as_tensor(mean_vector, dtype=source_img_copy.dtype, device=source_img_copy.device)
-    std = torch.as_tensor(std_vector, dtype=source_img_copy.dtype, device=source_img_copy.device)
-    source_img_copy.sub_(mean[:, None, None]).div_(std[:, None, None])
-
-    # resolution 256x256
-    source_img_256 = torch.nn.functional.interpolate(input=source_img.float().to(device),
-                                                     size=(256, 256),
-                                                     mode='area').byte()
-
-    source_img_256 = source_img_256.float().div(255.0)
-    source_img_256.sub_(mean[:, None, None]).div_(std[:, None, None])
-    return source_img_copy.to(device), source_img_256.to(device)
 
 
 def normalize_image_with_imagenet_weights(source_img):

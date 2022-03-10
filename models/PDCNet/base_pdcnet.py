@@ -60,6 +60,17 @@ class UncertaintyPredictionInference(nn.Module):
         self.inference_parameters = inference_parameters
 
     def use_global_corr_layer(self, c_target, c_source):
+        """
+        Computes global correlation from target and source feature maps.
+        similar to DGC-Net, usually features are first normalized with L2 norm and the output cost volume is
+        relued, followed by L2 norm.
+        Args:
+            c_target: B, c, h_t, w_t
+            c_source: B, c, h_s, w_s
+
+        Returns:
+            input_corr_uncertainty_dec: B, h_s*w_s, h_t, w_t
+        """
         if self.params.normalize_features:
             corr_uncertainty = self.corr_module_for_corr_uncertainty_decoder(self.l2norm(c_source),
                                                                              self.l2norm(c_target))
@@ -68,8 +79,19 @@ class UncertaintyPredictionInference(nn.Module):
         input_corr_uncertainty_dec = self.l2norm(F.relu(corr_uncertainty))
         return input_corr_uncertainty_dec
 
-    def use_local_corr_layer(self, c_t, c_s):
-        input_corr_uncertainty_dec = correlation.FunctionCorrelation(reference_features=c_t, query_features=c_s)
+    def use_local_corr_layer(self, c_target, c_source):
+        """
+        Computes local correlation from target and source feature maps.
+        similar to PWC-Net, usually features are not normalized with L2 norm and the output cost volume is
+        processed with leaky-relu.
+        Args:
+            c_target: B, c, h_t, w_t
+            c_source: B, c, h_s, w_s
+
+        Returns:
+            input_corr_uncertainty_dec: B, h_s*w_s, h_t, w_t
+        """
+        input_corr_uncertainty_dec = correlation.FunctionCorrelation(reference_features=c_target, query_features=c_source)
         input_corr_uncertainty_dec = self.leakyRELU(input_corr_uncertainty_dec)
         return input_corr_uncertainty_dec
 
@@ -77,7 +99,7 @@ class UncertaintyPredictionInference(nn.Module):
     def constrain_large_log_var_map(var_min, var_max, large_log_var_map):
         """
         Constrains variance parameter between var_min and var_max, returns log of the variance. Here large_log_var_map
-        if the unconstrained variance, outputted by the network
+        is the unconstrained variance, outputted by the network
         Args:
             var_min: min variance, corresponds to parameter beta_minus in paper
             var_max: max variance, corresponds to parameter beta_plus in paper
@@ -586,39 +608,6 @@ class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInfere
     def __init__(self, params, pyramid=None, pyramid_256=None, *args, **kwargs):
         super().__init__(params=params, pyramid=pyramid, pyramid_256=pyramid_256, *args, **kwargs)
 
-    def compute_flow_and_uncertainty(self, source_img, target_img, source_img_256, target_img_256, output_shape,
-                                     inference_parameters, ratio_x=1.0, ratio_y=1.0, list_item=-1):
-        # define output shape and scaling ratios
-        output_256, output = self.forward(target_img, source_img, target_img_256, source_img_256)
-        flow_est_list = output['flow_estimates']
-        flow_est = flow_est_list[-1]
-        uncertainty_list = output['uncertainty_estimates'][-1]  # contains log_var_map and weight_map
-
-        # get the flow field
-        flow_est = torch.nn.functional.interpolate(input=flow_est, size=output_shape, mode='bilinear',
-                                                   align_corners=False)
-        flow_est[:, 0, :, :] *= ratio_x
-        flow_est[:, 1, :, :] *= ratio_y
-
-        # get the confidence value
-        if isinstance(uncertainty_list[0], list):
-            # estimate multiple uncertainty maps per level
-            log_var_map = torch.nn.functional.interpolate(input=uncertainty_list[0][list_item], size=output_shape,
-                                                          mode='bilinear', align_corners=False)
-            weight_map = torch.nn.functional.interpolate(input=uncertainty_list[1][list_item], size=output_shape,
-                                                         mode='bilinear', align_corners=False)
-        else:
-            log_var_map = torch.nn.functional.interpolate(input=uncertainty_list[0], size=output_shape,
-                                                          mode='bilinear', align_corners=False)
-            weight_map = torch.nn.functional.interpolate(input=uncertainty_list[1], size=output_shape,
-                                                         mode='bilinear', align_corners=False)
-        p_r = estimate_probability_of_confidence_interval_of_mixture_density(weight_map, log_var_map,
-                                                                             R=inference_parameters['R'])
-        variance = estimate_average_variance_of_mixture_density(weight_map, log_var_map)
-        uncertainty_est = {'log_var_map': log_var_map, 'weight_map': weight_map,
-                           'p_r': p_r, 'inference_parameters': inference_parameters, 'variance': variance}
-        return flow_est, uncertainty_est
-
     def estimate_flow_and_confidence_map_direct(self, source_img, target_img, inference_parameters,
                                                 output_shape=None, mode='channel_first'):
         """
@@ -665,3 +654,60 @@ class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInfere
             return flow_est, uncertainty_est
         else:
             return flow_est.permute(0, 2, 3, 1), uncertainty_est
+
+    def compute_flow_and_uncertainty(self, source_img, target_img, source_img_256, target_img_256, output_shape,
+                                     inference_parameters, ratio_x=1.0, ratio_y=1.0, list_item=-1):
+        """
+        Returns the flow field and uncertainty estimation dictionary relating the target to the source image, using the
+        a single forward pass of the network.
+        Returned flow has output_shape.
+        Args:
+            source_img: torch tensor, bx3xHxW (size dividable by 16), normalized with imagenet weights
+            target_img: torch tensor, bx3xHxW (size dividable by 16), normalized with imagenet weights
+            source_img_256: torch tensor, bx3x256x256, normalized with imagenet weights
+            target_img_256: torch tensor, bx3x256x256, normalized with imagenet weights
+            output_shape: int or list of int, or None, output shape of the returned flow field
+            inference_parameters: dict with inference parameters
+                                  inference_parameters_default =
+                                  {'R': 1.0, 'ransac_thresh': 1.0, 'multi_stage_type': 'direct',
+                                  'mask_type': 'proba_interval_1_above_5', 'homography_visibility_mask': True,
+                                  'list_resizing_ratios': [0.5, 0.6, 0.88, 1, 1.33, 1.66, 2],
+                                  'min_inlier_threshold_for_multi_scale': 0.2, 'min_nbr_points_for_multi_scale': 70}
+            ratio_x: ratio to apply to the horizontal coordinate of the ouputted flow field.
+            ratio_y: ratio to apply to the vertical coordinate of the ouputted flow field.
+
+        Returns:
+            flow_est: estimated flow field relating the target to the reference image, resized and scaled to
+                      output_shape (can be defined by scaling parameter)
+            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance'
+        """
+        # define output shape and scaling ratios
+        output_256, output = self.forward(target_img, source_img, target_img_256, source_img_256)
+        flow_est_list = output['flow_estimates']
+        flow_est = flow_est_list[-1]
+        uncertainty_list = output['uncertainty_estimates'][-1]  # contains log_var_map and weight_map
+
+        # get the flow field
+        flow_est = torch.nn.functional.interpolate(input=flow_est, size=output_shape, mode='bilinear',
+                                                   align_corners=False)
+        flow_est[:, 0, :, :] *= ratio_x
+        flow_est[:, 1, :, :] *= ratio_y
+
+        # get the confidence value
+        if isinstance(uncertainty_list[0], list):
+            # estimate multiple uncertainty maps per level
+            log_var_map = torch.nn.functional.interpolate(input=uncertainty_list[0][list_item], size=output_shape,
+                                                          mode='bilinear', align_corners=False)
+            weight_map = torch.nn.functional.interpolate(input=uncertainty_list[1][list_item], size=output_shape,
+                                                         mode='bilinear', align_corners=False)
+        else:
+            log_var_map = torch.nn.functional.interpolate(input=uncertainty_list[0], size=output_shape,
+                                                          mode='bilinear', align_corners=False)
+            weight_map = torch.nn.functional.interpolate(input=uncertainty_list[1], size=output_shape,
+                                                         mode='bilinear', align_corners=False)
+        p_r = estimate_probability_of_confidence_interval_of_mixture_density(weight_map, log_var_map,
+                                                                             R=inference_parameters['R'])
+        variance = estimate_average_variance_of_mixture_density(weight_map, log_var_map)
+        uncertainty_est = {'log_var_map': log_var_map, 'weight_map': weight_map,
+                           'p_r': p_r, 'inference_parameters': inference_parameters, 'variance': variance}
+        return flow_est, uncertainty_est

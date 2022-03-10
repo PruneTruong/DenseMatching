@@ -16,7 +16,7 @@ from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow, conv
 def pre_process_image_glunet_normalized(source_img, device, mean_vector=[0.485, 0.456, 0.406],
                                         std_vector=[0.229, 0.224, 0.225]):
     """
-
+    Image is already in range [0, 1}. Creates image at 256x256, and applies imagenet weights to both.
     Args:
         source_img: torch tensor, bx3xHxW in range [0, 1]
         device:
@@ -24,7 +24,7 @@ def pre_process_image_glunet_normalized(source_img, device, mean_vector=[0.485, 
         std_vector:
 
     Returns:
-
+        image at original and 256x256 resolution
     """
     # img has shape bx3xhxw
     b, _, h_scale, w_scale = source_img.shape
@@ -44,7 +44,7 @@ def pre_process_image_glunet_normalized(source_img, device, mean_vector=[0.485, 
 def pre_process_image_glunet(source_img, device, mean_vector=[0.485, 0.456, 0.406],
                              std_vector=[0.229, 0.224, 0.225]):
     """
-
+    Image is in range [0, 255}. Creates image at 256x256, and applies imagenet weights to both.
     Args:
         source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
         device:
@@ -52,7 +52,7 @@ def pre_process_image_glunet(source_img, device, mean_vector=[0.485, 0.456, 0.40
         std_vector:
 
     Returns:
-
+        image at original and 256x256 resolution
     """
     # img has shape bx3xhxw
     b, _, h_scale, w_scale = source_img.shape
@@ -70,10 +70,10 @@ def pre_process_image_glunet(source_img, device, mean_vector=[0.485, 0.456, 0.40
     return source_img_copy.to(device), source_img_256.to(device)
 
 
-def pre_process_data_GLUNet(source_img, target_img, device, mean_vector=[0.485, 0.456, 0.406],
-                            std_vector=[0.229, 0.224, 0.225], apply_flip=False):
+def pre_process_image_pair_glunet(source_img, target_img, device, mean_vector=[0.485, 0.456, 0.406],
+                                  std_vector=[0.229, 0.224, 0.225], apply_flip=False):
     """
-
+    For each image: Image are in range [0, 255]. Creates image at 256x256, and applies imagenet weights to both.
     Args:
         source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
         target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
@@ -212,11 +212,13 @@ class BaseMultiScaleMatchingNet(nn.Module):
 
     @staticmethod
     def initialize_mapping_decoder(decoder_type, in_channels, batch_norm=True, **kwargs):
+        # originally, we used the mapping decoder from DGC-Net
         return initialize_mapping_decoder_(decoder_type, in_channels, batch_norm, **kwargs)
 
     @staticmethod
     def initialize_flow_decoder(decoder_type, decoder_inputs,  in_channels_corr, nbr_upfeat_channels,
                                 batch_norm=True, **kwargs):
+        # originally, we use the flow decoder from PWC Net
         return initialize_flow_decoder_(decoder_type, decoder_inputs,  in_channels_corr, nbr_upfeat_channels,
                                         batch_norm, **kwargs)
 
@@ -250,6 +252,8 @@ class BaseMultiScaleMatchingNet(nn.Module):
         vgrid = vgrid.permute(0, 2, 3, 1)
 
         if float(torch.__version__[:3]) >= 1.3:
+            # to be consistent to old version, I put align_corners=True.
+            # to investigate if align_corners False is better.
             output = nn.functional.grid_sample(x, vgrid, align_corners=True)
         else:
             output = nn.functional.grid_sample(x, vgrid)
@@ -320,6 +324,19 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
                 self.local_corr_1 = local_gocor.LocalGOCor(filter_initializer=initializer_1, filter_optimizer=optimizer_1)
 
     def get_global_correlation(self, c14, c24):
+        """
+        Based on feature maps c14 and c24, computes the global correlation from c14 to c24.
+        c14 basically corresponds to target/reference image and c24 to source/query image.
+
+        Here, in the simplest version (without GOCor), we follow DGC-Net.
+        the features are usually L2 normalized, and the cost volume is post-processed with relu, and l2 norm
+        Args:
+            c14:  B, c, h_t, w_t
+            c24:  B, c, h_s, w_s
+
+        Returns:
+            corr4: global correlation B, h_s*w_s, h_t, w_t
+        """
         b = c14.shape[0]
         if 'GOCor' in self.params.global_corr_type:
             if self.params.normalize_features:
@@ -351,12 +368,14 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
         if self.params.normalize == 'l2norm':
             corr4 = self.l2norm(corr4)
         elif self.params.normalize == 'relu_l2norm':
+            # default in DGC-Net
             corr4 = self.l2norm(F.relu(corr4))
         elif self.params.normalize == 'leakyrelu':
             corr4 = self.leakyRELU(corr4)
         return corr4
 
     def initialize_last_level_refinement_module(self, input_to_refinement, batch_norm):
+        # refinement module from PWC-Net
         self.l_dc_conv1 = conv(input_to_refinement, 128, kernel_size=3, stride=1, padding=1, dilation=1,
                                batch_norm=batch_norm)
         self.l_dc_conv2 = conv(128, 128, kernel_size=3, stride=1, padding=2, dilation=2, batch_norm=batch_norm)
@@ -367,6 +386,7 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
         self.l_dc_conv7 = predict_flow(32)
 
     def initialize_adaptive_reso_refinement_module(self,  input_to_refinement, batch_norm):
+        # refinement module from PWC-Net
         self.dc_conv1 = conv(input_to_refinement, 128, kernel_size=3, stride=1, padding=1, dilation=1,
                              batch_norm=batch_norm)
         self.dc_conv2 = conv(128, 128, kernel_size=3, stride=1, padding=2, dilation=2, batch_norm=batch_norm)
@@ -377,11 +397,13 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
         self.dc_conv7 = predict_flow(32)
 
     def PWCNetRefinementAdaptiveReso(self, x):
+        # refinement module from PWC-Net
         x = self.dc_conv6(self.dc_conv5(self.dc_conv4(self.dc_conv3(self.dc_conv2(self.dc_conv1(x))))))
         res = self.dc_conv7(x)
         return x, res
 
     def PWCNetRefinementFinal(self, x):
+        # refinement module from PWC-Net
         x = self.l_dc_conv6(self.l_dc_conv5(self.l_dc_conv4(self.l_dc_conv3(self.l_dc_conv2(self.l_dc_conv1(x))))))
         res = self.l_dc_conv7(x)
         return x, res
@@ -420,14 +442,17 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
                 im_source_pyr_256 = self.pyramid_256(im_source_256)
             else:
                 im_source_pyr_256 = self.pyramid(im_source_256)
-        c13 = im_target_pyr_256[-2]
-        c23 = im_source_pyr_256[-2]
-        c14 = im_target_pyr_256[-1]
-        c24 = im_source_pyr_256[-1]
+        c13 = im_target_pyr_256[-2]  # load_size 256/8 x 256/8
+        c23 = im_source_pyr_256[-2]  # load_size 256/8 x 256/8
+        c14 = im_target_pyr_256[-1]  # load_size 256/16 x 256/16
+        c24 = im_source_pyr_256[-1]  # load_size 256/16 x 256/16
+
         return c14, c24, c13, c23, c12, c22, c11, c21
 
     def pre_process_data(self, source_img, target_img, apply_flip=False):
         """
+        For each image: Image are in range [0, 255]. Creates image at 256x256, and applies imagenet weights
+                        to both the original and resized images.
         Args:
             source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
             target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
@@ -443,7 +468,7 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
             ratio_x: scaling ratio in horizontal dimension from source_img_copy and original (input) source_img
             ratio_y: scaling ratio in vertical dimension from source_img_copy and original (input) source_img
         """
-        return pre_process_data_GLUNet(source_img, target_img, self.params.device, apply_flip=apply_flip)
+        return pre_process_image_pair_glunet(source_img, target_img, self.params.device, apply_flip=apply_flip)
 
     def estimate_flow_coarse_reso(self, source_img, target_img, device):
 
@@ -685,6 +710,7 @@ class Base3LevelsMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
             self.pyramid = pyramid
 
     def initialize_intermediate_level_refinement_module(self, input_to_refinement, batch_norm):
+        # PWC-Net refinement module
         self.dc_conv1_level3 = conv(input_to_refinement, 128, kernel_size=3, stride=1, padding=1, dilation=1,
                                     batch_norm=batch_norm)
         self.dc_conv2_level3 = conv(128, 128, kernel_size=3, stride=1, padding=2, dilation=2,
@@ -716,6 +742,7 @@ class Base3LevelsMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
                 m.bias.data.zero_()
 
     def initialize_last_level_refinement_module(self, input_to_refinement, batch_norm):
+        # PWC-Net refinement module
         # for now, should be a class instead
         # weights for refinement module
         self.dc_conv1 = conv(input_to_refinement, 128, kernel_size=3, stride=1, padding=1, dilation=1, batch_norm=batch_norm)
@@ -743,12 +770,14 @@ class Base3LevelsMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
                 m.bias.data.zero_()
 
     def PWCNetRefinementIntermediateReso(self, x):
+        # PWC-Net refinement module
         x = self.dc_conv6_level3(self.dc_conv5_level3(self.dc_conv4_level3(self.dc_conv3_level3(
             self.dc_conv2_level3(self.dc_conv1_level3(x))))))
         res = self.dc_conv7_level3(x)
         return x, res
 
     def PWCNetRefinementFinal(self, x):
+        # PWC-Net refinement module
         x = self.dc_conv6(self.dc_conv5(self.dc_conv4(self.dc_conv3(self.dc_conv2(self.dc_conv1(x))))))
         res = self.dc_conv7(x)
         return x, res
@@ -796,6 +825,20 @@ class Base3LevelsMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
                 self.local_corr_1 = local_gocor.LocalGOCor(filter_initializer=initializer_1, filter_optimizer=optimizer_1)
 
     def get_global_correlation(self, c14, c24):
+        """
+        Based on feature maps c14 and c24, computes the global correlation from c14 to c24.
+        c14 basically corresponds to target/reference image and c24 to source/query image.
+
+        Here, in the simplest version (without GOCor), we follow DGC-Net.
+        the features are usually L2 normalized, and the cost volume is post-processed with relu, and l2 norm
+        Args:
+            c14:  B, c, h_t, w_t
+            c24:  B, c, h_s, w_s
+
+        Returns:
+            corr4: global correlation B, h_s*w_s, h_t, w_t
+        """
+
         b = c14.shape[0]
         if 'GOCor' in self.params.global_corr_type:
             if self.params.normalize_features:
@@ -832,23 +875,34 @@ class Base3LevelsMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
             corr4 = self.leakyRELU(corr4)
         return corr4
 
-    def extract_features(self,  im1, im2, im1_pyr=None, im2_pyr=None):
-        if im1_pyr is None:
-            im1_pyr = self.pyramid(im1)
+    def extract_features(self, im_target, im_source, im_target_pyr=None, im_source_pyr=None):
+        if im_target_pyr is None:
+            im_target_pyr = self.pyramid(im_target)
 
-        c14 = im1_pyr[-1]
-        c13 = im1_pyr[-2]
-        c12 = im1_pyr[-3]
+        c14 = im_target_pyr[-1]
+        c13 = im_target_pyr[-2]
+        c12 = im_target_pyr[-3]
 
-        if im2_pyr is None:
-            im2_pyr = self.pyramid(im2)
+        if im_source_pyr is None:
+            im_source_pyr = self.pyramid(im_source)
 
-        c24 = im2_pyr[-1]
-        c23 = im2_pyr[-2]
-        c22 = im2_pyr[-3]
+        c24 = im_source_pyr[-1]
+        c23 = im_source_pyr[-2]
+        c22 = im_source_pyr[-3]
         return c14, c24, c13, c23, c12, c22
 
     def pre_process_data(self, source_img, target_img):
+        """
+        Resizes images to 256x256 (fixed input network size), scale values to [0, 1] and normalize with imagenet
+        weights.
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img:  torch tensor, bx3xHxW in range [0, 255], not normalized yet
+
+        Returns:
+            source_img, target_img resized to 256x256 and normalized
+            ratio_x, ratio_y: ratio from original sizes to 256x256
+        """
         # img has shape bx3xhxw
         device = self.params.device
         b, _, h_scale, w_scale = target_img.shape
@@ -883,7 +937,7 @@ class Base3LevelsMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
         flow_est = flow_est_list[0]  # coarsest level
         return flow_est
 
-    def estimate_flow(self, source_img, target_img,  output_shape=None, scaling=1.0, mode='channel_first', flow_gt=None, i=0):
+    def estimate_flow(self, source_img, target_img,  output_shape=None, scaling=1.0, mode='channel_first'):
         """
         Estimates the flow field relating the target to the source image. Returned flow has output_shape if provided,
         otherwise the same dimension than the target image. If scaling is provided, the output shape is the
@@ -906,8 +960,9 @@ class Base3LevelsMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
         if output_shape is None and scaling != 1.0:
             output_shape = (int(h_scale*scaling), int(w_scale*scaling))
 
+        # will resize the images to the fixed input network size of 256x256 (and normalize them).
         source_img, target_img, ratio_x, ratio_y = self.pre_process_data(source_img, target_img)
-        output = self.forward(target_img, source_img, flow_gt=flow_gt, i=i)
+        output = self.forward(target_img, source_img)
 
         flow_est_list = output['flow_estimates']
         flow_est = flow_est_list[-1]
@@ -927,6 +982,58 @@ class Base3LevelsMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
             return flow_est
         else:
             return flow_est.permute(0, 2, 3, 1)
+
+    def estimate_flow_all_levels(self, source_img, target_img, output_shape=None, scaling=1.0, mode='channel_first',
+                                 *args, **kwargs):
+        """
+        Estimates the flow field relating the target to the source image. Returned flow has output_shape if provided,
+        otherwise the same dimension than the target image. If scaling is provided, the output shape is the
+        target image dimension multiplied by this scaling factor.
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            output_shape: int or list of int, or None, output shape of the returned flow field
+            scaling: float, scaling factor applied to target image shape, to obtain the outputted flow field dimensions
+                     if output_shape is None
+            mode: if channel_first, flow has shape b, 2, H, W. Else shape is b, H, W, 2
+
+        Returns:
+            flow_est: estimated flow field relating the target to the reference image,resized and scaled to output_shape
+                      (can be defined by scaling parameter)
+        """
+        w_scale = target_img.shape[3]
+        h_scale = target_img.shape[2]
+        # define output_shape
+        if output_shape is None and scaling != 1.0:
+            output_shape = (int(h_scale * scaling), int(w_scale * scaling))
+
+        source_img, target_img, ratio_x, ratio_y = self.pre_process_data(source_img, target_img)
+        output = self.forward(target_img, source_img)
+
+        if output_shape is not None:
+            ratio_x *= float(output_shape[1]) / float(w_scale)
+            ratio_y *= float(output_shape[0]) / float(h_scale)
+        else:
+            output_shape = (h_scale, w_scale)
+
+        list_flow_est = []
+        list_reso = []
+        w_resized = target_img.shape[-1]
+        for flow_est in output['flow_estimates']:
+
+            w = flow_est.shape[-1]
+            flow_est = torch.nn.functional.interpolate(input=flow_est, size=output_shape, mode='bilinear',
+                                                       align_corners=False)
+
+            flow_est[:, 0, :, :] *= ratio_x
+            flow_est[:, 1, :, :] *= ratio_y
+            list_flow_est.append(flow_est)
+            list_reso.append(w_resized / w)
+
+        final_output = {'list_flow_est': list_flow_est, 'list_reso': list_reso}
+        if 'correlation' in output.keys():
+            final_output['correlation'] = output['correlation']
+        return final_output
 
     def estimate_flow_and_confidence_map(self, source_img, target_img, output_shape=None,
                                          scaling=1.0, mode='channel_first'):
@@ -981,7 +1088,8 @@ class Base3LevelsMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
         flow_est_backward[:, 1, :, :] *= ratio_y
 
         cyclic_consistency_error = torch.norm(flow_est + self.warp(flow_est_backward, flow_est), dim=1)
-        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error}
+        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error,
+                           'inv_cyclic_consistency_error': 1.0 / (1.0 + cyclic_consistency_error)}
 
         if mode == 'channel_first':
             return flow_est, uncertainty_est

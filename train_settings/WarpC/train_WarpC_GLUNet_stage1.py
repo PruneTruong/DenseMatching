@@ -23,7 +23,7 @@ from utils_data.augmentations.color_augmentation_torch import ColorJitter, Rando
 
 def run(settings):
     settings.description = 'Default train settings for WarpCGLUNet, stage1'
-    settings.data_mode = 'scratch'
+    settings.data_mode = 'euler'
     settings.batch_size = 6  # 6 fit in 1 GPU with 11 G
     settings.n_threads = 8
     settings.multi_gpu = True
@@ -39,7 +39,7 @@ def run(settings):
     # black regions, weird behavior. If valid mask, doesn't learn interpolation in non-visibile regions.
     settings.compute_mask_zero_borders = True
     settings.apply_mask = False  # valid visible matches, we apply mask_zero_borders instead
-    settings.nbr_plot_images = 2
+    settings.nbr_plot_images = 1
 
     # loss parameters
     settings.name_of_loss = 'warp_supervision_and_w_bipath'  # the warp consistency objective
@@ -70,7 +70,6 @@ def run(settings):
     img_transforms = transforms.Compose([ArrayToTensor(get_float=True)])  # just put channels first
     co_transform = None
 
-    prepare_data(settings.env.megadepth_training_tar, mode=settings.data_mode)
     # original images must be at the resizing size, on which are applied the transformations!
     megadepth_cfg = {'scene_info_path': os.path.join(settings.env.megadepth_training, 'scene_info'),
                      'train_num_per_scene': 300, 'val_num_per_scene': 25,
@@ -100,7 +99,10 @@ def run(settings):
     # models
     model = glunet_vgg16(global_corr_type='global_corr', normalize='relu_l2norm', normalize_features=True,
                          cyclic_consistency=True, local_decoder_type='OpticalFlowEstimatorResidualConnection',
-                         global_decoder_type='CMDTopResidualConnection')
+                         global_decoder_type='CMDTopResidualConnection',
+                         use_interp_instead_of_deconv=False)  # in original GLUNet, we set it to False
+    # but better results are obtained with using simple bilinear interpolation instead of deconvolutions.
+    print(colored('==> ', 'blue') + 'model created.')
     # if Load pre-trained weights !
     if settings.initial_pretrained_model is not None:
         model.load_state_dict(torch.load(settings.initial_pretrained_model)['state_dict'])

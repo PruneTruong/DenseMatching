@@ -12,7 +12,6 @@ from admin.multigpu import MultiGPU
 from models.GLUNet.GLU_Net import glunet_vgg16
 from training.losses.basic_losses import EPE
 import os
-from utils_data.euler_wrapper import prepare_data
 from datasets.MegaDepth.megadepth import MegaDepthDataset
 from datasets.synthetic_warp_dataset import WarpingDataset
 from utils_data.geometric_transformation_sampling.synthetic_warps_sampling import SynthecticAffHomoTPSTransfo
@@ -65,7 +64,6 @@ def run(settings):
     '''
 
     # image dataset: single megadepth images, at resizing_size
-    prepare_data(settings.env.megadepth_training_tar, mode=settings.data_mode)
     megadepth_cfg = {'scene_info_path': os.path.join(settings.env.megadepth_training, 'scene_info'),
                      'train_num_per_scene': 300, 'val_num_per_scene': 25,  'pad_to_same_shape': False,
                      'two_views': False, 'output_image_size': [settings.resizing_size, settings.resizing_size]}
@@ -92,7 +90,6 @@ def run(settings):
                                       source_image_transform=color_aug_transforms)
 
     # object dataset
-    prepare_data(settings.env.coco_tar, mode=settings.data_mode)
     fg_tform = RandomAffine(p_flip=0.0, max_rotation=30.0,
                             max_shear=0, max_ar_factor=0.,
                             max_scale=0.3, pad_amount=0)
@@ -135,7 +132,9 @@ def run(settings):
                          normalize_features=True, cyclic_consistency=True,
                          local_corr_type='feature_corr_layer', give_flow_to_refinement_module=False,
                          local_decoder_type='OpticalFlowEstimator',
-                         global_decoder_type='CMDTop')
+                         global_decoder_type='CMDTop',
+                         use_interp_instead_of_deconv=False)  # in original GLUNet, we set it to False
+    # but better results are obtained with using simple bilinear interpolation instead of deconvolutions.
     print(colored('==> ', 'blue') + 'model created.')
 
     # Wrap the network for multi GPU training
@@ -143,7 +142,8 @@ def run(settings):
         model = MultiGPU(model)
 
     # 4. Define batch_processing
-    batch_processing = GLUNetBatchPreprocessing(settings, apply_mask=False, apply_mask_zero_borders=True,
+    batch_processing = GLUNetBatchPreprocessing(settings, apply_mask=settings.apply_mask,
+                                                apply_mask_zero_borders=settings.compute_mask_zero_borders,
                                                 sparse_ground_truth=False)
 
     # 5, Define loss module

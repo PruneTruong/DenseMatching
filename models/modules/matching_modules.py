@@ -5,11 +5,13 @@ import numpy as np
 
 def initialize_mapping_decoder_(decoder_type, in_channels, batch_norm=True, **kwargs):
     if decoder_type == 'CMDTop':
+        # original DGC-Net mapping decoder
         nbr_channels_layer_before_last = 32
-        decoder = CMDTop(in_channels=in_channels, bn=batch_norm, **kwargs)
+        decoder = CMDTop(in_channels=in_channels, batch_norm=batch_norm, **kwargs)
     elif decoder_type == 'CMDTopResidualConnection':
+        # DGC Net mapping decoder with added residual connections.
         nbr_channels_layer_before_last = 32
-        decoder = CMDTopResidualConnections(in_channels=in_channels, bn=batch_norm, **kwargs)
+        decoder = CMDTopResidualConnections(in_channels=in_channels, batch_norm=batch_norm, **kwargs)
     else:
         raise NotImplementedError('Unknown mapping decoder type: {}'.format(decoder_type))
     return decoder, nbr_channels_layer_before_last
@@ -17,6 +19,8 @@ def initialize_mapping_decoder_(decoder_type, in_channels, batch_norm=True, **kw
 
 def initialize_flow_decoder_(decoder_type, decoder_inputs,  in_channels_corr, nbr_upfeat_channels, batch_norm=True, **kwargs):
     if decoder_inputs == 'corr_flow_feat':
+        # our default choice. The flow decoder will take as input the local correlation, previous estimated flow field,
+        # and upfeat from the previous level (from PWCNet).
         od = in_channels_corr + 2 + nbr_upfeat_channels
     elif decoder_inputs == 'corr':
         od = in_channels_corr

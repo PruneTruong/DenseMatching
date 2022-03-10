@@ -8,6 +8,7 @@ import random
 import numpy as np
 import admin.settings as ws_settings
 from shutil import copyfile
+from datetime import date
 
 
 def run_training(train_module, train_name, seed, cudnn_benchmark=True):
@@ -23,13 +24,17 @@ def run_training(train_module, train_name, seed, cudnn_benchmark=True):
 
     torch.backends.cudnn.benchmark = cudnn_benchmark
 
-    print('Training:  {}  {}'.format(train_module, train_name))
+    # dd/mm/YY
+    today = date.today()
+    d1 = today.strftime("%d/%m/%Y")
+    print('Training:  {}  {}\nDate: {}'.format(train_module, train_name, d1))
 
     settings = ws_settings.Settings()
     settings.module_name = train_module
     settings.script_name = train_name
     settings.project_path = 'train_settings/{}/{}'.format(train_module, train_name)
     settings.seed = seed
+
     # will save the checkpoints there
 
     save_dir = os.path.join(settings.env.workspace_dir, settings.project_path)

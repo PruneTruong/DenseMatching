@@ -16,7 +16,7 @@ def estimate_mask(mask_type, uncertainty_est, list_item=-1):
     Args:
         mask_type: str, specifying what condition to use for the mask
         uncertainty_est: dict with uncertainty components. can have multiple fields such as 'log_var_map', 'weight_map',
-                         'cyclic_consistency_error'.
+                         'cyclic_consistency_error', 'inv_cyclic_consistency_error', 'p_r' (for PDCNet)
 
     Returns:
         mask: bool tensor with shape (b, h, w) when uncertainty components are (b, 1, h, w).
@@ -153,11 +153,9 @@ def matches_from_flow(flow, binary_mask, scaling=1.0):
     grid_x = grid.permute(0, 2, 3, 1)[:, :, :, 0]
     grid_y = grid.permute(0, 2, 3, 1)[:, :, :, 1]
 
-    pts2 = torch.cat((grid_x[binary_mask].unsqueeze(1),
-                      grid_y[binary_mask].unsqueeze(1)), dim=1)
-    pts1 = torch.cat((mapping_x[binary_mask].unsqueeze(1),
-                      mapping_y[binary_mask].unsqueeze(1)),
-                     dim=1)  # convert to mapping and then take the correspondences
+    pts2 = torch.cat((grid_x[binary_mask].unsqueeze(1), grid_y[binary_mask].unsqueeze(1)), dim=1)
+    pts1 = torch.cat((mapping_x[binary_mask].unsqueeze(1), mapping_y[binary_mask].unsqueeze(1)), dim=1)
+    # convert to mapping and then take the correspondences
 
     return pts1.cpu().numpy()*scaling, pts2.cpu().numpy()*scaling
 
@@ -187,8 +185,8 @@ def from_homography_to_pixel_wise_mapping(shape, H):
 
     # multiply Hinv to XYhom to find the warped grid
     XYwarpHom = np.dot(H, XYhom)
-    Xwarp=XYwarpHom[0,:]/(XYwarpHom[2,:]+1e-8)
-    Ywarp=XYwarpHom[1,:]/(XYwarpHom[2,:]+1e-8)
+    Xwarp = XYwarpHom[0,:]/(XYwarpHom[2,:]+1e-8)
+    Ywarp = XYwarpHom[1,:]/(XYwarpHom[2,:]+1e-8)
 
     # reshape to obtain the ground truth mapping
     map_x = Xwarp.reshape((h_scale,w_scale))

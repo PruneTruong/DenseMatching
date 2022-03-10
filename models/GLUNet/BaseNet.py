@@ -9,6 +9,12 @@ from ..modules.local_correlation import correlation
 
 
 class BaseNet(Base3LevelsMultiScaleMatchingNet):
+    """
+    BaseNet takes fixed input images of 256x256.
+    The flows are predicted such that they are scaled to the input image resolution (256x256).
+    To obtain the flow from target to source at 256x256 resolution, one just needs to bilinearly upsample
+    (without further scaling).
+    """
     def __init__(self, global_corr_type='global_corr', normalize='relu_l2norm', normalize_features=True,
                  cyclic_consistency=False, global_gocor_arguments=None,
                  local_corr_type='local_corr', local_gocor_arguments=None, same_local_corr_at_all_levels=True,
@@ -80,15 +86,26 @@ class BaseNet(Base3LevelsMultiScaleMatchingNet):
         else:
             raise NotImplementedError
 
-    def forward(self, target_image, source_image, im_target_pyr=None, im_source_pyr=None):
-        # im1 is target image, im2 is source image
+    def forward(self, im_target, im_source, im_target_pyr=None, im_source_pyr=None):
+        """
+        Args:
+            im_target: torch Tensor Bx3x256x256, normalized with imagenet weights
+            im_source: torch Tensor Bx3x256x256, normalized with imagenet weights
+            im_target_pyr: in case the pyramid features are already computed.
+            im_source_pyr: in case the pyramid features are already computed.
 
-        b, _, h_original, w_original = target_image.size()
+        Returns:
+            output: dict with keys 'flow_estimates'. It contains the flow field of the three pyramid levels, 
+                    they are scaled for fixed 256x256 input resolution.
+        """
+
+        b, _, h_original, w_original = im_target.size()
         div = 1.0
 
-        c14, c24, c13, c23, c12, c22 = self.extract_features(target_image, source_image, im_target_pyr, im_source_pyr)
+        c14, c24, c13, c23, c12, c22 = self.extract_features(im_target, im_source, im_target_pyr, im_source_pyr)
 
         # level 4: 16x16
+        # here same procedure then DGC-Net global mapping decoder.
         corr4 = self.get_global_correlation(c14, c24)
         b, c, h, w = corr4.size()
         ratio_x = w / float(w_original)
@@ -99,8 +116,11 @@ class BaseNet(Base3LevelsMultiScaleMatchingNet):
         else:
             init_map = torch.FloatTensor(b, 2, h, w).zero_()
 
+        # init_map is fed to the decoder to be consistent with decoder of DGC-Net (but not particularly needed)
         x4, est_map4 = self.decoder4(torch.cat((corr4, init_map), 1))
         flow4 = unnormalise_and_convert_mapping_to_flow(est_map4)
+
+        # we want flow4 to be scaled for h_original x w_original, so we multiply by these ratios.
         flow4 = flow4 / div
         flow4[:, 0, :, :] /= ratio_x
         flow4[:, 1, :, :] /= ratio_y
@@ -110,12 +130,15 @@ class BaseNet(Base3LevelsMultiScaleMatchingNet):
         # level 3 32x32
         ratio_x = up_flow4.shape[3] / float(w_original)
         ratio_y = up_flow4.shape[2] / float(h_original)
+        # the flow needs to be scaled for the current resolution in order to warp.
+        # otherwise flow4 and up_flow4 are scaled for h_original x w_original
         up_flow_4_warping = up_flow4 * div
         up_flow_4_warping[:, 0, :, :] *= ratio_x
         up_flow_4_warping[:, 1, :, :] *= ratio_y
         warp3 = self.warp(c23, up_flow_4_warping)
 
         # constrained correlation now
+        # we follow the same procedure than PWCNet (features not normalized, lcoal corr and then leaky relu)
         if 'GOCor' in self.params.local_corr_type:
             if self.params.same_local_corr_at_all_levels:
                 corr3 = self.local_corr(c13, warp3)
@@ -142,6 +165,7 @@ class BaseNet(Base3LevelsMultiScaleMatchingNet):
         up_flow3 = F.interpolate(input=flow3, size=(int(h_original / 4.0), int(w_original / 4.0)), mode='bilinear',
                                  align_corners=False)
         if 'feat' in self.params.decoder_inputs:
+            # same upfeat than in PWCNet
             up_feat3 = self.upfeat3(x3)
 
         # level 2 64x64

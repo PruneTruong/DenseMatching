@@ -69,6 +69,7 @@ class MultiScaleFlow:
             flow_output = network_output  # the flow was directly given
         if type(flow_output) not in [tuple, list]:
             flow_output = [flow_output]
+
         assert(len(self.level_weights) == len(flow_output))
 
         loss = 0
@@ -223,6 +224,7 @@ class MultiScaleMixtureDensity:
             flow_output = network_output  # the flow was directly given
         if type(flow_output) not in [tuple, list]:
             flow_output = [flow_output]
+
         assert(len(self.level_weights) == len(flow_output))
         uncertainty_estimate = network_output['uncertainty_estimates']
 

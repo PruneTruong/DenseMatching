@@ -48,9 +48,8 @@ class NLLMixtureLaplace:
             loss = loss * mask.float()
             L = 0
             for bb in range(0, b):
-                loss[bb, ...][mask[bb, ...] == 0] = loss[bb, ...][mask[bb, ...] == 0].detach()
                 norm_const = float(h)*float(w) / (mask[bb, ...].sum().float() + 1e-6)
-                L = L + loss[bb][mask[bb, ...] != 0].sum() * norm_const
+                L += loss[bb][mask[bb, ...] != 0].sum() * norm_const
             if self.sum_normalized:
                 return L / b
             return L
@@ -87,7 +86,7 @@ class NLLMixtureGaussian:
         l1 = torch.logsumexp(weight_map, 1, keepdim=True)
 
         reg = 0.5 * torch.sum((gt_flow - est_flow) ** 2, 1, keepdim=True)
-        exponent = weight_map - 0.5 * torch.log(2 * PI) - 0.5 * log_var - reg * torch.exp(-log_var)
+        exponent = weight_map - torch.log(2 * PI) - log_var - reg * torch.exp(-log_var)
         l2 = torch.logsumexp(exponent, 1, keepdim=True)
         loss = l1 - l2
 
@@ -95,9 +94,8 @@ class NLLMixtureGaussian:
             loss = loss * mask.float()
             L = 0
             for bb in range(0, b):
-                loss[bb, ...][mask[bb, ...] == 0] = loss[bb, ...][mask[bb, ...] == 0].detach()
                 norm_const = float(h*w) / (mask[bb, ...].sum().float() + 1e-6)
-                L = L + loss[bb][mask[bb, ...] != 0].sum() * norm_const
+                L += loss[bb][mask[bb, ...] != 0].sum() * norm_const
             if self.sum_normalized:
                 return L / b
             else:
@@ -147,9 +145,8 @@ class NLLLaplace:
             loss = loss * mask.float()
             L = 0
             for bb in range(0, b):
-                loss[bb, ...][mask[bb, ...] == 0] = loss[bb, ...][mask[bb, ...] == 0].detach()
                 norm_const = float(h) * float(w) / (mask[bb, ...].sum().float() + 1e-6)
-                L = L + loss[bb][mask[bb, ...] != 0].sum() * norm_const
+                L += loss[bb][mask[bb, ...] != 0].sum() * norm_const
             if self.sum_normalized:
                 return L / b
             else:
@@ -190,9 +187,8 @@ class NLLGaussian:
             loss = loss * mask.float()
             L = 0
             for bb in range(0, b):
-                loss[bb, ...][mask[bb, ...] == 0] = loss[bb, ...][mask[bb, ...] == 0].detach()
                 norm_const = float(h*w) / (mask[bb, ...].sum().float() + 1e-6)
-                L = L + loss[bb][mask[bb, ...] != 0].sum() * norm_const
+                L += loss[bb][mask[bb, ...] != 0].sum() * norm_const
             if self.sum_normalized:
                 return L / b
             else:

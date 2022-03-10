@@ -19,7 +19,6 @@ from datasets.mixture_of_datasets import MixDatasets
 import os
 import torch
 from utils_data.sampler import RandomSampler
-from utils_data.euler_wrapper import prepare_data
 from admin.loading import partial_load
 
 
@@ -156,6 +155,8 @@ def run(settings):
     # since we have sparse ground-truth, we cannot simple downsample the ground-truth flow.
     batch_processing = GLUNetBatchPreprocessing(settings, apply_mask=True, apply_mask_zero_borders=False,
                                                 sparse_ground_truth=True, mapping=False)
+    # sparse_gt means you can't just downsample the gt flow field at resolution 256x256.
+    # it needs to be done before, on the ground truth sparse matches (done in the dataloader)
 
     # Loss module
     objective = NLLMixtureLaplace()

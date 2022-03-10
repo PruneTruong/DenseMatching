@@ -136,18 +136,19 @@ class MatchingTrainer(BaseTrainer):
         average_fps = self.num_frames / (current_time - self.start_time)
         self.prev_time = current_time
 
-        if i % self.settings.print_interval == 0 or i == (loader.__len__() - 1):
+        if (loader.name == 'train' and (i % self.settings.print_interval == 0 or i == (loader.__len__() - 1))) \
+                or (loader.name == 'val' and i == (loader.__len__() - 1)):
             lr = self.lr_scheduler.get_last_lr()[0] if float(torch.__version__[:3]) >= 1.1 else \
                 self.lr_scheduler.get_lr()[0]
             print_str = '[%s: epoch %d, batch %d / %d] ' % (loader.name, self.epoch, i, loader.__len__())
-            print_str += 'FPS: %.1f (%.1f)  ,  lr: %.5f   ,  ' % (average_fps, batch_fps, lr)
+            print_str += 'FPS: %.1f (%.1f)  ,  lr: %.7f   ,  ' % (average_fps, batch_fps, lr)
 
             for name, val in self.stats[loader.name].items():
                 if (self.settings.print_stats is None or name in self.settings.print_stats) and hasattr(val, 'avg'):
                     print_str += '%s: %.5f  ,  ' % (name, val.avg)
 
             print('\n' + print_str[:-5])
-            if loader.name == 'val' and i == (loader.__len__() - 1):
+            if loader.name == 'val':
                 print('\n Last validation update {}, value = {}'.format(self.epoch_of_best_val, self.best_val))
 
     def _stats_new_epoch(self):

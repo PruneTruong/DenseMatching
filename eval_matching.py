@@ -35,7 +35,6 @@ def main(args, settings):
     name_to_save = args.model
     save_dict = {}
     for pre_trained_model_type in args.pre_trained_models:
-        print(pre_trained_model_type)
         # define the network to use
         network, estimate_uncertainty = select_model(
             args.model, pre_trained_model_type, args, args.optim_iter, local_optim_iter,
@@ -47,13 +46,13 @@ def main(args, settings):
 
         # choosing the different dataset !
         path_to_save = os.path.join(save_dir, '{}_{}'.format(name_to_save, pre_trained_model_type))
-        if 'GOCor' in args.model or 'gocor' in args.model or 'PDCNet' in args.model:
+        if 'gocor' in args.model.lower() or 'PDCNet' in args.model:
             path_to_save = path_to_save + '_globaloptim{}_localoptim{}'.format(args.optim_iter, local_optim_iter)
 
         if not os.path.isdir(path_to_save) and (args.plot or args.plot_100):
             os.makedirs(path_to_save)
 
-        if args.datasets == 'megadepth':
+        if args.dataset == 'megadepth':
             output = run_evaluation_megadepth_or_robotcar(network, settings.env.megadepth,
                                                           path_to_csv=settings.env.megadepth_csv,
                                                           estimate_uncertainty=estimate_uncertainty,
@@ -61,7 +60,7 @@ def main(args, settings):
                                                           plot_100=args.plot_100,
                                                           plot_ind_images=args.plot_individual_images)
 
-        elif args.datasets == 'robotcar':
+        elif args.dataset == 'robotcar':
             output = run_evaluation_megadepth_or_robotcar(network, settings.env.robotcar,
                                                           path_to_csv=settings.env.robotcar_csv,
                                                           estimate_uncertainty=estimate_uncertainty,
@@ -69,9 +68,9 @@ def main(args, settings):
                                                           plot_100=args.plot_100,
                                                           plot_ind_images=args.plot_individual_images)
 
-        elif 'hp' in args.datasets:
+        elif 'hp' in args.dataset:
             original_size = True
-            if args.datasets == 'hp-240':
+            if args.dataset == 'hp-240':
                 original_size = False
             number_of_scenes = 5 + 1
             list_of_outputs = []
@@ -97,7 +96,7 @@ def main(args, settings):
             output = {'scene_1': list_of_outputs[0], 'scene_2': list_of_outputs[1], 'scene_3': list_of_outputs[2],
                       'scene_4': list_of_outputs[3], 'scene_5': list_of_outputs[4], 'all': list_of_outputs[5]}
 
-        elif args.datasets == 'kitti2012':
+        elif args.dataset == 'kitti2012':
             _, test_set = datasets.KITTI_occ(settings.env.kitti2012, source_image_transform=input_transform,
                                              target_image_transform=input_transform,
                                              flow_transform=target_transform, co_transform=co_transform, split=0)
@@ -107,7 +106,7 @@ def main(args, settings):
                                           plot=args.plot, plot_100=args.plot_100,
                                           plot_ind_images=args.plot_individual_images)
 
-        elif args.datasets == 'kitti2015':
+        elif args.dataset == 'kitti2015':
             _, test_set = datasets.KITTI_occ(settings.env.kitti2015, source_image_transform=input_transform,
                                              target_image_transform=input_transform,
                                              flow_transform=target_transform, co_transform=co_transform, split=0)
@@ -118,7 +117,7 @@ def main(args, settings):
                                           plot=args.plot, plot_100=args.plot_100,
                                           plot_ind_images=args.plot_individual_images)
 
-        elif args.datasets == 'TSS':
+        elif args.dataset == 'TSS':
             output = {}
             for sub_data in ['FG3DCar', 'JODS', 'PASCAL']:
                 path_to_save_ = os.path.join(path_to_save, sub_data)
@@ -136,7 +135,7 @@ def main(args, settings):
                                                   plot_ind_images=args.plot_individual_images)
                 output[sub_data] = results
 
-        elif args.datasets == 'PFPascal':
+        elif args.dataset == 'PFPascal':
             test_set = datasets.PFPascalDataset(settings.env.PFPascal, source_image_transform=input_transform,
                                                 target_image_transform=input_transform, split='test',
                                                 flow_transform=target_transform)
@@ -146,7 +145,7 @@ def main(args, settings):
                                              path_to_save=path_to_save, plot=args.plot, plot_100=args.plot_100,
                                              plot_ind_images=args.plot_individual_images)
 
-        elif args.datasets == 'PFWillow':
+        elif args.dataset == 'PFWillow':
             test_set = datasets.PFWillowDataset(settings.env.PFWillow, source_image_transform=input_transform,
                                                 target_image_transform=input_transform, split='test',
                                                 flow_transform=target_transform)
@@ -156,7 +155,7 @@ def main(args, settings):
                                              flipping_condition=args.flipping_condition,
                                              path_to_save=path_to_save, plot=args.plot, plot_100=args.plot_100,
                                              plot_ind_images=args.plot_individual_images)
-        elif args.datasets == 'spair':
+        elif args.dataset == 'spair':
             test_set = datasets.SPairDataset(settings.env.spair, source_image_transform=input_transform,
                                              target_image_transform=input_transform, split='test',
                                              flow_transform=target_transform)
@@ -167,7 +166,7 @@ def main(args, settings):
                                              path_to_save=path_to_save, plot=args.plot, plot_100=args.plot_100,
                                              plot_ind_images=args.plot_individual_images)
 
-        elif args.datasets == 'caltech':
+        elif args.dataset == 'caltech':
             test_set = datasets.CaltechDataset(settings.env.caltech, source_image_transform=input_transform,
                                                target_image_transform=input_transform, split='test',
                                                flow_transform=target_transform)
@@ -176,7 +175,7 @@ def main(args, settings):
                                             flipping_condition=args.flipping_condition, path_to_save=path_to_save,
                                             plot_ind_images=args.plot_individual_images)
 
-        elif args.datasets == 'sintel':
+        elif args.dataset == 'sintel':
             output = {}
             for dstype in ['clean', 'final']:
                 _, test_set = datasets.mpi_sintel(settings.env.sintel, source_image_transform=input_transform,
@@ -188,12 +187,12 @@ def main(args, settings):
                                                 estimate_uncertainty=estimate_uncertainty)
                 output[dstype] = results
 
-        elif args.datasets == 'eth3d':
+        elif args.dataset == 'eth3d':
             output = run_evaluation_eth3d(network, settings.env.eth3d, input_transform, target_transform, co_transform,
                                           device, estimate_uncertainty=estimate_uncertainty)
 
         else:
-            raise ValueError('Unknown dataset, {}'.format(args.datasets))
+            raise ValueError('Unknown dataset, {}'.format(args.dataset))
 
         save_dict['{}'.format(pre_trained_model_type)] = output
 
@@ -216,7 +215,7 @@ def main(args, settings):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Correspondence evaluation')
     # Paths
-    parser.add_argument('--datasets', type=str, help='Dataset name', required=True)
+    parser.add_argument('--dataset', type=str, help='Dataset name', required=True)
     define_model_parser(parser)  # model parameters
     parser.add_argument('--pre_trained_models', nargs='+', required=True,
                         help='name of pre trained models')

@@ -129,7 +129,7 @@ class SemanticKeypointsDataset(Dataset):
         # Directory path for train, val, or test splits
         base_path = os.path.join(os.path.abspath(root), self.metadata[benchmark][0])
         if benchmark == 'pfpascal':
-            self.spt_path = os.path.join(base_path,  'original_csv_files_ncnet', split + self.metadata[benchmark][1])
+            self.spt_path = os.path.join(base_path, split + self.metadata[benchmark][1])
         elif benchmark == 'spair':
             self.spt_path = os.path.join(base_path, self.metadata[benchmark][1], split + '.txt')
         else:

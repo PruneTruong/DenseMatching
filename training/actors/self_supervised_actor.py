@@ -32,7 +32,11 @@ class GLOCALNetActor(BaseActor):
         """
         # Run network
         mini_batch = self.batch_processing(mini_batch)
-        output_net = self.net(mini_batch['target_image'], mini_batch['source_image'])
+        if 'target_image_256' in mini_batch.keys():
+            output_net_256, output_net = self.net(mini_batch['target_image'], mini_batch['source_image'],
+                                                  mini_batch['target_image_256'], mini_batch['source_image_256'])
+        else:
+            output_net = self.net(im_target=mini_batch['target_image'], im_source=mini_batch['source_image'])
 
         loss, stats = self.objective(output_net, mini_batch['flow_map'], mask=mini_batch['mask'])
 
@@ -42,10 +46,15 @@ class GLOCALNetActor(BaseActor):
         # Calculates validation stats
         if not training:
             for index_reso in range(len(output_net['flow_estimates'])):
-                EPE = realEPE(output_net['flow_estimates'][index_reso], mini_batch['flow_map'],
-                              mini_batch['correspondence_mask'])
+                EPE, PCK_1, PCK_3, PCK_5 = real_metrics(output_net['flow_estimates'][index_reso],
+                                                        mini_batch['flow_map'], mini_batch['correspondence_mask'])
+
                 h_, w_ = output_net['flow_estimates'][index_reso].shape[-2:]
                 stats['EPE_reso_{}x{}/EPE'.format(h_, w_)] = EPE.item()
+                stats['PCK_1_reso_{}x{}/EPE'.format(h_, w_)] = PCK_1.item()
+                stats['PCK_3_reso_{}x{}/EPE'.format(h_, w_)] = PCK_3.item()
+                stats['PCK_5_reso_{}x{}/EPE'.format(h_, w_)] = PCK_5.item()
+
             stats['best_value'] = stats['EPE_reso_{}x{}/EPE'.format(mini_batch['flow_map'].shape[-2]//4,
                                                                     mini_batch['flow_map'].shape[-1]//4)]
 
@@ -80,7 +89,7 @@ class GLOCALNetActor(BaseActor):
 class GLUNetBasedActor(BaseActor):
     """Actor for training the GLU-Net based networks with a self-supervised or supervised strategy."""
 
-    def __init__(self, net, objective, objective_256, batch_processing, best_val_epe=True, nbr_images_to_plot=5):
+    def __init__(self, net, objective, objective_256, batch_processing, best_val_epe=True, nbr_images_to_plot=1):
         """
         Args:
             net: The network to train
@@ -141,8 +150,8 @@ class GLUNetBasedActor(BaseActor):
             for index_reso_256 in range(len(output_net_256['flow_estimates'])):
                 EPE = realEPE(output_net_256['flow_estimates'][-(index_reso_256+1)], mini_batch['flow_map'],
                               mini_batch['correspondence_mask'],
-                              ratio_x=float(w_original) / float(256.0),
-                              ratio_y=float(h_original) / float(256.0))
+                              ratio_x=float(w_original) / 256.0,
+                              ratio_y=float(h_original) / 256.0)
                 h_, w_ = output_net_256['flow_estimates'][-(index_reso_256+1)].shape[-2:]
                 stats['EPE_LNet_reso_{}x{}/EPE'.format(h_, w_)] = EPE.item()
 

@@ -51,10 +51,11 @@ def define_model_parser(parser):
                         help='Apply flipping condition for semantic data and GLU-Net-based networks? ')
     parser.add_argument('--optim_iter', type=int, default=3,
                         help='number of optim iter for global GOCor, when applicable')
-    parser.add_argument('--local_optim_iter', dest='local_optim_iter', default=None,
+    parser.add_argument('--local_optim_iter', dest='local_optim_iter', type=int, default=None,
                         help='number of optim iter for local GOCor, when applicable')
     parser.add_argument('--path_to_pre_trained_models', type=str, default='pre_trained_models/',
-                        help='path to the folder containing pre trained models')
+                        help='path to the folder containing the pre trained model weights, or '
+                             'path to the model checkpoint.')
     # add subparser for model types
     subparsers = parser.add_subparsers(dest='network_type')
     define_pdcnet_parser(subparsers)

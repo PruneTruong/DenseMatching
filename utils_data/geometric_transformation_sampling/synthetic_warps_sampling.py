@@ -28,25 +28,25 @@ class SynthecticAffHomoTPSTransfo:
     transformation. """
     def __init__(self, size_output_flow=(480, 640), random_t=0.25, random_s=0.5, random_alpha=np.pi / 12,
                  random_t_tps_for_afftps=None, random_t_hom=0.4, random_t_tps=0.4, tps_grid_size=3, tps_reg_factor=0,
-                 transformation_types=None, parametrize_with_gaussian=False, use_cuda=True):
+                 transformation_types=None, parametrize_with_gaussian=False, proba_horizontal_flip=0.0, use_cuda=True):
         """
-        For all transformation parameters, image is taken as in interval [-1, 1]. Therefore all parameters must be 
+        For all transformation parameters, image is taken as in interval [-1, 1]. Therefore all parameters must be
         within [0, 1]. The range of sampling is then [-parameter, parameter] or [1-parameter, 1+parameter] for the
-        scale. 
+        scale.
         Args:
             size_output_flow: desired output load_size for generated flow field
-            random_t: max translation for affine transform. 
-            random_s: max scale for affine transform 
+            random_t: max translation for affine transform.
+            random_s: max scale for affine transform
             random_alpha: max rotation and shearing angle for the affine transform
-            random_t_tps_for_afftps: max translation parameter for the tps transform generation, used for the 
+            random_t_tps_for_afftps: max translation parameter for the tps transform generation, used for the
                          affine-tps transforms
             random_t_hom: max translation parameter for the homography transform generation
             random_t_tps: max translation parameter for the tps transform generation
             tps_grid_size: tps grid load_size
-            tps_reg_factor: 
-            transformation_types: list of transformations to samples. 
+            tps_reg_factor:
+            transformation_types: list of transformations to samples.
                                   Must be selected from ['affine', 'hom', 'tps', 'afftps']
-            parametrize_with_gaussian: sampling distribution for the transformation parameters. Gaussian ? otherwise, 
+            parametrize_with_gaussian: sampling distribution for the transformation parameters. Gaussian ? otherwise,
                                        uses a uniform distribution
             use_cuda: use_cuda?
         """
@@ -54,6 +54,9 @@ class SynthecticAffHomoTPSTransfo:
         if not isinstance(size_output_flow, (tuple, list)):
             size_output_flow = (size_output_flow, size_output_flow)
         self.out_h, self.out_w = size_output_flow
+
+        self.proba_horizontal_flip = proba_horizontal_flip
+
         self.parametrize_with_gaussian = parametrize_with_gaussian
         # for homo
         self.random_t_hom = random_t_hom
@@ -166,21 +169,28 @@ class SynthecticAffHomoTPSTransfo:
 
         if geometric_model == 'hom':
             mapping = self.homo_grid_sample.forward(theta_hom)
-            flow_gt = unormalise_and_convert_mapping_to_flow(mapping, output_channel_first=True)  # should be 2xhw
+            flow_gt = unormalise_and_convert_mapping_to_flow(mapping, output_channel_first=True)  # should be 1, 2,h,w
         elif geometric_model == 'affine':
             mapping = self.aff_grid_sample.forward(theta_aff)
-            flow_gt = unormalise_and_convert_mapping_to_flow(mapping, output_channel_first=True)  # should be 2xhw
+            flow_gt = unormalise_and_convert_mapping_to_flow(mapping, output_channel_first=True)  # should be 2,h,w
 
         elif geometric_model == 'tps':
             mapping = self.tps_grid_sample.forward(theta_tps)
-            flow_gt = unormalise_and_convert_mapping_to_flow(mapping, output_channel_first=True)  # should be 2xhw
+            flow_gt = unormalise_and_convert_mapping_to_flow(mapping, output_channel_first=True)  # should be 2,h,w
 
         elif geometric_model == 'afftps':
             mapping = self.tps_aff_grid_sample(theta_aff, theta_tps)
-            flow_gt = unormalise_and_convert_mapping_to_flow(mapping, output_channel_first=True)  # should be 2xhw
+            flow_gt = unormalise_and_convert_mapping_to_flow(mapping, output_channel_first=True)  # should be 2,h,w
 
         else:
             raise NotImplementedError
+
+        # 1, 2, h, w
+        if random.random() < self.proba_horizontal_flip:
+            mapping_gt = convert_flow_to_mapping(flow_gt)
+            mapping_gt = torch.from_numpy(np.copy(
+                np.fliplr(mapping_gt.squeeze().permute(1, 2, 0).cpu().numpy()))).permute(2, 0, 1).unsqueeze(0)
+            flow_gt = convert_mapping_to_flow(mapping_gt).cuda()
         '''
         flow_inverse = None
         if self.compute_inverse_flow:
@@ -400,6 +410,7 @@ class AddElasticTransformsV2:
         """
 
         default_elastic_parameters = {"max_sigma": 0.04, "min_sigma": 0.1, "min_alpha": 1, "max_alpha": 0.4}
+
         self.device = getattr(settings, 'device', None)
         if self.device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() and settings.use_gpu else "cpu")

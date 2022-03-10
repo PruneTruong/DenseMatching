@@ -14,6 +14,7 @@ class EnvironmentSettings:
         self.kitti2012 = 'data/KITTI_2012/training/'
         self.kitti2015 = 'data/KITTI_2015/training/'
         self.sintel = 'data/sintel/training/'
+        self.scannet_test = 'data/scannet'
         self.yfcc = 'data/yfcc100m'
         self.tss = 'data/TSS_CVPR2016/'
         self.PFPascal = 'data/PF-dataset-PASCAL'

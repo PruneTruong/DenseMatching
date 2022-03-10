@@ -42,14 +42,14 @@ class GridDistortion:
 
 
 class ElasticTransform:
-    def __init__(self, parameters, get_flow=False, approximate=False):
-        self.sigma_params=(parameters["min_sigma"], parameters["max_sigma"])
-        self.alpha_params=(parameters["min_alpha"], parameters["max_alpha"])
+    def __init__(self, parameters, get_flow=False, approximate=True):
+        self.sigma_params = (parameters["min_sigma"], parameters["max_sigma"])
+        self.alpha_params = (parameters["min_alpha"], parameters["max_alpha"])
         self.get_flow = get_flow
         self.approximate = approximate
 
     def get_random_paremeters(self, shape, seed=None):
-        #sigma_params=(0.05, 0.05), alpha_params=(1, 5)
+        # sigma_params=(0.05, 0.05), alpha_params=(1, 5)
         if seed is None:
             random_state = np.random.RandomState(seed)
         else:

@@ -167,6 +167,8 @@ def run(settings):
 
     batch_preprocessing = GLUNetBatchPreprocessing(settings, apply_mask=True, apply_mask_zero_borders=False,
                                                    sparse_ground_truth=True)
+    # sparse_gt means you can't just downsample the gt flow field at resolution 256x256.
+    # it needs to be done before, on the ground truth sparse matches (done in the dataloader)
 
     # Loss module
     objective = NLLMixtureLaplace()

@@ -15,6 +15,7 @@ from models.modules.local_correlation import correlation  # the custom cost volu
 from models.base_matching_net import BaseGLUMultiScaleMatchingNet, set_glunet_parameters
 from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
 from models.inference_utils import matches_from_flow, estimate_mask
+from ..modules.bilinear_deconv import BilinearConvTranspose2d
 
 
 class VGGPyramid(nn.Module):
@@ -104,9 +105,11 @@ class VGGPyramid(nn.Module):
 
 class SemanticGLUNetModel(BaseGLUMultiScaleMatchingNet):
     """
-    Semantic-GLU-Net
+    Semantic-GLU-Net.
+    The flows (flow2, flow1) are predicted such that they are scaled to the input image resolution. To obtain the flow
+    from target to source at original resolution, one just needs to bilinearly upsample (without further scaling).
     """
-    def __init__(self, batch_norm=True, pyramid_type='VGG', md=4,
+    def __init__(self, batch_norm=True, pyramid_type='VGG', md=4, init_deconv_w_bilinear=True,
                  cyclic_consistency=False, consensus_network=True, iterative_refinement=False):
 
         # not used here, just to make it easier and use new framework
@@ -138,8 +141,12 @@ class SemanticGLUNetModel(BaseGLUMultiScaleMatchingNet):
         # weights for decoder at different levels
         nd = 16*16  # global correlation
         od = nd + 2
-        self.decoder4 = CMDTop(in_channels=od, bn=batch_norm)
-        self.deconv4 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+        self.decoder4 = CMDTop(in_channels=od, batch_norm=batch_norm)
+
+        if init_deconv_w_bilinear:
+            self.deconv4 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+        else:
+            self.deconv4 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
 
         nd = (2*md+1)**2  # constrained correlation, 4 pixels on each side
         od = nd + 2
@@ -158,7 +165,12 @@ class SemanticGLUNetModel(BaseGLUMultiScaleMatchingNet):
         nd = (2*md+1)**2  # constrained correlation, 4 pixels on each side
         od = nd + 2  # only gets the upsampled flow
         self.decoder2 = OpticalFlowEstimator(in_channels=od, batch_norm=batch_norm)
-        self.deconv2 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+
+        if init_deconv_w_bilinear:
+            self.deconv2 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+        else:
+            self.deconv2 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+
         self.upfeat2 = deconv(od+dd[4], 2, kernel_size=4, stride=2, padding=1)
 
         # 1/4 of original resolution
@@ -176,7 +188,7 @@ class SemanticGLUNetModel(BaseGLUMultiScaleMatchingNet):
 
         # initialize modules
         for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight.data, mode='fan_in')
                 if m.bias is not None:
                     m.bias.data.zero_()
@@ -226,6 +238,24 @@ class SemanticGLUNetModel(BaseGLUMultiScaleMatchingNet):
 
     def forward(self, im_target, im_source, im_target_256, im_source_256, im_target_pyr=None, im_source_pyr=None,
                 im_target_pyr_256=None, im_source_pyr_256=None):
+        """
+        Args:
+            im_target: torch Tensor Bx3xHxW, normalized with imagenet weights
+            im_source: torch Tensor Bx3xHxW, normalized with imagenet weights
+            im_target_256: torch Tensor Bx3x256x256, normalized with imagenet weights
+            im_source_256: torch Tensor Bx3x256x256, normalized with imagenet weights
+            im_target_pyr: in case the pyramid features are already computed.
+            im_source_pyr: in case the pyramid features are already computed.
+            im_target_pyr_256: in case the pyramid features are already computed.
+            im_source_pyr_256: in case the pyramid features are already computed.
+
+        Returns:
+            output_256: dict with keys 'flow_estimates'. It contains the flow field of the two deepest levels
+                        corresponding to the L-Net (flow4 and flow3), they are scaled for input resolution of 256x256.
+            output: dict with keys 'flow_estimates'. It contains the flow field of the two shallowest levels
+                    corresponding to the H-Net (flow2 and flow1), they are scaled for original (high resolution)
+                    input resolution.
+        """
         # all indices 1 refer to target images
         # all indices 2 refer to source images
 
@@ -555,8 +585,6 @@ class SemanticGLUNetModel(BaseGLUMultiScaleMatchingNet):
         """
         flow_estimated, uncertainty_est = self.estimate_flow_and_confidence_map(source_img, target_img, scaling=scaling)
 
-        cyclic_consistency_error = uncertainty_est['cyclic_consistency_error']
-        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error}
         mask = estimate_mask(confident_mask_type, uncertainty_est, list_item=-1)
         mapping_estimated = convert_flow_to_mapping(flow_estimated)
         # remove point that lead to outside the source image
@@ -568,18 +596,21 @@ class SemanticGLUNetModel(BaseGLUMultiScaleMatchingNet):
         scaling_kp = np.float32(target_img.shape[-2:]) / np.float32(flow_estimated.shape[-2:])  # h, w
 
         mkpts_s, mkpts_t = matches_from_flow(flow_estimated, mask, scaling=scaling_kp[::-1])
-        uncertainty_values = cyclic_consistency_error.squeeze()[mask.squeeze()].cpu().numpy()
-        sort_index = np.argsort(np.array(uncertainty_values)).tolist()  # from smallest to highest
-        uncertainty_values = np.array(uncertainty_values)[sort_index]
+
+        # between 0 and 1
+        confidence_values = uncertainty_est['inv_cyclic_consistency_error'].squeeze()[mask.squeeze()].cpu().numpy()
+        sort_index = np.argsort(np.array(confidence_values)).tolist()[::-1]  # from highest to smallest
+        confidence_values = np.array(confidence_values)[sort_index]
+
         mkpts_s = np.array(mkpts_s)[sort_index]
         mkpts_t = np.array(mkpts_t)[sort_index]
 
         if len(mkpts_s) < min_number_of_pts:
             mkpts_s = np.empty([0, 2], dtype=np.float32)
             mkpts_t = np.empty([0, 2], dtype=np.float32)
-            uncertainty_values = np.empty([0], dtype=np.float32)
+            confidence_values = np.empty([0], dtype=np.float32)
 
-        pred = {'kp_source': mkpts_s, 'kp_target': mkpts_t, 'confidence_value': 1.0 / (uncertainty_values + 1e-6),
+        pred = {'kp_source': mkpts_s, 'kp_target': mkpts_t, 'confidence_value': confidence_values,
                 'flow': self.resize_and_rescale_flow(flow_estimated, target_img.shape[-2:]),
                 'mask': F.interpolate(input=mask.unsqueeze(1).float(), size=target_img.shape[-2:], mode='bilinear',
                                       align_corners=False).squeeze(1)}

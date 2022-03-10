@@ -116,7 +116,7 @@ class GLOCALNetWarpCUnsupervisedBatchPreprocessing:
 
         if self.mapping:
             mapping_gt = mini_batch['correspondence_map_pyro'][-1].to(self.device)
-            flow_gt = unormalise_and_convert_mapping_to_flow(mapping_gt.permute(0,3,1,2))
+            flow_gt = unormalise_and_convert_mapping_to_flow(mapping_gt.permute(0, 3, 1, 2))
         else:
             flow_gt = mini_batch['flow_map'].to(self.device)
         if flow_gt.shape[1] != 2:
@@ -155,12 +155,13 @@ class GLOCALNetWarpCUnsupervisedActor(BaseActor):
     """Actor for training unsupervised GLOCALNet based networks with the warp consistency objective."""
     def __init__(self, net, objective, batch_processing, name_of_loss, loss_weight=None, detach_flow_for_warping=True,
                  nbr_images_to_plot=1, apply_constant_flow_weights=False, compute_visibility_mask=False,
-                 semantic_evaluation=False):
+                 semantic_evaluation=False, best_val_epe=False):
         """
         Args:
             net: The network to train
             objective: The loss function
             batch_processing: A processing class which performs the necessary processing of the batched data.
+                              Corresponds to creating the image triplet here.
             name_of_loss: 'warp_supervision_and_w_bipath' or 'w_bipath' or 'warp_supervision'
             loss_weight: weights used to balance w_bipath and warp_supervision.
             apply_constant_flow_weights: bool, otherwise, balance both losses according to given weights.
@@ -168,16 +169,18 @@ class GLOCALNetWarpCUnsupervisedActor(BaseActor):
             compute_visibility_mask: bool
             nbr_images_to_plot: number of images to plot per epoch
             semantic_evaluation: bool, to adapt the thresholds used in the PCK computations
+            best_val_epe: use AEPE for best value, instead can use PCK
         """
         super().__init__(net, objective, batch_processing)
         loss_weight_default = {'w_bipath': 1.0, 'warp_supervision': 1.0,
                                'w_bipath_constant': 1.0, 'warp_supervision_constant': 1.0,
-                               'cc_mask_alpha_1': 0.01, 'cc_mask_alpha_2': 0.5}
+                               'cc_mask_alpha_1': 0.03, 'cc_mask_alpha_2': 0.5}
         self.loss_weight = loss_weight_default
         if loss_weight is not None:
             self.loss_weight.update(loss_weight)
         self.batch_processing = batch_processing
         self.semantic_evaluation = semantic_evaluation
+        self.best_val_epe = best_val_epe
 
         self.name_of_loss = name_of_loss
         self.compute_visibility_mask = compute_visibility_mask
@@ -222,15 +225,15 @@ class GLOCALNetWarpCUnsupervisedActor(BaseActor):
 
         # compute flows
         if not training or iter < self.nbr_images_to_plot:
-            estimated_flow_target_to_source = self.net(target_image=mini_batch['target_image'],
-                                                       source_image=mini_batch['source_image'],
+            estimated_flow_target_to_source = self.net(im_target=mini_batch['target_image'],
+                                                       im_source=mini_batch['source_image'],
                                                        im_target_pyr=im_target_pyr,
                                                        im_source_pyr=im_source_pyr)['flow_estimates']
 
         estimated_flow_target_prime_to_target_directly = None
         if not training or 'warp_supervision' in self.name_of_loss or iter < self.nbr_images_to_plot:
-            estimated_flow_target_prime_to_target_directly = self.net(target_image=mini_batch['target_image_prime'],
-                                                                      source_image=mini_batch['target_image'],
+            estimated_flow_target_prime_to_target_directly = self.net(im_target=mini_batch['target_image_prime'],
+                                                                      im_source=mini_batch['target_image'],
                                                                       im_target_pyr=im_target_prime_pyr,
                                                                       im_source_pyr=im_target_pyr)['flow_estimates']
 
@@ -245,12 +248,12 @@ class GLOCALNetWarpCUnsupervisedActor(BaseActor):
                                 estimated_flow_target_prime_to_target_directly}
 
         if 'w_bipath' in self.name_of_loss:
-            estimated_flow_target_prime_to_source = self.net(target_image=mini_batch['target_image_prime'],
-                                                             source_image=mini_batch['source_image'],
+            estimated_flow_target_prime_to_source = self.net(im_target=mini_batch['target_image_prime'],
+                                                             im_source=mini_batch['source_image'],
                                                              im_target_pyr=im_target_prime_pyr,
                                                              im_source_pyr=im_source_pyr)['flow_estimates']
-            estimated_flow_source_to_target = self.net(target_image=mini_batch['source_image'],
-                                                       source_image=mini_batch['target_image'],
+            estimated_flow_source_to_target = self.net(im_target=mini_batch['source_image'],
+                                                       im_source=mini_batch['target_image'],
                                                        im_target_pyr=im_source_pyr,
                                                        im_source_pyr=im_target_pyr)['flow_estimates']
 
@@ -306,7 +309,10 @@ class GLOCALNetWarpCUnsupervisedActor(BaseActor):
                 stats['EPE_target_prime_to_target_reso_composition_{}/EPE'.format(index_reso)] = EPE.item()
 
             if 'flow_map_target_to_source' in list(mini_batch.keys()):
-                stats['best_value'] = stats['EPE_target_to_source_reso_0/EPE']
+                if self.best_val_epe:
+                    stats['best_value'] = stats['EPE_target_to_source_reso_0/EPE']
+                else:
+                    stats['best_value'] = - stats['PCK_{}_target_to_source_reso_0/EPE'.format(thresh_2)]
             else:
                 stats['best_value'] = stats['EPE_target_prime_to_target_reso_composition_0/EPE']
 
@@ -350,7 +356,228 @@ class GLOCALNetWarpCUnsupervisedActor(BaseActor):
         return loss, stats
 
 
+class OneOutputResoWarpCUnsupervisedActor(BaseActor):
+    """Actor for training unsupervised GLUNet based networks (with outputs all scaled for original resolution)
+    with the warp consistency objective."""
+    def __init__(self, net, objective, batch_processing, name_of_loss, loss_weight=None, detach_flow_for_warping=True,
+                 nbr_images_to_plot=1, apply_constant_flow_weights=False, compute_visibility_mask=False,
+                 semantic_evaluation=False, best_val_epe=False):
+        """
+        Args:
+            net: The network to train
+            objective: The loss function
+            batch_processing: A processing class which performs the necessary processing of the batched data.
+                              Corresponds to creating the image triplet here.
+            name_of_loss: 'warp_supervision_and_w_bipath' or 'w_bipath' or 'warp_supervision'
+            loss_weight: weights used to balance w_bipath and warp_supervision.
+            apply_constant_flow_weights: bool, otherwise, balance both losses according to given weights.
+            detach_flow_for_warping: bool
+            compute_visibility_mask: bool
+            nbr_images_to_plot: number of images to plot per epoch
+            semantic_evaluation: bool, to adapt the thresholds used in the PCK computations
+            best_val_epe: use AEPE for best value, instead can use PCK
+        """
+        super().__init__(net, objective, batch_processing)
+        loss_weight_default = {'w_bipath': 1.0, 'warp_supervision': 1.0,
+                               'w_bipath_constant': 1.0, 'warp_supervision_constant': 1.0,
+                               'cc_mask_alpha_1': 0.03, 'cc_mask_alpha_2': 0.5}
+        self.loss_weight = loss_weight_default
+        if loss_weight is not None:
+            self.loss_weight.update(loss_weight)
+        self.batch_processing = batch_processing
+        self.semantic_evaluation = semantic_evaluation
+        self.best_val_epe = best_val_epe
 
+        self.name_of_loss = name_of_loss
+        self.compute_visibility_mask = compute_visibility_mask
+        # define the loss computation modules
+        self.apply_constant_flow_weights = apply_constant_flow_weights
+
+        if 'w_bipath' in name_of_loss:
+            self.unsupervised_objective = WBipathLoss(
+                objective, loss_weight, detach_flow_for_warping,
+                compute_cyclic_consistency=self.compute_visibility_mask, alpha_1=self.loss_weight['cc_mask_alpha_1'],
+                alpha_2=self.loss_weight['cc_mask_alpha_2'])
+        elif 'warp_supervision' not in name_of_loss:
+            raise ValueError('The name of the loss is not correct, you chose {}'.format(self.name_of_loss))
+
+        self.nbr_images_to_plot = nbr_images_to_plot
+
+    def __call__(self, mini_batch, training):
+        """
+        args:
+            mini_batch: The mini batch input data, should at least contain the fields 'source_image', 'target_image',
+                        'target_image_prime', 'flow_map', 'mask', 'correspondence_mask'.
+                         If ground-truth is known between source and target image, will contain the fields
+                        'flow_map_target_to_source', 'correspondence_mask_target_to_source'.
+            training: bool indicating if we are in training or evaluation mode
+        returns:
+            loss: the training loss
+            stats: dict containing detailed losses
+        """
+        # Run network
+        epoch = mini_batch['epoch']
+        iter = mini_batch['iter']
+        mini_batch = self.batch_processing(mini_batch, net=self.net, training=training)
+        b, _, h, w = mini_batch['flow_map'].shape
+
+        # extract features to avoid recomputing them
+        net = self.net.module if is_multi_gpu(self.net) else self.net
+        im_source_pyr, im_target_pyr, im_target_prime_pyr, im_source_pyr_256, \
+            im_target_pyr_256, im_target_prime_pyr_256 = None, None, None, None, None, None
+        if hasattr(net, 'pyramid'):
+            im_source_pyr = net.pyramid(mini_batch['source_image'], eigth_resolution=True)
+            im_target_pyr = net.pyramid(mini_batch['target_image'], eigth_resolution=True)
+            im_target_prime_pyr = net.pyramid(mini_batch['target_image_prime'], eigth_resolution=True)
+            im_source_pyr_256 = net.pyramid(mini_batch['source_image_256'])
+            im_target_pyr_256 = net.pyramid(mini_batch['target_image_256'])
+            im_target_prime_pyr_256 = net.pyramid(mini_batch['target_image_prime_256'])
+
+        # compute flows
+        if not training or iter < self.nbr_images_to_plot:
+            _, estimated_flow_target_to_source = self.net(im_target=mini_batch['target_image'],
+                                                          im_source=mini_batch['source_image'],
+                                                          im_target_pyr=im_target_pyr,
+                                                          im_source_pyr=im_source_pyr,
+                                                          im_target_256=mini_batch['target_image_256'],
+                                                          im_source_256=mini_batch['source_image_256'],
+                                                          im_target_pyr_256=im_target_pyr_256,
+                                                          im_source_pyr_256=im_source_pyr_256)
+            estimated_flow_target_to_source = estimated_flow_target_to_source['flow_estimates']
+
+        estimated_flow_target_prime_to_target_directly = None
+        if not training or 'warp_supervision' in self.name_of_loss or iter < self.nbr_images_to_plot:
+            _, estimated_flow_target_prime_to_target_directly = self.net(
+                im_target=mini_batch['target_image_prime'], im_source=mini_batch['target_image'],
+                im_target_pyr=im_target_prime_pyr, im_source_pyr=im_target_pyr,
+                im_target_256=mini_batch['target_image_prime_256'], im_source_256=mini_batch['target_image_256'],
+                im_target_pyr_256=im_target_prime_pyr_256, im_source_pyr_256=im_target_pyr_256)
+            estimated_flow_target_prime_to_target_directly = \
+                estimated_flow_target_prime_to_target_directly['flow_estimates']
+
+        ss_loss, un_loss = 0.0, 0.0
+        ss_stats, un_stats = {}, {}
+        if 'warp_supervision' in self.name_of_loss:
+            ss_loss, ss_stats = self.objective(estimated_flow_target_prime_to_target_directly, mini_batch['flow_map'],
+                                               mask=mini_batch['mask'])
+
+            # log stats
+            output_un = {'estimated_flow_target_prime_to_target_through_composition':
+                                estimated_flow_target_prime_to_target_directly}
+
+        if 'w_bipath' in self.name_of_loss:
+            _, estimated_flow_target_prime_to_source = self.net(
+                im_target=mini_batch['target_image_prime'], im_source=mini_batch['source_image'],
+                im_target_pyr=im_target_prime_pyr, im_source_pyr=im_source_pyr,
+                im_target_256=mini_batch['target_image_prime_256'], im_source_256=mini_batch['source_image_256'],
+                im_target_pyr_256=im_target_prime_pyr_256, im_source_pyr_256=im_source_pyr_256)
+            estimated_flow_target_prime_to_source = estimated_flow_target_prime_to_source['flow_estimates']
+
+            _, estimated_flow_source_to_target = self.net(
+                im_target=mini_batch['source_image'], im_source=mini_batch['target_image'],
+                im_target_pyr=im_source_pyr, im_source_pyr=im_target_pyr,
+                im_target_256=mini_batch['source_image_256'], im_source_256=mini_batch['target_image_256'],
+                im_target_pyr_256=im_source_pyr_256, im_source_pyr_256=im_target_pyr_256)
+            estimated_flow_source_to_target = estimated_flow_source_to_target['flow_estimates']
+
+            un_loss, un_stats, output_un = self.unsupervised_objective(mini_batch['flow_map'], mini_batch['mask'],
+                                                                       estimated_flow_target_prime_to_source,
+                                                                       estimated_flow_source_to_target)
+
+            # compute self-supervised part of the loss
+        if self.name_of_loss == 'warp_supervision':
+            stats = ss_stats
+            stats['Loss/total'] = ss_loss.item()
+            loss = ss_loss
+        elif self.name_of_loss == 'w_bipath':
+            loss = un_loss
+            stats = un_stats
+            stats['Loss/total'] = loss.item()
+        else:
+            # merge stats and losses
+            stats = merge_dictionaries([un_stats, ss_stats], name=['w_bipath', 'warp_sup'])
+
+            loss, stats = weights_self_supervised_and_unsupervised(ss_loss, un_loss, stats, self.loss_weight,
+                                                                   self.apply_constant_flow_weights)
+
+        # Calculates validation stats
+        if not training:
+            if 'flow_map_target_to_source' in list(mini_batch.keys()):
+                mask_gt_target_to_source = mini_batch['correspondence_mask_target_to_source']
+                flow_gt_target_to_source = mini_batch['flow_map_target_to_source']
+                if self.semantic_evaluation:
+                    thresh_1, thresh_2, thresh_3 = max(flow_gt_target_to_source.shape[-2:]) * 0.05, \
+                    max(flow_gt_target_to_source.shape[-2:]) * 0.1, max(flow_gt_target_to_source.shape[-2:]) * 0.15
+                else:
+                    thresh_1, thresh_2, thresh_3 = 1.0, 3.0, 5.0
+
+                for index_reso in range(len(estimated_flow_target_to_source)):
+                    EPE, PCK_1, PCK_3, PCK_5 = real_metrics(estimated_flow_target_to_source[-(index_reso + 1)],
+                                                            flow_gt_target_to_source, mask_gt_target_to_source,
+                                                            thresh_1=thresh_1, thresh_2=thresh_2, thresh_3=thresh_3)
+
+                    stats['EPE_target_to_source_reso_{}/EPE'.format(index_reso)] = EPE.item()
+                    stats['PCK_{}_target_to_source_reso_{}/EPE'.format(thresh_1, index_reso)] = PCK_1.item()
+                    stats['PCK_{}_target_to_source_reso_{}/EPE'.format(thresh_2, index_reso)] = PCK_3.item()
+                    stats['PCK_{}_target_to_source_reso_{}/EPE'.format(thresh_3, index_reso)] = PCK_5.item()
+
+            for index_reso in range(len(estimated_flow_target_prime_to_target_directly)):
+                EPE = realEPE(estimated_flow_target_prime_to_target_directly[-(index_reso + 1)],
+                              mini_batch['flow_map'], mini_batch['correspondence_mask'])
+                stats['EPE_target_prime_to_target_reso_direct_{}/EPE'.format(index_reso)] = EPE.item()
+
+            for index_reso in range(len(output_un['estimated_flow_target_prime_to_target_through_composition'])):
+                EPE = realEPE(output_un['estimated_flow_target_prime_to_target_through_composition'][-(index_reso + 1)],
+                              mini_batch['flow_map'], mini_batch['correspondence_mask'])
+
+                stats['EPE_target_prime_to_target_reso_composition_{}/EPE'.format(index_reso)] = EPE.item()
+
+            if 'flow_map_target_to_source' in list(mini_batch.keys()):
+                if self.best_val_epe:
+                    stats['best_value'] = stats['EPE_target_to_source_reso_0/EPE']
+                else:
+                    stats['best_value'] = - stats['PCK_{}_target_to_source_reso_0/EPE'.format(thresh_2)]
+            else:
+                stats['best_value'] = stats['EPE_target_prime_to_target_reso_composition_0/EPE']
+
+        # plot images
+        if iter < self.nbr_images_to_plot:
+            training_or_validation = 'train' if training else 'val'
+            base_save_dir = os.path.join(mini_batch['settings'].env.workspace_dir, mini_batch['settings'].project_path,
+                                         'plot', training_or_validation)
+            if not os.path.isdir(base_save_dir):
+                os.makedirs(base_save_dir)
+
+            if self.name_of_loss == 'warp_supervision':
+                plot_flows_warpc(base_save_dir, 'epoch{}_batch{}_last_reso'.format(epoch, iter), h, w,
+                                 image_source=mini_batch['source_image'],
+                                 image_target=mini_batch['target_image'],
+                                 image_target_prime=mini_batch['target_image_prime'],
+                                 estimated_flow_target_to_source=None,
+                                 estimated_flow_target_prime_to_source=None,
+                                 estimated_flow_target_prime_to_target=None,
+                                 estimated_flow_target_prime_to_target_directly=
+                                 estimated_flow_target_prime_to_target_directly[-1],
+                                 gt_flow_target_prime_to_target=mini_batch['flow_map'],
+                                 sparse=mini_batch['sparse'], mask=mini_batch['mask'])
+            else:
+                plot_flows_warpc(base_save_dir, 'epoch{}_batch{}_last_reso'.format(epoch, iter), h, w,
+                                 image_source=mini_batch['source_image'],
+                                 image_target=mini_batch['target_image'],
+                                 image_target_prime=mini_batch['target_image_prime'],
+                                 estimated_flow_target_to_source=estimated_flow_target_to_source[-1],
+                                 estimated_flow_target_prime_to_source=estimated_flow_target_prime_to_source[-1],
+                                 estimated_flow_target_prime_to_target=
+                                 output_un['estimated_flow_target_prime_to_target_through_composition'][-1],
+                                 estimated_flow_target_prime_to_target_directly=
+                                 estimated_flow_target_prime_to_target_directly[-1],
+                                 gt_flow_target_prime_to_target=mini_batch['flow_map'],
+                                 gt_flow_target_to_source=mini_batch['flow_map_target_to_source'] if
+                                 'flow_map_target_to_source' in list(mini_batch.keys()) else None,
+                                 estimated_flow_source_to_target=estimated_flow_source_to_target[-1] if
+                                 estimated_flow_source_to_target is not None else None,
+                                 sparse=mini_batch['sparse'], mask=output_un['mask_training'][-1])
+        return loss, stats
 
 
 

@@ -151,6 +151,7 @@ class MegaDepthDataset(Dataset):
                 pairs = np.stack(np.where(pairs), -1)
                 self.pairs[scene] = [(i, j, mat[i, j]) for i, j in pairs]
 
+            info.close()
             del info
         total = time.time() - start
         print('Storing took {} s'.format(total))
@@ -188,6 +189,7 @@ class MegaDepthDataset(Dataset):
                 points3D_id_to_2D = info['points3D_id_to_2D'][valid]
 
                 mat = info['overlap_matrix'][valid][:, valid]
+                info.close()
                 pairs = (
                         (mat > self.cfg['min_overlap_ratio'])
                         & (mat <= self.cfg['max_overlap_ratio']))
@@ -374,18 +376,26 @@ class MegaDepthDataset(Dataset):
             points2D2 = points2D2_from_file.copy()
             points2D1[:, 0] *= float(w_size) / float(w)
             points2D1[:, 1] *= float(h_size) / float(h)
+
             points2D2[:, 0] *= float(w_size) / float(w)
             points2D2[:, 1] *= float(h_size) / float(h)
 
             # computes the flow
-            valid_h = np.logical_and(np.int32(np.round(points2D2[:, 1])) < h_size, points2D1[:, 1] < h_size)
-            valid_w = np.logical_and(np.int32(np.round(points2D2[:, 0])) < w_size, points2D1[:, 0] < w_size)
+            points2D1_rounded = np.rint(points2D1).astype(np.int32)
+            points2D2_rounded = np.rint(points2D2).astype(np.int32)
+
+            valid_h = (points2D1_rounded[:, 1] >= 0) & (points2D1_rounded[:, 1] < h_size) & \
+                      (points2D2_rounded[:, 1] >= 0) & (points2D2_rounded[:, 1] < h_size)
+            valid_w = (points2D1_rounded[:, 0] >= 0) & (points2D1_rounded[:, 0] < w_size) & \
+                      (points2D2_rounded[:, 0] >= 0) & (points2D2_rounded[:, 0] < w_size)
+
             valid = valid_h * valid_w
             points2D2 = points2D2[valid]
             points2D1 = points2D1[valid]
+            points2D2_rounded = points2D2_rounded[valid]
 
-            flow[np.int32(np.round(points2D2[:, 1])), np.int32(np.round(points2D2[:, 0]))] = points2D1 - points2D2
-            mask[np.int32(np.round(points2D2[:, 1])), np.int32(np.round(points2D2[:, 0]))] = 1
+            flow[points2D2_rounded[:, 1], points2D2_rounded[:, 0]] = points2D1 - points2D2
+            mask[points2D2_rounded[:, 1], points2D2_rounded[:, 0]] = 1
 
             list_of_flow.append(flow)
             list_of_mask.append(mask)

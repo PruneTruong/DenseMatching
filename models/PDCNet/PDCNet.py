@@ -10,19 +10,23 @@ from ..PDCNet.mod_uncertainty import MixtureDensityEstimatorFromCorr, MixtureDen
 from ..base_matching_net import set_glunet_parameters
 from ..PDCNet.base_pdcnet import ProbabilisticGLU
 from ..modules.local_correlation import correlation
+from ..modules.bilinear_deconv import BilinearConvTranspose2d
 
 
 class PDCNetModel(ProbabilisticGLU):
-    """PDCNet model"""
+    """PDCNet model.
+    The flows (flow2, flow1) are predicted such that they are scaled to the input image resolution. To obtain the flow
+    from target to source at original resolution, one just needs to bilinearly upsample (without further scaling).
+    """
     def __init__(self, global_gocor_arguments=None, global_corr_type='feature_corr_layer', normalize='relu_l2norm',
                  normalize_features=True, cyclic_consistency=False,
                  local_corr_type='feature_corr_layer', local_gocor_arguments=None, same_local_corr_at_all_levels=True,
                  local_decoder_type='OpticalFlowEstimator', global_decoder_type='CMDTop',
                  decoder_inputs='corr_flow_feat', pyramid_type='VGG', md=4, upfeat_channels=2,
-                 train_features=False, batch_norm=True,
+                 train_features=False, batch_norm=True, use_interp_instead_of_deconv=False, init_deconv_w_bilinear=True,
                  refinement_at_adaptive_reso=True, refinement_at_all_levels=False,
                  refinement_at_finest_level=True, apply_refinement_finest_resolution=True,
-                 corr_for_corr_uncertainty_decoder='corr',
+                 corr_for_corr_uncertainty_decoder='corr', scale_low_resolution=False,
                  var_1_minus_plus=1.0, var_2_minus=2.0, var_2_plus=0.0, var_2_plus_256=0.0, var_3_minus_plus=256 ** 2,
                  var_3_minus_plus_256=256 ** 2, estimate_three_modes=False,
                  give_layer_before_flow_to_uncertainty_decoder=True, make_two_feature_copies=False):
@@ -45,7 +49,13 @@ class PDCNetModel(ProbabilisticGLU):
         self.div = 1.0
         self.leakyRELU = nn.LeakyReLU(0.1)
 
-        # variances
+        # if you want all levels to be scaled for the high resolution images
+        self.scale_low_resolution = scale_low_resolution
+
+        # interpolation is actually better than using deconv.
+        self.use_interp_instead_of_deconv = use_interp_instead_of_deconv
+
+        # variances for the different mixture modes
         self.estimate_three_modes = estimate_three_modes
         self.var_1_minus_plus = torch.as_tensor(var_1_minus_plus).float()
         self.var_2_minus = torch.as_tensor(var_2_minus).float()
@@ -70,7 +80,14 @@ class PDCNetModel(ProbabilisticGLU):
                                                                            in_channels=od, output_x=True,
                                                                            batch_norm=self.params.batch_norm)
         self.decoder4 = decoder4
-        self.deconv4 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+        if not self.use_interp_instead_of_deconv:
+            if init_deconv_w_bilinear:
+                # initialize the deconv to bilinear weights speeds up the training significantly
+                self.deconv4 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+            else:
+                self.deconv4 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+        else:
+            self.deconv4 = None
 
         if 'gocor' in self.params.global_corr_type.lower() and \
                 self.corr_for_corr_uncertainty_decoder == 'corr_and_gocor':
@@ -158,7 +175,15 @@ class PDCNetModel(ProbabilisticGLU):
         if 'feat' in self.params.decoder_inputs:
             self.upfeat2 = deconv(input_to_refinement, self.params.nbr_upfeat_channels, kernel_size=4, stride=2, padding=1)
 
-        self.deconv2 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+        if not self.use_interp_instead_of_deconv:
+            if init_deconv_w_bilinear:
+                # initialize the deconv to bilinear weights speeds up the training significantly
+                self.deconv2 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+            else:
+                self.deconv2 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+        else:
+            self.deconv2 = None
+
         if self.params.refinement_at_all_levels:
             self.initialize_intermediate_level_refinement_module(input_to_refinement, self.params.batch_norm)
 
@@ -198,7 +223,7 @@ class PDCNetModel(ProbabilisticGLU):
             self.initialize_last_level_refinement_module(input_to_refinement, batch_norm)
 
         for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Linear):
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
                 nn.init.kaiming_normal_(m.weight.data, mode='fan_in')
                 if m.bias is not None:
                     m.bias.data.zero_()
@@ -422,19 +447,25 @@ class PDCNetModel(ProbabilisticGLU):
     def forward(self, im_target, im_source, im_target_256, im_source_256, im_target_pyr=None,
                 im_source_pyr=None, im_target_pyr_256=None, im_source_pyr_256=None):
         """
-
         Args:
             im_target: torch Tensor Bx3xHxW, normalized with imagenet weights
             im_source: torch Tensor Bx3xHxW, normalized with imagenet weights
             im_target_256: torch Tensor Bx3x256x256, normalized with imagenet weights
             im_source_256: torch Tensor Bx3x256x256, normalized with imagenet weights
-            im_target_pyr:
-            im_source_pyr:
-            im_target_pyr_256:
-            im_source_pyr_256:
+            im_target_pyr: in case the pyramid features are already computed.
+            im_source_pyr: in case the pyramid features are already computed.
+            im_target_pyr_256: in case the pyramid features are already computed.
+            im_source_pyr_256: in case the pyramid features are already computed.
 
         Returns:
-
+            output_256: dict with keys 'flow_estimates' and 'uncertainty_estimates'. The first contains the flow field
+                        of the two deepest levels corresponding to the L-Net (flow4 and flow3), they are scaled for
+                        input resolution of 256x256.
+                        The uncertainty estimates correspond to the log_var_map and weight_map for both levels.
+            output: dict with keys 'flow_estimates' and 'uncertainty_estimates'. The first contains the flow field
+                    of the two shallowest levels corresponding to the H-Net (flow2 and flow1), they are scaled for
+                    original (high resolution) input resolution
+                    The uncertainty estimates correspond to the log_var_map and weight_map for both levels.
         """
         # im1 is target image, im2 is source image
         b, _, h_original, w_original = im_target.size()
@@ -474,8 +505,11 @@ class PDCNetModel(ProbabilisticGLU):
         up_flow3, up_log_var_map3, up_probability_map3, up_feat3 = self.upscaling(x3, flow3, log_var_map3,
                                                                                   weight_map3,
                                                                                   (h_original//8.0, w_original//8.0))
-        up_flow3[:, 0, :, :] *= float(w_original) / float(256)
-        up_flow3[:, 1, :, :] *= float(h_original) / float(256)
+
+        # before the flow was scaled to h_256xw_256. Now, since we go to the high resolution images, we need
+        # to scale the flow to h_original x w_original
+        up_flow3[:, 0, :, :] *= float(w_original) / float(w_256)
+        up_flow3[:, 1, :, :] *= float(h_original) / float(h_256)
         up_uncertainty_components3 = torch.cat((up_log_var_map3, up_probability_map3), 1)
 
         # level 2 : 1/8 of original resolution
@@ -509,12 +543,31 @@ class PDCNetModel(ProbabilisticGLU):
                                                                           up_feat=up_feat2, div=1.0,
                                                                           refinement=self.params.refinement_at_finest_level)
 
-        output = {'flow_estimates': [flow2, flow1],
-                  'uncertainty_estimates': [[log_var_map2, weight_map2], [log_var_map1, weight_map1]]
-                  }
-        output_256 = {'flow_estimates': [flow4, flow3],
-                      'uncertainty_estimates': [[log_var_map4, weight_map4], [log_var_map3, weight_map3]],
-                      'correlation': corr4}
+        if self.scale_low_resolution:
+            # Here, we also want to scale the low resolution flows (flow4 and flow3) to the high resolution
+            # original image sizes h_original x w_original
+            # prepare output dict
+            output_256 = {'flow_estimates': [flow4, flow3], 'correlation': corr4,
+                          'uncertainty_estimates': [[log_var_map4, weight_map4], [log_var_map3, weight_map3]]}
+            flow4 = flow4.clone()
+            flow4[:, 0] *= float(w_original) / float(w_256)
+            flow4[:, 1] *= float(h_original) / float(h_256)
+
+            flow3 = flow3.clone()
+            flow3[:, 0] *= float(w_original) / float(w_256)
+            flow3[:, 1] *= float(h_original) / float(h_256)
+
+            output = {'flow_estimates': [flow4, flow3, flow2, flow1],
+                      'uncertainty_estimates': [[log_var_map4, weight_map4], [log_var_map3, weight_map3],
+                                                [log_var_map2, weight_map2], [log_var_map1, weight_map1]]}
+        else:
+
+            # correspond to the L-Net predictions
+            output_256 = {'flow_estimates': [flow4, flow3], 'correlation': corr4,
+                          'uncertainty_estimates': [[log_var_map4, weight_map4], [log_var_map3, weight_map3]]}
+            # correspond to the H-Net
+            output = {'flow_estimates': [flow2, flow1],
+                      'uncertainty_estimates': [[log_var_map2, weight_map2], [log_var_map1, weight_map1]]}
         return output_256, output
 
 
@@ -524,11 +577,11 @@ def PDCNet_vgg16(global_corr_type='feature_corr_layer', global_gocor_arguments=N
                  same_local_corr_at_all_levels=True, decoder_inputs='corr_flow_feat',
                  local_decoder_type='OpticalFlowEstimator', global_decoder_type='CMDTop',
                  apply_refinement_finest_resolution=True, refinement_at_finest_level=True,
-                 corr_for_corr_uncertainty_decoder='gocor',
+                 corr_for_corr_uncertainty_decoder='gocor', use_interp_instead_of_deconv=False, init_deconv_w_bilinear=True,
                  give_layer_before_flow_to_uncertainty_decoder=True,
                  var_2_plus=0.0, var_2_plus_256=0.0, var_1_minus_plus=1.0, var_2_minus=2.0,
                  estimate_three_modes=False, var_3_minus_plus=520 ** 2, var_3_minus_plus_256=256 ** 2,
-                 make_two_feature_copies=False, train_features=False):
+                 make_two_feature_copies=False, train_features=False, scale_low_resolution=False):
 
     net = PDCNetModel(global_gocor_arguments=global_gocor_arguments, global_corr_type=global_corr_type, normalize=normalize,
                       normalize_features=True, cyclic_consistency=cyclic_consistency,
@@ -538,6 +591,8 @@ def PDCNet_vgg16(global_corr_type='feature_corr_layer', global_gocor_arguments=N
                       batch_norm=True, pyramid_type='VGG', upfeat_channels=2, decoder_inputs=decoder_inputs,
                       refinement_at_all_levels=False, refinement_at_adaptive_reso=True,
                       refinement_at_finest_level=refinement_at_finest_level,
+                      use_interp_instead_of_deconv=use_interp_instead_of_deconv,
+                      init_deconv_w_bilinear=init_deconv_w_bilinear,
                       apply_refinement_finest_resolution=apply_refinement_finest_resolution,
                       corr_for_corr_uncertainty_decoder=corr_for_corr_uncertainty_decoder,
                       var_1_minus_plus=var_1_minus_plus, var_2_minus=var_2_minus,
@@ -545,6 +600,7 @@ def PDCNet_vgg16(global_corr_type='feature_corr_layer', global_gocor_arguments=N
                       var_3_minus_plus=var_3_minus_plus,
                       var_3_minus_plus_256=var_3_minus_plus_256, estimate_three_modes=estimate_three_modes,
                       give_layer_before_flow_to_uncertainty_decoder=give_layer_before_flow_to_uncertainty_decoder,
-                      make_two_feature_copies=make_two_feature_copies, train_features=train_features)
+                      make_two_feature_copies=make_two_feature_copies, train_features=train_features,
+                      scale_low_resolution=scale_low_resolution)
     return net
 

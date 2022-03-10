@@ -251,6 +251,7 @@ class GLUNetWarpCUnsupervisedActor(BaseActor):
             objective: The loss function to apply to the H-Net
             objective_256: The loss function to apply to the L-Net
             batch_processing: A processing class which performs the necessary processing of the batched data.
+                              Corresponds to creating the image triplet here.
             name_of_loss: 'warp_supervision_and_w_bipath' or 'w_bipath' or 'warp_supervision'
             loss_weight: weights used to balance w_bipath and warp_supervision.
             apply_constant_flow_weights: bool, otherwise, balance both losses according to given weights.
@@ -266,7 +267,7 @@ class GLUNetWarpCUnsupervisedActor(BaseActor):
         self.semantic_evaluation = semantic_evaluation
         loss_weight_default = {'w_bipath': 1.0, 'warp_supervision': 1.0,
                                'w_bipath_constant': 1.0, 'warp_supervision_constant': 1.0,
-                               'cc_mask_alpha_1': 0.01, 'cc_mask_alpha_2': 0.5}
+                               'cc_mask_alpha_1': 0.03, 'cc_mask_alpha_2': 0.5}
         self.loss_weight = loss_weight_default
         if loss_weight is not None:
             self.loss_weight.update(loss_weight)
@@ -457,6 +458,19 @@ class GLUNetWarpCUnsupervisedActor(BaseActor):
                     stats['PCK_{}_target_to_source_reso_{}/EPE'.format(thresh_1, index_reso)] = PCK_1.item()
                     stats['PCK_{}_target_to_source_reso_{}/EPE'.format(thresh_2, index_reso)] = PCK_3.item()
                     stats['PCK_{}_target_to_source_reso_{}/EPE'.format(thresh_3, index_reso)] = PCK_5.item()
+
+                b, _, h_original, w_original = mini_batch['flow_map'].shape
+                for index_reso in range(len(estimated_flow_target_to_source_256)):
+                    EPE, PCK_1, PCK_3, PCK_5 = real_metrics(estimated_flow_target_to_source_256[-(index_reso + 1)],
+                                                            flow_gt_target_to_source, mask_gt_target_to_source,
+                                                            thresh_1=thresh_1, thresh_2=thresh_2, thresh_3=thresh_3,
+                                                            ratio_x=float(w_original) / float(256.0),
+                                                            ratio_y=float(w_original) / float(256.0))
+
+                    stats['EPE_target_to_source_reso_LNet_{}/EPE'.format(index_reso)] = EPE.item()
+                    stats['PCK_{}_target_to_source_reso_LNet_{}/EPE'.format(thresh_1, index_reso)] = PCK_1.item()
+                    stats['PCK_{}_target_to_source_reso_LNet_{}/EPE'.format(thresh_2, index_reso)] = PCK_3.item()
+                    stats['PCK_{}_target_to_source_reso_LNet_{}/EPE'.format(thresh_3, index_reso)] = PCK_5.item()
 
             for index_reso in range(len(estimated_flow_target_prime_to_target_directly)):
                 if 'target_image_prime_ss' in list(mini_batch.keys()):

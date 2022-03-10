@@ -9,7 +9,7 @@ from model_selection import select_model
 from utils_flow.util_optical_flow import flow_to_image
 from utils_flow.visualization_utils import overlay_semantic_mask
 import numpy as np
-from validation.test_parser import define_pdcnet_parser
+from validation.test_parser import define_model_parser
 
 
 def pad_to_same_shape(im1, im2):
@@ -43,7 +43,7 @@ def test_model_on_image_pair(args, query_image, reference_image):
     with torch.no_grad():
         network, estimate_uncertainty = select_model(
             args.model, args.pre_trained_model, args, args.optim_iter, local_optim_iter,
-            path_to_pre_trained_models=args.pre_trained_models_dir)
+            path_to_pre_trained_models=args.path_to_pre_trained_models)
 
         # save original ref image shape
         ref_image_shape = reference_image.shape[:2]
@@ -83,9 +83,9 @@ def test_model_on_image_pair(args, query_image, reference_image):
 
         # save images
         if args.save_ind_images:
-            imageio.imwrite(os.path.join(args.write_dir, 'query.png'), query_image)
-            imageio.imwrite(os.path.join(args.write_dir, 'reference.png'), reference_image)
-            imageio.imwrite(os.path.join(args.write_dir, 'warped_query_{}_{}.png'.format(args.model, args.pre_trained_model)),
+            imageio.imwrite(os.path.join(args.save_dir, 'query.png'), query_image)
+            imageio.imwrite(os.path.join(args.save_dir, 'reference.png'), reference_image)
+            imageio.imwrite(os.path.join(args.save_dir, 'warped_query_{}_{}.png'.format(args.model, args.pre_trained_model)),
                             warped_query_image)
 
         if estimate_uncertainty:
@@ -112,7 +112,7 @@ def test_model_on_image_pair(args, query_image, reference_image):
         axis[3].imshow(flow_to_image(estimated_flow_numpy))
         axis[3].set_title('Estimated flow {}_{}'.format(args.model, args.pre_trained_model))
         fig.savefig(
-            os.path.join(args.write_dir, 'Warped_query_image_{}_{}.png'.format(args.model, args.pre_trained_model)),
+            os.path.join(args.save_dir, 'Warped_query_image_{}_{}.png'.format(args.model, args.pre_trained_model)),
             bbox_inches='tight')
         plt.close(fig)
         print('Saved image!')
@@ -120,26 +120,16 @@ def test_model_on_image_pair(args, query_image, reference_image):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Test models on a pair of images')
-    parser.add_argument('--model', type=str, help='Model to use', required=True)
-    parser.add_argument('--flipping_condition', dest='flipping_condition',  default=False, type=boolean_string,
-                        help='Apply flipping condition for semantic data and GLU-Net-based networks ? ')
-    parser.add_argument('--optim_iter', type=int, default=3,
-                        help='Number of optim iter for Global GOCor, if applicable')
-    parser.add_argument('--local_optim_iter', dest='local_optim_iter', default=None,
-                        help='Number of optim iter for Local GOCor, if applicable')
-    parser.add_argument('--pre_trained_models_dir', type=str, default='pre_trained_models/',
-                        help='Directory containing the pre-trained-models.')
+    define_model_parser(parser)  # model parameters
     parser.add_argument('--pre_trained_model', type=str, help='Name of the pre-trained-model', required=True)
     parser.add_argument('--path_query_image', type=str,
                         help='Path to the source image.', required=True)
     parser.add_argument('--path_reference_image', type=str,
                         help='Path to the target image.', required=True)
-    parser.add_argument('--write_dir', type=str, required=True,
-                        help='Directory where to write output figure.')
+    parser.add_argument('--save_dir', type=str, required=True,
+                        help='Directory where to save output figure.')
     parser.add_argument('--save_ind_images', dest='save_ind_images',  default=False, type=boolean_string,
                         help='Save individual images? ')
-    subparsers = parser.add_subparsers(dest='network_type')
-    define_pdcnet_parser(subparsers)
     args = parser.parse_args()
 
     torch.cuda.empty_cache()
@@ -154,8 +144,8 @@ if __name__ == "__main__":
     if not os.path.exists(args.path_reference_image):
         raise ValueError('The path to the target image you provide does not exist ! ')
 
-    if not os.path.isdir(args.write_dir):
-        os.makedirs(args.write_dir)
+    if not os.path.isdir(args.save_dir):
+        os.makedirs(args.save_dir)
     try:
         query_image = cv2.imread(args.path_query_image, 1)[:, :, ::- 1]
         reference_image = cv2.imread(args.path_reference_image, 1)[:, :, ::- 1]

@@ -71,7 +71,6 @@ def run(settings):
     img_transforms = transforms.Compose([ArrayToTensor(get_float=True)])  # just put channels first
     co_transform = None
 
-    prepare_data(settings.env.megadepth_training_tar, mode=settings.data_mode)
     # original images must be at the resizing size, on which are applied the transformations!
     megadepth_cfg = {'scene_info_path': os.path.join(settings.env.megadepth_training, 'scene_info'),
                      'train_num_per_scene': 300, 'val_num_per_scene': 25,

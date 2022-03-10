@@ -6,6 +6,7 @@ import math
 
 
 def estimate_average_variance_of_mixture_density(weight_map, log_var_map, list_item=-1):
+    # Computes variance of the mixture
     if isinstance(weight_map, list):
         # several uncertainties estimation
         log_var_map = log_var_map[list_item]
@@ -18,6 +19,7 @@ def estimate_average_variance_of_mixture_density(weight_map, log_var_map, list_i
 
 
 def estimate_probability_of_confidence_interval_of_mixture_density(weight_map, log_var_map, list_item=-1, R=1.0):
+    # compute P_R of the mixture
     if isinstance(weight_map, list):
         # several uncertainties estimation
         log_var_map = log_var_map[list_item]

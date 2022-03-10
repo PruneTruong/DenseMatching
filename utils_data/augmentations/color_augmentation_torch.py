@@ -1,13 +1,44 @@
 import numbers
 import numpy as np
-import math
 import torch
-import torch.nn.functional as F
 import random
 from collections.abc import Sequence
 from torch import Tensor
 from torch.nn.functional import grid_sample, conv2d, interpolate, pad as torch_pad
-from ..image_transforms import to_tensor
+
+
+def to_tensor(pic):
+    """Convert a ``numpy.ndarray`` to tensor.
+    This function does not support torchscript.
+    See :class:`~torchvision.transforms.ToTensor` for more details.
+    Args:
+        pic (PIL Image or numpy.ndarray): Image to be converted to tensor.
+    Returns:
+        Tensor: Converted image.
+    """
+
+    default_float_dtype = torch.get_default_dtype()
+
+    if isinstance(pic, np.ndarray):
+        # handle numpy array
+        if len(pic.shape) == 4:
+            if pic.shape[1] != 3 or pic.shape[1] != 1:
+                pic = pic.transpose((0, 3, 1, 2))
+        elif len(pic.shape) == 3:
+            if pic.shape[0] != 3 or pic.shape[0] != 1:
+                pic = pic.transpose((2, 0, 1))
+        if pic.ndim == 2:
+            pic = pic[:, :, None]
+            pic = pic.transpose((2, 0, 1))
+
+        img = torch.from_numpy(pic).contiguous()
+        # backward compatibility
+        if isinstance(img, torch.ByteTensor):
+            return img.to(dtype=default_float_dtype).div(255)
+        else:
+            return img
+    else:
+        raise TypeError('pic should be ndarray. Got {}'.format(type(pic)))
 
 
 def rgb_to_grayscale(img, num_output_channels=1):
@@ -94,7 +125,7 @@ def _hsv2rgb(img):
 
 
 class ColorJitter(torch.nn.Module):
-    def __init__(self, brightness=0, contrast=0, saturation=0, hue=0):
+    def __init__(self, brightness=0, contrast=0, saturation=0, hue=0, invert_channel=True):
         """Randomly change the brightness, contrast and saturation of an image.
 
         Args:
@@ -117,6 +148,7 @@ class ColorJitter(torch.nn.Module):
         self.saturation = self._check_input(saturation, 'saturation')
         self.hue = self._check_input(hue, 'hue', center=0, bound=(-0.5, 0.5),
                                      clip_first_on_zero=False)
+        self.invert_channel = invert_channel
 
     def _check_input(self, value, name, center=1, bound=(0, float('inf')), clip_first_on_zero=True):
         if isinstance(value, numbers.Number):
@@ -216,8 +248,12 @@ class ColorJitter(torch.nn.Module):
 
         if orig_dtype == torch.uint8:
             img *= 255.0
-        random_order = np.random.permutation(3)
-        img = img[:, random_order]
+            img = torch.clamp(img, 0, max=255)
+            img = img.byte()
+
+        if self.invert_channel:
+            random_order = np.random.permutation(3)
+            img = img[:, random_order]
         return img
 
 

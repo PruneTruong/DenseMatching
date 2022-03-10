@@ -14,7 +14,6 @@ from datasets.object_augmented_dataset import MSCOCO, AugmentedImagePairsDataset
 from models.PDCNet.PDCNet import PDCNet_vgg16
 from datasets.load_pre_made_datasets.load_pre_made_dataset import PreMadeDataset
 from datasets.object_augmented_dataset.synthetic_object_augmentation_for_pairs_multiple_ob import RandomAffine
-from utils_data.euler_wrapper import prepare_data
 from admin.loading import partial_load
 import torch
 
@@ -49,12 +48,10 @@ def run(settings):
                             max_shear=0, max_ar_factor=0.,
                             max_scale=0.3, pad_amount=0)
 
-    prepare_data(settings.env.coco_tar, mode=settings.data_mode)
     coco_dataset_train = MSCOCO(root=settings.env.coco, split='train', version='2014',
                                 min_area=settings.min_area_objects)
 
     # base dataset with image pairs and ground-truth flow field + adding perturbations
-    prepare_data(settings.env.training_cad_520_tar, mode=settings.data_mode)
     train_dataset, _ = PreMadeDataset(root=settings.env.training_cad_520,
                                       source_image_transform=None,
                                       target_image_transform=None,
@@ -81,7 +78,6 @@ def run(settings):
         compute_object_reprojection_mask=settings.compute_object_reprojection_mask)
 
     # validation dataset
-    prepare_data(settings.env.validation_cad_520_tar, mode=settings.data_mode)
     _, val_dataset = PreMadeDataset(root=settings.env.validation_cad_520,
                                     source_image_transform=None,
                                     target_image_transform=None,

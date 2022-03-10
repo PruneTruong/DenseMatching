@@ -61,7 +61,9 @@ def run(settings):
                          normalize_features=True, cyclic_consistency=True,
                          local_corr_type='feature_corr_layer', give_flow_to_refinement_module=False,
                          local_decoder_type='OpticalFlowEstimator',
-                         global_decoder_type='CMDTop')
+                         global_decoder_type='CMDTop',
+                         use_interp_instead_of_deconv=False)  # in original GLUNet, we set it to False
+    # but better results are obtained with using simple bilinear interpolation instead of deconvolutions.
     print(colored('==> ', 'blue') + 'model created.')
 
     # Wrap the network for multi GPU training

@@ -10,13 +10,17 @@ from ..modules.local_correlation import correlation
 from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
 from ..inference_utils import matches_from_flow, estimate_mask
 from admin.model_constructor import model_constructor
+from ..modules.bilinear_deconv import BilinearConvTranspose2d
 
 
 class GLUNetModel(BaseGLUMultiScaleMatchingNet):
     """
-    GLU-Net model
+    GLU-Net model.
+    The flows (flow2, flow1) are predicted such that they are scaled to the input image resolution. To obtain the flow
+    from target to source at original resolution, one just needs to bilinearly upsample (without further scaling).
     """
-    def __init__(self, iterative_refinement=False,
+    def __init__(self, iterative_refinement=False, scale_low_resolution=False,
+                 use_interp_instead_of_deconv=False, init_deconv_w_bilinear=True,
                  global_corr_type='feature_corr_layer', global_gocor_arguments=None, normalize='relu_l2norm',
                  normalize_features=True, cyclic_consistency=False,
                  local_corr_type='feature_corr_layer', local_gocor_arguments=None, same_local_corr_at_all_levels=True,
@@ -43,16 +47,29 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
         super().__init__(params)
         self.iterative_refinement = iterative_refinement
 
+        # if you want all levels to be scaled for the high resolution images
+        self.scale_low_resolution = scale_low_resolution
+
+        # interpolation is actually better than using deconv.
+        self.use_interp_instead_of_deconv = use_interp_instead_of_deconv
+
         # level 4, 16x16
         nd = 16*16  # global correlation
         od = nd + 2
+        # here, I follow DGC-Net global correlation module + decoder
         decoder4, num_channels_last_conv = self.initialize_mapping_decoder(self.params.global_decoder_type, in_channels=od,
                                                                            batch_norm=self.params.batch_norm)
         self.decoder4 = decoder4
-        self.deconv4 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+        if not self.use_interp_instead_of_deconv:
+            if init_deconv_w_bilinear:
+                # initialize the deconv to bilinear weights speeds up the training significantly
+                self.deconv4 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+            else:
+                self.deconv4 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
 
         # level 3, 32x32
         nd = (2*self.params.md+1)**2  # constrained correlation, 4 pixels on each side
+        # for local correlations, I follow PWC-Net (not normalized features, local correlation, leaky relu and decoder)
         decoder3, num_channels_last_conv = self.initialize_flow_decoder(decoder_type=self.params.local_decoder_type,
                                                                         decoder_inputs=self.params.decoder_inputs,
                                                                         nbr_upfeat_channels=0,
@@ -76,8 +93,16 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
         input_to_refinement_2 = num_channels_last_conv
 
         if 'feat' in self.params.decoder_inputs:
-            self.upfeat2 = deconv(input_to_refinement_2, self.params.nbr_upfeat_channels, kernel_size=4, stride=2, padding=1)
-        self.deconv2 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+            # same upfeat than in PWCNet
+            self.upfeat2 = deconv(input_to_refinement_2, self.params.nbr_upfeat_channels, kernel_size=4,
+                                  stride=2, padding=1)
+
+        if not self.use_interp_instead_of_deconv:
+            if init_deconv_w_bilinear:
+                # initialize the deconv to bilinear weights speeds up the training significantly
+                self.deconv2 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+            else:
+                self.deconv2 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
 
         # level 1, 1/4 of original resolution
         nd = (2*self.params.md+1)**2  # constrained correlation, 4 pixels on each side
@@ -95,7 +120,8 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
 
         # initialize modules
         for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            # deconv initialized in its own module
+            if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight.data, mode='fan_in')
                 if m.bias is not None:
                     m.bias.data.zero_()
@@ -124,9 +150,27 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
 
     def forward(self, im_target, im_source, im_target_256, im_source_256, im_target_pyr=None, im_source_pyr=None,
                 im_target_pyr_256=None, im_source_pyr_256=None):
+        """
+        Args:
+            im_target: torch Tensor Bx3xHxW, normalized with imagenet weights
+            im_source: torch Tensor Bx3xHxW, normalized with imagenet weights
+            im_target_256: torch Tensor Bx3x256x256, normalized with imagenet weights
+            im_source_256: torch Tensor Bx3x256x256, normalized with imagenet weights
+            im_target_pyr: in case the pyramid features are already computed.
+            im_source_pyr: in case the pyramid features are already computed.
+            im_target_pyr_256: in case the pyramid features are already computed.
+            im_source_pyr_256: in case the pyramid features are already computed.
+
+        Returns:
+            output_256: dict with keys 'flow_estimates'. It contains the flow field of the two deepest levels
+                        corresponding to the L-Net (flow4 and flow3), they are scaled for input resolution of 256x256.
+            output: dict with keys 'flow_estimates'. It contains the flow field of the two shallowest levels
+                    corresponding to the H-Net (flow2 and flow1), they are scaled for original (high resolution)
+                    input resolution.
+        """
         # im1 is target image, im2 is source image
         b, _, h_original, w_original = im_target.size()
-        b, _, h_256, w_256 = im_target_256.size()
+        b, _, h_256, w_256 = im_target_256.size()  # fixed size of 256x256
         div = 1.0
 
         c14, c24, c13, c23, c12, c22, c11, c21 = self.extract_features(im_target, im_source, im_target_256,
@@ -135,6 +179,7 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
                                                                        im_source_pyr_256)
         # RESOLUTION 256x256
         # level 4: 16x16
+        # here same procedure then DGC-Net global mapping decoder.
         ratio_x = 16.0 / float(w_256)
         ratio_y = 16.0 / float(h_256)
 
@@ -145,21 +190,31 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
             init_map = torch.FloatTensor(b, 2, h, w).zero_().cuda()
         else:
             init_map = torch.FloatTensor(b, 2, h, w).zero_()
+        # init_map is fed to the decoder to be consistent with decoder of DGC-Net (but not particularly needed)
         est_map4 = self.decoder4(x1=corr4, x3=init_map)
         # conversion to flow and from there constrained correlation
         flow4 = unnormalise_and_convert_mapping_to_flow(est_map4)
+        # we want flow4 to be scaled for h_256xw_256, so we multiply by these ratios.
         flow4[:, 0, :, :] /= ratio_x
         flow4[:, 1, :, :] /= ratio_y
-        up_flow4 = self.deconv4(flow4)
+
+        if self.use_interp_instead_of_deconv:
+            up_flow4 = F.interpolate(input=flow4, size=(32, 32), mode='bilinear', align_corners=False)
+        else:
+            up_flow4 = self.deconv4(flow4)
 
         # level 3: 32x32
         ratio_x = 32.0 / float(w_256)
         ratio_y = 32.0 / float(h_256)
+        # the flow needs to be scaled for the current resolution in order to warp.
+        # otherwise flow4 and up_flow4 are scaled for h_256xw_256.
         up_flow_4_warping = up_flow4 * div
         up_flow_4_warping[:, 0, :, :] *= ratio_x
         up_flow_4_warping[:, 1, :, :] *= ratio_y
         warp3 = self.warp(c23, up_flow_4_warping)
+
         # constrained correlation now
+        # we follow the same procedure than PWCNet (features not normalized, lcoal corr and then leaky relu)
         if 'GOCor' in self.params.local_corr_type:
             if self.params.same_local_corr_at_all_levels:
                 corr3 = self.local_corr(c13, warp3)
@@ -181,6 +236,7 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
             raise ValueError('Wrong input decoder, you chose {}'.format(self.params.decoder_inputs))
         x3, res_flow3 = self.decoder3(corr3)
 
+        # PWC-Net refinement context module
         if self.params.refinement_at_adaptive_reso:
             if self.params.give_flow_to_refinement_module:
                 input_refinement = res_flow3 + up_flow4
@@ -249,8 +305,10 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
             # ORIGINAL RESOLUTION
             up_flow3 = F.interpolate(input=flow3, size=(int(h_original / 8.0), int(w_original / 8.0)), mode='bilinear',
                                      align_corners=False)
-            up_flow3[:, 0, :, :] *= float(w_original) / float(256)
-            up_flow3[:, 1, :, :] *= float(h_original) / float(256)
+            # before the flow was scaled to h_256xw_256. Now, since we go to the high resolution images, we need
+            # to scale the flow to h_original x w_original
+            up_flow3[:, 0, :, :] *= float(w_original) / 256.0
+            up_flow3[:, 1, :, :] *= float(h_original) / 256.0
             # ==> put the upflow in the range [Horiginal x Woriginal]
 
         # level 2 : 1/8 of original resolution
@@ -277,7 +335,12 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
 
         x2, res_flow2 = self.decoder2(corr2)
         flow2 = res_flow2 + up_flow3
-        up_flow2 = self.deconv2(flow2)
+        if self.use_interp_instead_of_deconv:
+            up_flow2 = F.interpolate(input=flow2, size=(int(h_original / 4.0), int(w_original / 4.0)), mode='bilinear',
+                                     align_corners=False)
+        else:
+            up_flow2 = self.deconv2(flow2)
+
         if self.params.decoder_inputs == 'corr_flow_feat':
             up_feat2 = self.upfeat2(x2)
 
@@ -315,9 +378,24 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
 
         flow1 = res_flow1 + up_flow2
 
-        # prepare output dict
-        output = {'flow_estimates': [flow2, flow1]}
-        output_256 = {'flow_estimates': [flow4, flow3], 'correlation': corr4}
+        if self.scale_low_resolution:
+            # Here, we also want to scale the low resolution flows (flow4 and flow3) to the high resolution
+            # original image sizes h_original x w_original
+            # prepare output dict
+            output_256 = {'flow_estimates': [flow4, flow3], 'correlation': corr4}
+            flow4 = flow4.clone()
+            flow4[:, 0] *= float(w_original) / float(w_256)
+            flow4[:, 1] *= float(h_original) / float(h_256)
+
+            flow3 = flow3.clone()
+            flow3[:, 0] *= float(w_original) / float(w_256)
+            flow3[:, 1] *= float(h_original) / float(h_256)
+
+            output = {'flow_estimates': [flow4, flow3, flow2, flow1]}
+        else:
+            # prepare output dict
+            output = {'flow_estimates': [flow2, flow1]}
+            output_256 = {'flow_estimates': [flow4, flow3], 'correlation': corr4}
         return output_256, output
 
     # FOR FLIPPING CONDITION
@@ -459,8 +537,6 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
         """
         flow_estimated, uncertainty_est = self.estimate_flow_and_confidence_map(source_img, target_img, scaling=scaling)
 
-        cyclic_consistency_error = uncertainty_est['cyclic_consistency_error']
-        uncertainty_est = {'cyclic_consistency_error': cyclic_consistency_error}
         mask = estimate_mask(confident_mask_type, uncertainty_est, list_item=-1)
         mapping_estimated = convert_flow_to_mapping(flow_estimated)
         # remove point that lead to outside the source image
@@ -472,18 +548,21 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
         scaling_kp = np.float32(target_img.shape[-2:]) / np.float32(flow_estimated.shape[-2:])  # h, w
 
         mkpts_s, mkpts_t = matches_from_flow(flow_estimated, mask, scaling=scaling_kp[::-1])
-        uncertainty_values = cyclic_consistency_error.squeeze()[mask.squeeze()].cpu().numpy()
-        sort_index = np.argsort(np.array(uncertainty_values)).tolist()  # from smallest to highest
-        uncertainty_values = np.array(uncertainty_values)[sort_index]
+
+        # between 0 and 1
+        confidence_values = uncertainty_est['inv_cyclic_consistency_error'].squeeze()[mask.squeeze()].cpu().numpy()
+        sort_index = np.argsort(np.array(confidence_values)).tolist()[::-1]  # from highest to smallest
+        confidence_values = np.array(confidence_values)[sort_index]
+
         mkpts_s = np.array(mkpts_s)[sort_index]
         mkpts_t = np.array(mkpts_t)[sort_index]
 
         if len(mkpts_s) < min_number_of_pts:
             mkpts_s = np.empty([0, 2], dtype=np.float32)
             mkpts_t = np.empty([0, 2], dtype=np.float32)
-            uncertainty_values = np.empty([0], dtype=np.float32)
+            confidence_values = np.empty([0], dtype=np.float32)
 
-        pred = {'kp_source': mkpts_s, 'kp_target': mkpts_t, 'confidence_value': 1.0 / (uncertainty_values + 1e-6),
+        pred = {'kp_source': mkpts_s, 'kp_target': mkpts_t, 'confidence_value': confidence_values,
                 'flow': self.resize_and_rescale_flow(flow_estimated, target_img.shape[-2:]),
                 'mask': F.interpolate(input=mask.unsqueeze(1).float(), size=target_img.shape[-2:], mode='bilinear',
                                       align_corners=False).squeeze(1)}
@@ -492,13 +571,13 @@ class GLUNetModel(BaseGLUMultiScaleMatchingNet):
 
 @model_constructor
 def glunet_vgg16(global_corr_type='global_corr', global_gocor_arguments=None, normalize='relu_l2norm',
-                 normalize_features=True, cyclic_consistency=False,
+                 normalize_features=True, cyclic_consistency=False, init_deconv_w_bilinear=True,
                  local_corr_type='local_corr', local_gocor_arguments=None, same_local_corr_at_all_levels=True,
                  local_decoder_type='OpticalFlowEstimator', global_decoder_type='CMDTop',
                  decoder_inputs='corr_flow_feat', refinement_at_adaptive_reso=True, refinement_at_all_levels=False,
                  refinement_at_finest_level=True, apply_refinement_finest_resolution=True,
                  give_flow_to_refinement_module=False, nbr_upfeat_channels=2, train_features=False,
-                 iterative_refinement=False):
+                 iterative_refinement=False, scale_low_resolution=False, use_interp_instead_of_deconv=False):
 
     net = GLUNetModel(iterative_refinement=iterative_refinement,
                       global_gocor_arguments=global_gocor_arguments, global_corr_type=global_corr_type,
@@ -514,5 +593,6 @@ def glunet_vgg16(global_corr_type='global_corr', global_gocor_arguments=None, no
                       apply_refinement_finest_resolution=apply_refinement_finest_resolution,
                       give_flow_to_refinement_module=give_flow_to_refinement_module, pyramid_type='VGG', md=4,
                       upfeat_channels=nbr_upfeat_channels,
-                      train_features=train_features)
+                      train_features=train_features, scale_low_resolution=scale_low_resolution,
+                      use_interp_instead_of_deconv=use_interp_instead_of_deconv, init_deconv_w_bilinear=init_deconv_w_bilinear)
     return net

@@ -14,8 +14,13 @@ from .metrics_segmentation_matching import poly_str_to_mask, intersection_over_u
 from utils_flow.pixel_wise_mapping import warp
 
 
-def resize_images_to_min_resolution(minSize, I, x, y, strideNet=16):  # for consistency with RANSAC-Flow
-    # resize image according to the minsize, at the same time resize the x,y coordinate
+def resize_images_to_min_resolution(min_size, img, x, y, stride_net=16):  # for consistency with RANSAC-Flow
+    """
+    Function that resizes the image according to the minsize, at the same time resize the x,y coordinate.
+    Extracted from RANSAC-Flow (https://github.com/XiSHEN0220/RANSAC-Flow/blob/master/evaluation/evalCorr/getResults.py)
+    We here use exactly the same function that they used, for fair comparison. Even through the index_valid could
+    also theoretically include the lower bound x = 0 or y = 0.
+    """
     # Is is source image resized
     # Xs contains the keypoint x coordinate in source image
     # Ys contains the keypoints y coordinate in source image
@@ -23,18 +28,18 @@ def resize_images_to_min_resolution(minSize, I, x, y, strideNet=16):  # for cons
     x = np.array(list(map(float, x.split(';')))).astype(np.float32)  # contains all the x coordinate
     y = np.array(list(map(float, y.split(';')))).astype(np.float32)
 
-    w, h = I.size
-    ratio = min(w / float(minSize), h / float(minSize))
+    w, h = img.size
+    ratio = min(w / float(min_size), h / float(min_size))
     new_w, new_h = round(w / ratio), round(h / ratio)
-    new_w, new_h = new_w // strideNet * strideNet, new_h // strideNet * strideNet
+    new_w, new_h = new_w // stride_net * stride_net, new_h // stride_net * stride_net
 
     ratioW, ratioH = new_w / float(w), new_h / float(h)
-    I = I.resize((new_w, new_h), resample=Image.LANCZOS)
+    img = img.resize((new_w, new_h), resample=Image.LANCZOS)
 
     x, y = x * ratioW, y * ratioH  # put coordinate in proper load_size after resizing the images
     index_valid = (x > 0) * (x < new_w) * (y > 0) * (y < new_h)
 
-    return I, x, y, index_valid
+    return img, x, y, index_valid
 
 
 def compute_pck_sparse_data(x_s, y_s, x_r, y_r, flow, pck_thresholds, dict_list_uncertainties, uncertainty_est=None):
@@ -51,6 +56,7 @@ def compute_pck_sparse_data(x_s, y_s, x_r, y_r, flow, pck_thresholds, dict_list_
 
     # calculates the PCK
     if nbr_valid_corr > 0:
+        # more accurate to compute the flow like this, instead of rounding both coordinates as in RANSAC-Flow
         flow_gt_x = x_s - x_r
         flow_gt_y = y_s - y_r
         flow_est_x = flow_x[np.int32(np.round(y_r)), np.int32(np.round(x_r))]
@@ -96,6 +102,10 @@ def run_evaluation_megadepth_or_robotcar(network, root, path_to_csv, estimate_un
                                          min_size=480, stride_net=16, pre_processing=None,
                                          path_to_save=None, plot=False, plot_100=False,
                                          plot_ind_images=False):
+    """
+    Extracted from RANSAC-Flow (https://github.com/XiSHEN0220/RANSAC-Flow/blob/master/evaluation/evalCorr/getResults.py)
+    We here recreate the same functions that they used, for fair comparison, but add additional metrics.
+    """
 
     df = pd.read_csv(path_to_csv, dtype=str)
     nbImg = len(df)
@@ -160,6 +170,7 @@ def run_evaluation_megadepth_or_robotcar(network, root, path_to_csv, estimate_un
             plot_sparse_keypoints(path_to_save, 'image_{}'.format(i), Is, It, flow_estimated, Xs, Ys, Xt, Yt,
                                   uncertainty_comp_est=uncertainty_est)
 
+    # Note that the PCK is over the whole dataset, for consistency with RANSAC-Flow computation.
     output = {'pixel-threshold': pixelGrid.tolist(), 'PCK': (count_pck / (nbr_valid_corr + 1e-6)).tolist(),
               'AEPE': np.mean(aepe_list).astype(np.float64)}
     print("Validation MegaDepth: {}".format(output['PCK']))
@@ -209,10 +220,10 @@ def run_evaluation_kitti(network, test_dataloader, device, estimate_uncertainty=
     epe_list = np.array(epe_list)
     out_list = np.concatenate(out_list)
 
-    epe = np.mean(epe_list)
-    f1 = 100 * np.mean(out_list)
-    print("Validation KITTI: aepe: %f, fl: %f" % (epe, f1))
-    output = {'AEPE': epe, 'kitti-fl': f1}
+    epe = np.mean(epe_list)  # AEPE is per image, and then averaged over the dataset.
+    fl = 100 * np.mean(out_list)  # fl is over the whole dataset
+    print("Validation KITTI: aepe: %f, fl: %f" % (epe, fl))
+    output = {'AEPE': epe, 'kitti-fl': fl}
     if estimate_uncertainty:
         for uncertainty_name in dict_list_uncertainties.keys():
             output['uncertainty_dict_{}'.format(uncertainty_name)] = compute_average_of_uncertainty_metrics(
@@ -390,12 +401,13 @@ def run_evaluation_semantic(network, test_dataloader, device, estimate_uncertain
     pbar = tqdm(enumerate(test_dataloader), total=len(test_dataloader))
     mean_epe_list, epe_all_list, pck_0_05_list, pck_0_01_list, pck_0_1_list, pck_0_15_list = [], [], [], [], [], []
     dict_list_uncertainties = {}
+    eval_buf = {'cls_pck': dict(), 'vpvar': dict(), 'scvar': dict(), 'trncn': dict(), 'occln': dict()}
 
     # pck curve per image
     pck_thresholds = [0.01]
     pck_thresholds.extend(np.arange(0.05, 0.4, 0.05).tolist())
-
     pck_per_image_curve = np.zeros((len(pck_thresholds), len(test_dataloader)), np.float32)
+
     for i_batch, mini_batch in pbar:
         source_img = mini_batch['source_image']
         target_img = mini_batch['target_image']
@@ -445,6 +457,19 @@ def run_evaluation_semantic(network, test_dataloader, device, estimate_uncertain
         for t in range(len(pck_thresholds)):
             pck_per_image_curve[t, i_batch] = epe.le(pck_thresholds[t]*L_pck).float().mean().item()
 
+        if 'category' in mini_batch.keys():
+            if eval_buf['cls_pck'].get(mini_batch['category'][0]) is None:
+                eval_buf['cls_pck'][mini_batch['category'][0]] = []
+            eval_buf['cls_pck'][mini_batch['category'][0]].append(epe.le(0.1 * L_pck).float().mean().item())
+
+        if 'vpvar' in mini_batch.keys():
+            for name in ['vpvar', 'scvar', 'trncn', 'occln']:
+                # different difficulties
+                # means it is spair
+                if eval_buf[name].get('{}'.format(mini_batch[name][0])) is None:
+                    eval_buf[name]['{}'.format(mini_batch[name][0])] = []
+                eval_buf[name]['{}'.format(mini_batch[name][0])].append(epe.le(0.1 * L_pck).float().mean().item())
+
         if estimate_uncertainty:
             dict_list_uncertainties = compute_uncertainty_per_image(uncertainty_est, flow_gt, flow_est, mask_valid,
                                                                     dict_list_uncertainties)
@@ -464,6 +489,14 @@ def run_evaluation_semantic(network, test_dataloader, device, estimate_uncertain
               }
     print("Validation EPE: %f, alpha=0_01: %f, alpha=0.05: %f" % (output['AEPE'], output['PCK_0_01_per_image'],
                                                                   output['PCK_0_05_per_image']))
+
+    for name in eval_buf.keys():
+        output[name] = {}
+        for cls in eval_buf[name]:
+            if eval_buf[name] is not None:
+                cls_avg = sum(eval_buf[name][cls]) / len(eval_buf[name][cls])
+                output[name][cls] = cls_avg
+
     if estimate_uncertainty:
         for uncertainty_name in dict_list_uncertainties.keys():
             output['uncertainty_dict_{}'.format(uncertainty_name)] = compute_average_of_uncertainty_metrics(

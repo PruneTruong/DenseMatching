@@ -6,53 +6,95 @@ from matplotlib import pyplot as plt
 from utils_flow.visualization_utils import draw_matches
 
 
-def plot_sparse_keypoints(save_path, name, mini_batch, flow_gt, output_net, gt_occ_mask=None,
-                          warping_mask=None, occlusion_mask=None, normalization=True, uncertainty_info=None,
-                          unimodal_distribution=False):
-
-    b, _, h, w = flow_gt.shape
-
-    flow_est = F.interpolate(output_net, (h, w), mode='bilinear', align_corners=False)  # shape Bx2xHxW
-    # for batch 0
+def plot_matches(save_path, name, mini_batch, Ks, Kt, predicted_Kt=None, predicted_Ks=None, normalization=True):
 
     if normalization:
         mean_values = torch.tensor([0.485, 0.456, 0.406],
                                    dtype=mini_batch['source_image'].dtype).view(3, 1, 1)
         std_values = torch.tensor([0.229, 0.224, 0.225],
                                   dtype=mini_batch['source_image'].dtype).view(3, 1, 1)
-        image_1 = (mini_batch['source_image'][0].cpu() * std_values +
+        source_image = (mini_batch['source_image'][0].cpu() * std_values +
                    mean_values).clamp(0, 1).permute(1, 2, 0).numpy()
-        image_2 = (mini_batch['target_image'][0].cpu() * std_values +
+        target_image = (mini_batch['target_image'][0].cpu() * std_values +
                    mean_values).clamp(0, 1).permute(1, 2, 0).numpy()
     else:
-        image_1 = mini_batch['source_image'][0].cpu().permute(1, 2, 0).numpy()
-        image_2 = mini_batch['target_image'][0].cpu().permute(1, 2, 0).numpy()
+        source_image = mini_batch['source_image'][0].cpu().permute(1, 2, 0).numpy()
+        target_image = mini_batch['target_image'][0].cpu().permute(1, 2, 0).numpy()
+
+    Ks = Ks.cpu().numpy().copy()
+    Kt = Kt.cpu().numpy().copy()
+    image_matches_gt = np.clip(draw_matches(source_image, target_image, Ks, Kt), 0, 1)
+
+    if predicted_Kt is not None:
+        predicted_Kt = predicted_Kt.cpu().numpy().copy()
+        image_matches_est = np.clip(draw_matches(source_image, target_image, Ks, predicted_Kt), 0, 1)
+    elif predicted_Ks is not None:
+        predicted_Ks = predicted_Ks.cpu().numpy().copy()
+        image_matches_est = np.clip(draw_matches(source_image, target_image, predicted_Ks, Kt), 0, 1)
+    else:
+        raise ValueError('Both your predicted keypoints are None')
+    fig, axis = plt.subplots(1, 2, figsize=(20, 20))
+    axis[0].imshow(image_matches_gt, vmin=0, vmax=1.0)
+    axis[0].set_title("gt matches")
+    axis[1].imshow(image_matches_est, vmin=0, vmax=1.0)
+    axis[1].set_title("est matches")
+    fig.savefig('{}/{}.jpg'.format(save_path, name),
+                bbox_inches='tight')
+    plt.close(fig)
+
+
+def plot_sparse_keypoints(save_path, name, mini_batch, flow_gt, output_net, gt_occ_mask=None,
+                          warping_mask=None, occlusion_mask=None, normalization=True, uncertainty_info=None,
+                          unimodal_distribution=False, source_image=None, target_image=None):
+
+    b, _, h, w = flow_gt.shape
+
+    flow_est = F.interpolate(output_net, (h, w), mode='bilinear', align_corners=False)  # shape Bx2xHxW
+    # for batch 0
+
+    if source_image is None:
+        source_image = mini_batch['source_image']
+    if target_image is None:
+        target_image = mini_batch['target_image']
+
+    if normalization:
+        mean_values = torch.tensor([0.485, 0.456, 0.406],
+                                   dtype=mini_batch['source_image'].dtype).view(3, 1, 1)
+        std_values = torch.tensor([0.229, 0.224, 0.225],
+                                  dtype=mini_batch['source_image'].dtype).view(3, 1, 1)
+        source_image = (source_image[0].cpu() * std_values +
+                        mean_values).clamp(0, 1).permute(1, 2, 0).numpy()
+        target_image = (target_image[0].cpu() * std_values +
+                        mean_values).clamp(0, 1).permute(1, 2, 0).numpy()
+    else:
+        source_image = source_image[0].cpu().permute(1, 2, 0).numpy()
+        target_image = target_image[0].cpu().permute(1, 2, 0).numpy()
 
     flow_gt = flow_gt.detach().permute(0, 2, 3, 1)[0].cpu().numpy()
-    kp2_where = np.where(np.abs(flow_gt) > 0)
+    kp2_where = np.where(np.linalg.norm(flow_gt, axis=-1) > 0)
     n = kp2_where[0].shape[0]
     kp2 = np.concatenate([kp2_where[1].reshape(n, 1), kp2_where[0].reshape(n, 1)], axis=1)
     kp1 = flow_gt[kp2[:, 1], kp2[:, 0]] + kp2
-    image_matches_gt = np.clip(draw_matches(image_1, image_2, np.int32(kp1), np.int32(kp2)), 0, 1)
+    image_matches_gt = np.clip(draw_matches(source_image, target_image, np.int32(kp1), np.int32(kp2)), 0, 1)
 
     flow_target = flow_est.detach().permute(0, 2, 3, 1)[0].cpu().numpy()
-    '''
     kp1_estimated = flow_target[kp2[:, 1], kp2[:, 0]] + kp2
-    image_matches_estimated = np.clip(draw_matches(image_1, image_2, np.int32(kp1_estimated), np.int32(kp2)), 0, 1)
-    '''
+    image_matches_estimated = np.clip(draw_matches(source_image, target_image, np.int32(kp1_estimated), np.int32(kp2)), 0, 1)
 
-    remapped_est = np.clip(remap_using_flow_fields(image_1, flow_target[:, :, 0], flow_target[:, :, 1]), 0, 1)
+    remapped_est = np.clip(remap_using_flow_fields(source_image, flow_target[:, :, 0], flow_target[:, :, 1]), 0, 1)
 
     if warping_mask is None and occlusion_mask is None and uncertainty_info is None:
-        fig, axis = plt.subplots(1, 4, figsize = (20, 20))
-        axis[0].imshow(image_1, vmin=0, vmax=1.0)
+        fig, axis = plt.subplots(1, 5, figsize = (20, 20))
+        axis[0].imshow(source_image, vmin=0, vmax=1.0)
         axis[0].set_title("source image")
-        axis[1].imshow(image_2, vmin=0, vmax=1.0)
+        axis[1].imshow(target_image, vmin=0, vmax=1.0)
         axis[1].set_title("target image")
         axis[2].imshow(remapped_est, vmin=0, vmax=1.0)
         axis[2].set_title("source remapped with network")
         axis[3].imshow(image_matches_gt.astype(np.float32), vmin=0, vmax=1)
         axis[3].set_title("image matches gt, nbr_matches={}".format(kp2.shape[0]))
+        axis[4].imshow(image_matches_estimated.astype(np.float32), vmin=0, vmax=1)
+        axis[4].set_title("image matches est, nbr_matches={}".format(kp2.shape[0]))
     else:
         if warping_mask is not None:
             fig, axis = plt.subplots(3, 5, figsize=(20, 20))
@@ -135,9 +177,9 @@ def plot_sparse_keypoints(save_path, name, mini_batch, flow_gt, output_net, gt_o
         else:
             raise NotImplementedError
 
-        axis[0][0].imshow(image_1, vmin=0, vmax=1.0)
+        axis[0][0].imshow(source_image, vmin=0, vmax=1.0)
         axis[0][0].set_title("source image")
-        axis[0][1].imshow(image_2, vmin=0, vmax=1.0)
+        axis[0][1].imshow(target_image, vmin=0, vmax=1.0)
         axis[0][1].set_title("target image")
         axis[0][2].imshow(remapped_est, vmin=0, vmax=1.0)
         axis[0][2].set_title("source remapped with network")

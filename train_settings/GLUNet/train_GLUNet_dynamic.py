@@ -14,7 +14,6 @@ from models.GLUNet.GLU_Net import glunet_vgg16
 from datasets.load_pre_made_datasets.load_pre_made_dataset import PreMadeDataset
 from datasets.object_augmented_dataset import MSCOCO, AugmentedImagePairsDatasetMultipleObjects
 from datasets.object_augmented_dataset.synthetic_object_augmentation_for_pairs_multiple_ob import RandomAffine
-from utils_data.euler_wrapper import prepare_data
 
 
 def run(settings):
@@ -41,12 +40,10 @@ def run(settings):
 
     # object dataset
     min_target_area = 1300
-    prepare_data(settings.env.coco_tar, settings.data_mode)
     coco_dataset_train = MSCOCO(root=settings.env.coco, split='train', version='2014',
                                 min_area=min_target_area)
 
     # base training data is DPED-CityScape-ADE + 1 object from COCO
-    prepare_data(settings.env.training_cad_520_tar, settings.data_mode)
     train_dataset, _ = PreMadeDataset(root=settings.env.training_cad_520,
                                       source_image_transform=None,
                                       target_image_transform=None,
@@ -65,7 +62,6 @@ def run(settings):
                                                               co_transform=co_transform)
 
     # validation dataset: DPED-CityScape-ADE + 1 object from COCO
-    prepare_data(settings.env.validation_cad_520_tar, settings.data_mode)
     _, val_dataset = PreMadeDataset(root=settings.env.validation_cad_520,
                                     source_image_transform=None,
                                     target_image_transform=None,
@@ -94,7 +90,9 @@ def run(settings):
                          normalize_features=True, cyclic_consistency=True,
                          local_corr_type='feature_corr_layer', give_flow_to_refinement_module=False,
                          local_decoder_type='OpticalFlowEstimator',
-                         global_decoder_type='CMDTop')
+                         global_decoder_type='CMDTop',
+                         use_interp_instead_of_deconv=False)  # in original GLUNet, we set it to False
+    # but better results are obtained with using simple bilinear interpolation instead of deconvolutions.
     print(colored('==> ', 'blue') + 'model created.')
 
     # Wrap the network for multi GPU training

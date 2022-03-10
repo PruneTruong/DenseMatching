@@ -109,10 +109,10 @@ class WBipathLoss:
 
             if self.detach_flow_for_warping:
                 estimated_flow_target_prime_to_source_per_level_warping = \
-                    estimated_flow_target_prime_to_source_per_level.detach() * 1.0
+                    estimated_flow_target_prime_to_source_per_level.detach().clone()
             else:
                 estimated_flow_target_prime_to_source_per_level_warping = \
-                    estimated_flow_target_prime_to_source_per_level * 1.0
+                    estimated_flow_target_prime_to_source_per_level.clone()
             estimated_flow_target_prime_to_source_per_level_warping[:, 0, :, :] *= float(w_) / float(w)
             estimated_flow_target_prime_to_source_per_level_warping[:, 1, :, :] *= float(h_) / float(h)
 
@@ -122,11 +122,19 @@ class WBipathLoss:
             estimated_flow_target_prime_to_target_through_composition.append(estimated_flow)
 
             # need to also compute the mask according to warping
-            # mask = (warp(torch.ones(b, 1, h_, w_, requires_grad=False).cuda(),
-            #              estimated_flow_target_prime_to_source_per_level_warping.detach()).ge(0.2)).squeeze(1)
+            '''
+            mask = (warp(torch.ones(b, 1, h_, w_, requires_grad=False).cuda(),
+                         estimated_flow_target_prime_to_source_per_level_warping.detach()).ge(0.2)).squeeze(1)
+            '''
             mask = get_gt_correspondence_mask(estimated_flow_target_prime_to_source_per_level_warping.detach())
-            mask = mask & F.interpolate(mask_used.unsqueeze(1).float(), (h_, w_), mode='bilinear',
-                                        align_corners=False).ge(0.98).squeeze(1) if mask_used is not None else mask
+            if mask_used is not None:
+                # interpolate the mask to low resolution (floor is important here, because the mask can correspond
+                # to invalid flow regions.
+                mask_used_resized = F.interpolate(mask_used.unsqueeze(1).float(), (h_, w_), mode='bilinear',
+                                                  align_corners=False).byte().squeeze(1)
+                mask_used_resized = mask_used_resized.bool() if float(torch.__version__[:3]) >= 1.1 else \
+                    mask_used_resized.byte()
+                mask = mask & mask_used_resized
 
             if self.compute_cyclic_consistency:
                 mask_cyclic = self.get_cyclic_consistency_mask(estimated_flow_target_prime_to_source_per_level.detach(),

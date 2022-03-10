@@ -19,12 +19,11 @@ import numpy as np
 import os
 from models.GLUNet.Semantic_GLUNet import SemanticGLUNetModel
 from utils_data.augmentations.color_augmentation_torch import ColorJitter, RandomGaussianBlur
-from utils_data.euler_wrapper import prepare_data
 
 
 def run(settings):
     settings.description = 'Default train settings for finetuning SemanticGLU-Net with Warp Consistency'
-    settings.data_mode = 'scratch'
+    settings.data_mode = 'euler'
     settings.batch_size = 4  # 5 fit in 1 GPU with 11 G
     settings.n_threads = 8
     settings.multi_gpu = True
@@ -72,7 +71,6 @@ def run(settings):
     image_transforms = transforms.Compose([ArrayToTensor(get_float=True)])  # just put channels first
 
     # base dataset to get target and source, real image pair. Here, we do not use the annotations during training.
-    prepare_data(settings.env.PFPascal_tar, mode=settings.data_mode)
     pascal_cfg = {'augment_with_crop': False, 'crop_size': [settings.resizing_size, settings.resizing_size],
                   'augment_with_flip': False, 'proba_of_image_flip': 0.0, 'proba_of_batch_flip': 0.5,
                   'output_image_size': [settings.resizing_size, settings.resizing_size],
@@ -142,7 +140,7 @@ def run(settings):
     # actor
     glunet_actor = GLUNetWarpCUnsupervisedActor(model, objective=loss_module, objective_256=loss_module_256,
                                                 batch_processing=batch_processing, loss_weight=settings.loss_weight,
-                                                name_of_loss=settings.name_of_loss, best_val_epe=True,
+                                                name_of_loss=settings.name_of_loss, best_val_epe=False,
                                                 compute_visibility_mask=settings.compute_visibility_mask,
                                                 nbr_images_to_plot=settings.nbr_plot_images, semantic_evaluation=True)
 

@@ -5,7 +5,6 @@ Jinwei Gu and Zhile Ren
 
 """
 
-import torch.nn as nn
 from third_party.GOCor.GOCor import local_gocor
 from third_party.GOCor.GOCor.optimizer_selection_functions import define_optimizer_local_corr
 from ..modules.local_correlation import correlation
@@ -16,6 +15,9 @@ import torch.nn as nn
 import math
 import torch.nn.functional as F
 from torchvision import transforms
+from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
+from ..inference_utils import matches_from_flow, estimate_mask
+from ..modules.bilinear_deconv import BilinearConvTranspose2d
 
 
 def conv(in_planes, out_planes, kernel_size=3, stride=1, padding=1, dilation=1, batch_norm=False):
@@ -37,15 +39,21 @@ def predict_flow(in_planes):
 
 
 def deconv(in_planes, out_planes, kernel_size=4, stride=2, padding=1):
-    return nn.ConvTranspose2d(in_planes, out_planes, kernel_size, stride, padding, bias=True)
+    deconv_ = nn.ConvTranspose2d(in_planes, out_planes, kernel_size, stride, padding, bias=True)
+
+    nn.init.kaiming_normal_(deconv_.weight.data, mode='fan_in')
+    if deconv_.bias is not None:
+        deconv_.bias.data.zero_()
+    return deconv_
 
 
 class PWCNetModel(BaseMultiScaleMatchingNet):
     """
     PWC-Net model
     """
-    def __init__(self, div=20.0, refinement=True, batch_norm=False, md=4,
+    def __init__(self, div=20.0, refinement=True, batch_norm=False, md=4, init_deconv_w_bilinear=False,
                  local_corr_type='local_corr', local_gocor_arguments=None, same_local_corr_at_all_levels=True):
+        # the original PWCNet model has the deconv initialized to random.
         super().__init__()
         nbr_features = [196, 128, 96, 64, 32, 16, 3]
         self.leakyRELU = nn.LeakyReLU(0.1)
@@ -61,7 +69,11 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
         self.conv6_3 = conv(od + dd[2], 64, kernel_size=3, stride=1, batch_norm=batch_norm)
         self.conv6_4 = conv(od + dd[3], 32, kernel_size=3, stride=1, batch_norm=batch_norm)
         self.predict_flow6 = predict_flow(od + dd[4])
-        self.deconv6 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+        if init_deconv_w_bilinear:
+            # initialize the deconv to bilinear weights speeds up the training significantly
+            self.deconv6 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+        else:
+            self.deconv6 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
         self.upfeat6 = deconv(od + dd[4], 2, kernel_size=4, stride=2, padding=1)
 
         od = nd + nbr_features[1] + 4
@@ -71,7 +83,11 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
         self.conv5_3 = conv(od + dd[2], 64, kernel_size=3, stride=1, batch_norm=batch_norm)
         self.conv5_4 = conv(od + dd[3], 32, kernel_size=3, stride=1, batch_norm=batch_norm)
         self.predict_flow5 = predict_flow(od + dd[4])
-        self.deconv5 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
+        if init_deconv_w_bilinear:
+            # initialize the deconv to bilinear weights speeds up the training significantly
+            self.deconv5 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+        else:
+            self.deconv5 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
         self.upfeat5 = deconv(od + dd[4], 2, kernel_size=4, stride=2, padding=1)
         
         od = nd + nbr_features[2] + 4
@@ -80,8 +96,12 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
         self.conv4_2 = conv(od+dd[1],96,  kernel_size=3, stride=1, batch_norm=batch_norm)
         self.conv4_3 = conv(od+dd[2],64,  kernel_size=3, stride=1, batch_norm=batch_norm)
         self.conv4_4 = conv(od+dd[3],32,  kernel_size=3, stride=1, batch_norm=batch_norm)
-        self.predict_flow4 = predict_flow(od+dd[4]) 
-        self.deconv4 = deconv(2, 2, kernel_size=4, stride=2, padding=1) 
+        self.predict_flow4 = predict_flow(od+dd[4])
+        if init_deconv_w_bilinear:
+            # initialize the deconv to bilinear weights speeds up the training significantly
+            self.deconv4 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+        else:
+            self.deconv4 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
         self.upfeat4 = deconv(od+dd[4], 2, kernel_size=4, stride=2, padding=1) 
         
         od = nd + nbr_features[3] + 4
@@ -90,8 +110,12 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
         self.conv3_2 = conv(od+dd[1], 96,  kernel_size=3, stride=1, batch_norm=batch_norm)
         self.conv3_3 = conv(od+dd[2], 64,  kernel_size=3, stride=1, batch_norm=batch_norm)
         self.conv3_4 = conv(od+dd[3], 32,  kernel_size=3, stride=1, batch_norm=batch_norm)
-        self.predict_flow3 = predict_flow(od+dd[4]) 
-        self.deconv3 = deconv(2, 2, kernel_size=4, stride=2, padding=1) 
+        self.predict_flow3 = predict_flow(od+dd[4])
+        if init_deconv_w_bilinear:
+            # initialize the deconv to bilinear weights speeds up the training significantly
+            self.deconv3 = BilinearConvTranspose2d(2, 2, kernel_size=4, stride=2, padding=1)
+        else:
+            self.deconv3 = deconv(2, 2, kernel_size=4, stride=2, padding=1)
         self.upfeat3 = deconv(od+dd[4], 2, kernel_size=4, stride=2, padding=1) 
         
         od = nd + nbr_features[4] + 4
@@ -134,7 +158,7 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
 
         # initialise the network
         for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight.data, mode='fan_in')
                 if m.bias is not None:
                     m.bias.data.zero_()
@@ -169,7 +193,7 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
                 self.local_corr_2 = local_gocor.LocalGOCor(filter_initializer=initializer_2, filter_optimizer=optimizer_2)
 
     def forward(self, im_reference, im_query):
-        # im1 is reference image and im2 is query image
+        # im1 is reference image/target image and im2 is query image/source image
 
         div = self.div
         # get the different feature pyramid levels
@@ -335,6 +359,16 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
         return output * mask
 
     def pre_process_data(self, source_img, target_img):
+        """
+        Resizes images so that their size is dividable by 64, then scale values to [0, 1].
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img:  torch tensor, bx3xHxW in range [0, 255], not normalized yet
+
+        Returns:
+            source_img, target_img, normalized to [0, 1] and put to BGR (according to original PWCNet)
+            ratio_x, ratio_y: ratio from original sizes to size dividable by 64.
+        """
         b, _, h_scale, w_scale = target_img.shape
         int_preprocessed_width = int(math.floor(math.ceil(w_scale / 64.0) * 64.0))
         int_preprocessed_height = int(math.floor(math.ceil(h_scale / 64.0) * 64.0))
@@ -394,10 +428,10 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
             output_shape = (int(h_scale*scaling), int(w_scale*scaling))
 
         source_img, target_img, ratio_x, ratio_y = self.pre_process_data(source_img, target_img)
-        output = self.forward(target_img, source_img)
+        output = self.forward(im_reference=target_img, im_query=source_img)
 
         flow_est_list = output['flow_estimates']
-        flow_est = self.div * flow_est_list[-1]
+        flow_est = self.div * flow_est_list[-1]  # original PWC-Net predicted at /20
 
         if output_shape is not None:
             flow_est = torch.nn.functional.interpolate(input=flow_est, size=(h_scale, w_scale), mode='bilinear',
@@ -442,10 +476,10 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
             output_shape = (int(h_scale * scaling), int(w_scale * scaling))
 
         source_img, target_img, ratio_x, ratio_y = self.pre_process_data(source_img, target_img)
-        output = self.forward(target_img, source_img)
+        output = self.forward(im_reference=target_img, im_query=source_img)
 
         flow_est_list = output['flow_estimates']
-        flow_est = flow_est_list[-1]
+        flow_est = self.div * flow_est_list[-1]  # original PWC-Net predicted at /20
 
         if output_shape is not None:
             ratio_x *= float(output_shape[1]) / float(w_scale)
@@ -460,7 +494,7 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
 
         # compute flow in opposite direction
         output_backward = self.forward(source_img, target_img)
-        flow_est_backward = output_backward['flow_estimates'][-1]
+        flow_est_backward = self.div * output_backward['flow_estimates'][-1]  # PWC-Net predicted at /20
 
         flow_est_backward = torch.nn.functional.interpolate(input=flow_est_backward, size=output_shape, mode='bilinear',
                                                             align_corners=False)
@@ -475,6 +509,59 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
             return flow_est, uncertainty_est
         else:
             return flow_est.permute(0, 2, 3, 1), uncertainty_est
+
+    def get_matches_and_confidence(self, source_img, target_img, scaling=1.0/4.0,
+                                   confident_mask_type='cyclic_consistency_error_below_3', min_number_of_pts=200):
+        """
+        Computes matches and corresponding confidence value.
+        Confidence value is obtained with forward-backward cyclic consistency.
+        Args:
+            source_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            target_img: torch tensor, bx3xHxW in range [0, 255], not normalized yet
+            scaling: float, scaling factor applied to target image shape, to obtain the outputted flow field dimensions,
+                     where the matches are extracted
+            confident_mask_type: default is 'proba_interval_1_above_10' for PDCNet.
+                                 See inference_utils/estimate_mask for more details
+            min_number_of_pts: below that number, we discard the retrieved matches (little blobs in cyclic
+                               consistency mask)
+
+        Returns:
+            dict with keys 'kp_source', 'kp_target', 'confidence_value', 'flow' and 'mask'
+            flow and mask are torch tensors
+
+        """
+        flow_estimated, uncertainty_est = self.estimate_flow_and_confidence_map(source_img, target_img, scaling=scaling)
+
+        mask = estimate_mask(confident_mask_type, uncertainty_est, list_item=-1)
+        mapping_estimated = convert_flow_to_mapping(flow_estimated)
+        # remove point that lead to outside the source image
+        mask = mask & mapping_estimated[:, 0].ge(0) & mapping_estimated[:, 1].ge(0) & \
+            mapping_estimated[:, 0].le(source_img.shape[-1] // scaling - 1) & \
+            mapping_estimated[:, 1].le(source_img.shape[-2] // scaling - 1)
+
+        # get corresponding keypoints
+        scaling_kp = np.float32(target_img.shape[-2:]) / np.float32(flow_estimated.shape[-2:])  # h, w
+
+        mkpts_s, mkpts_t = matches_from_flow(flow_estimated, mask, scaling=scaling_kp[::-1])
+
+        # between 0 and 1
+        confidence_values = uncertainty_est['inv_cyclic_consistency_error'].squeeze()[mask.squeeze()].cpu().numpy()
+        sort_index = np.argsort(np.array(confidence_values)).tolist()[::-1]  # from highest to smallest
+        confidence_values = np.array(confidence_values)[sort_index]
+
+        mkpts_s = np.array(mkpts_s)[sort_index]
+        mkpts_t = np.array(mkpts_t)[sort_index]
+
+        if len(mkpts_s) < min_number_of_pts:
+            mkpts_s = np.empty([0, 2], dtype=np.float32)
+            mkpts_t = np.empty([0, 2], dtype=np.float32)
+            confidence_values = np.empty([0], dtype=np.float32)
+
+        pred = {'kp_source': mkpts_s, 'kp_target': mkpts_t, 'confidence_value': confidence_values,
+                'flow': self.resize_and_rescale_flow(flow_estimated, target_img.shape[-2:]),
+                'mask': F.interpolate(input=mask.unsqueeze(1).float(), size=target_img.shape[-2:], mode='bilinear',
+                                      align_corners=False).squeeze(1)}
+        return pred
 
 
 

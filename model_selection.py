@@ -2,6 +2,10 @@ from models.GLUNet.GLU_Net import GLUNetModel
 from models.PWCNet.pwc_net import PWCNetModel
 from models.PDCNet.PDCNet import PDCNet_vgg16
 from models.GLUNet.Semantic_GLUNet import SemanticGLUNetModel
+from models.semantic_matching_models.SFNet import SFNet, SFNetWithBin
+from models.semantic_matching_models.NCNet import NCNetWithBin, ImMatchNet
+from models.semantic_matching_models.cats import CATs
+from models.semantic_matching_models.DHPF.dhpf import DynamicHPF
 import os.path as osp
 import torch
 import os
@@ -22,22 +26,28 @@ def load_network(net, checkpoint_path=None, **kwargs):
     # Load checkpoint
     checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
 
-    try:
-        net.load_state_dict(checkpoint_dict['state_dict'])
-    except:
-        net.load_state_dict(checkpoint_dict)
+    if 'state_dict' in checkpoint_dict:
+        checkpoint_dict = checkpoint_dict['state_dict']
+
+    net.load_state_dict(checkpoint_dict, strict=False)
     return net
 
 
-model_type = ['GLUNet', 'GLUNet_GOCor', 'PWCNet', 'PWCNet_GOCor', 'GLUNet_GOCor_star', 'PDCNet', 'PDCNet_plus',
-              'GLUNet_star', 'WarpCGLUNet', 'SemanticGLUNet', 'WarpCSemanticGLUNet']
+model_type = ['GLUNet', 'GLUNet_interp',
+              'GLUNet_GOCor', 'PWCNet', 'PWCNet_GOCor',
+              'GLUNet_GOCor_star', 'PDCNet', 'PDCNet_plus',
+              'GLUNet_star', 'WarpCGLUNet', 'SemanticGLUNet', 'WarpCSemanticGLUNet', 'WarpCGLUNet_interp',
+              'SFNet', 'PWarpCSFNet_WS', 'PWarpCSFNet_SS', 'NCNet', 'PWarpCNCNet_WS', 'PWarpCNCNet_SS',
+              'CATs', 'PWarpCCATs_SS', 'CATs_ft_features', 'PWarpCCATs_ft_features_SS',
+              # 'DHPF', 'PWarpCDHPF_SS'
+              ]
 pre_trained_model_types = ['static', 'dynamic', 'chairs_things', 'chairs_things_ft_sintel', 'megadepth',
                            'megadepth_stage1', 'pfpascal', 'spair']
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def select_model(model_name, pre_trained_model_type, arguments, global_optim_iter, local_optim_iter,
-                 path_to_pre_trained_models='../pre_trained_models/ours/PDCNet'):
+                 path_to_pre_trained_models='pre_trained_models/'):
     """
     Select, construct and load model
     args:
@@ -70,6 +80,10 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
         network = GLUNetModel(iterative_refinement=True, global_corr_type='feature_corr_layer',
                               normalize='relu_l2norm', cyclic_consistency=True,
                               local_corr_type='feature_corr_layer')
+    elif model_name == 'GLUNet_interp':
+        network = GLUNetModel(iterative_refinement=True, global_corr_type='feature_corr_layer',
+                              normalize='relu_l2norm', cyclic_consistency=True,
+                              local_corr_type='feature_corr_layer', use_interp_instead_of_deconv=True)
 
     elif model_name == 'GLUNet_GOCor':
         '''
@@ -160,17 +174,51 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
                               local_corr_type='feature_corr_layer',
                               local_decoder_type='OpticalFlowEstimatorResidualConnection',
                               global_decoder_type='CMDTopResidualConnection')
+    elif model_name == 'WarpCGLUNet_interp':
+        network = GLUNetModel(iterative_refinement=True, global_corr_type='feature_corr_layer',
+                              normalize='relu_l2norm', cyclic_consistency=True,
+                              local_corr_type='feature_corr_layer',
+                              local_decoder_type='OpticalFlowEstimatorResidualConnection',
+                              global_decoder_type='CMDTopResidualConnection', use_interp_instead_of_deconv=True)
     elif model_name == 'SemanticGLUNet' or model_name == 'WarpCSemanticGLUNet':
         network = SemanticGLUNetModel(iterative_refinement=True)
+
+    # ########################## PWarpC Semantic networks #####################################################
+    # the architecture is the unchanged compared to original works, only the training is different (and the
+    # inference strategy in some cases).
+    elif model_name == 'SFNet':
+        network = SFNet(forward_pass_strategy='flow', inference_strategy='softargmax_padding')
+    elif model_name == 'PWarpCSFNet_SS':
+        network = SFNet(forward_pass_strategy='corr_prediction_no_kernel', inference_strategy='argmax')
+    elif model_name == 'PWarpCSFNet_WS':
+        network = SFNetWithBin(forward_pass_strategy='corr_prediction_no_kernel', inference_strategy='argmax')
+    elif model_name == 'NCNet' or model_name == 'PWarpCNCNet_SS':
+        network = ImMatchNet(inference_strategy='argmax')
+    elif model_name == 'PWarpCNCNet_WS':
+        network = NCNetWithBin(inference_strategy='argmax')
+    elif 'CATs' in model_name:
+        # similar to original work, we use softargmax as the inference_strategy. This is because the kp loss is the
+        # EPE after applying softargmax.
+        network = CATs(forward_pass_strategy='flow_prediction', inference_strategy='softargmax')
+
+        # elif 'DHPF' in model_name:
+        #     network = DynamicHPF()
     else:
         raise NotImplementedError('the model that you chose does not exist: {}'.format(model_name))
 
-    checkpoint_fname = osp.join(path_to_pre_trained_models, model_name + '_{}'.format(pre_trained_model_type)
-                                + '.pth')
-    if not os.path.exists(checkpoint_fname):
-        checkpoint_fname = checkpoint_fname + '.tar'
+    if path_to_pre_trained_models.endswith('.pth') or path_to_pre_trained_models.endswith('.pth.tar') \
+            or path_to_pre_trained_models.endswith('.pt'):
+        # if the path already corresponds to a checkpoint path, we use it directly
+        checkpoint_fname = path_to_pre_trained_models
+    else:
+        # it is the path to the directory containing all checkpoints.
+        checkpoint_fname = osp.join(path_to_pre_trained_models, model_name + '_{}'.format(pre_trained_model_type)
+                                    + '.pth')
         if not os.path.exists(checkpoint_fname):
-            raise ValueError('The checkpoint that you chose does not exist, {}'.format(checkpoint_fname))
+            checkpoint_fname = checkpoint_fname + '.tar'
+
+    if not os.path.exists(checkpoint_fname):
+        raise ValueError('The checkpoint that you chose does not exist, {}'.format(checkpoint_fname))
 
     network = load_network(network, checkpoint_path=checkpoint_fname)
     network.eval()

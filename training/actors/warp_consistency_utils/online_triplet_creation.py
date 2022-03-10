@@ -175,7 +175,7 @@ class BatchedImageTripletCreation:
             else:
                 # if padding mode is zeros, can compute the mask_zero_borders like this, from the intensity of the image
                 # mask black borders that might have appeared from the warping, when creating target_image_prime
-                mask = define_mask_zero_borders(target_image_prime_resized)
+                mask_zero_borders = define_mask_zero_borders(target_image_prime_resized)
             '''
             mini_batch['mask_zero_borders'] = mask_zero_borders.bool() if float(torch.__version__[:3]) >= 1.1 else \
                 mask_zero_borders.byte()

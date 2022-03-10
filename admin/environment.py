@@ -28,6 +28,7 @@ def create_default_local_file():
         'PFPascal': empty_str,
         'PFWillow': empty_str,
         'spair': empty_str,
+        'caltech': empty_str,
         'training_cad_520': empty_str,
         'validation_cad_520': empty_str,
         'coco': empty_str,

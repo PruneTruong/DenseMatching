@@ -7,6 +7,14 @@ For any questions, issues or recommendations, please contact Prune at prune.truo
 <br />
 
 
+## Updates
+
+06/03/2022: We found that significantly better performance and reduced training time are obtained when 
+**initializing with bilinear interpolation weights the weights of the transposed convolutions** used to upsample 
+the predicted flow fields between the different pyramid levels. We have integrated this initialization as the default. We might provide updated pre-trained weights as well.
+Alternatively, one can directly simply use bilinear interpolation for upsampling with similar 
+(maybe a bit better) performance, which is also now an option proposed. 
+
 
 ## Highlights
 
@@ -31,6 +39,16 @@ PDC-Net (CVPR 2021), WarpC models (ICCV 2021) including trained models and respe
 
 The repo contains the implementation of the following matching models. 
 We provide pre-trained model weights, data preparation, evaluation commands, and results for each dataset and method. 
+
+### [6] PWarpC: Probabilistic Warp Consistency for Weakly-Supervised Semantic Correspondences. (CVPR 2022)
+Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/), 
+[Fisher Yu](https://www.yf.io/), Luc Van Gool<br />
+
+\[[Paper](https://arxiv.org/abs/2203.04279)\]
+\[[Website](https://prunetruong.com/research/pwarpc)\]
+
+![alt text](/images/pwarpc_banner.png)
+
 
 
 ### [5] PDC-Net+: Enhanced Probabilistic Dense Correspondence Network. (Preprint)
@@ -136,29 +154,8 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 
 ## Pre-trained weights
 
-| Model        | Pre-trained model type | Paper | Description | Link [all](https://drive.google.com/drive/folders/1LVrwAHDvVxsqzaGtd409wHv8cSPeLj1i?usp=sharing) |
-|--------------|------------------------|-------------------------------------|------|------|
-| PDCNet_plus      | megadepth  |  [3], [5] |   PDC-Net+       |  [model](https://drive.google.com/file/d/151X9ovbOG35tbPjioV5CYk_5GKQ8FErw/view?usp=sharing)
-| WarpCSemanticGLUNet       | spair  |  [4] |   Original SemanticGLU-Net is finetuned using our warp consistency objective      |  [model](https://drive.google.com/file/d/1aLZ8MoV_fHFScx__WWmqxZMm3k3MuEpr/view?usp=sharing)
-| WarpCSemanticGLUNet       | pfpascal  |  [4] |    Original SemanticGLU-Net is finetuned using our warp consistency objective    |  [model](https://drive.google.com/file/d/1m_1dSa3cmUOmDWL4A1PBLEm6VW8O7x2x/view?usp=sharing)
-| SemanticGLUNet      | pfpascal  |   [4] |   Original SemanticGLU-Net is finetuned using warp supervision                             |  [model](https://drive.google.com/file/d/1rhOXoYjO5QPnvcmHX45NCyevqCUx2YmH/view?usp=sharing)
-| WarpCRANSACFlow       | megadepth   |        [4]                             |  
-| WarpCGLUNet      | megadepth  /    megadepth_stage1  |  [4] |                                     |  [megadepth](https://drive.google.com/file/d/1ztQL04eSxleXAIRmInFjHY3tqK6n_iyA/view?usp=sharing) / [megadepth_stage1](https://drive.google.com/file/d/1vnYpYoqBNWg1EcBSkQm65en_IdsEbbX2/view?usp=sharing)
-| GLUNet_star       | megadepth /    megadepth_stage1  |  [4] |        Baseline for WarpCGLU-Net, trained with warp-supervision loss only   |  [megadepth](https://drive.google.com/file/d/1udUBzDkHoe6AggpZ8tRjYrljt3au0-rh/view?usp=sharing)  / [megadepth_stage1](https://drive.google.com/file/d/1PtLuTtO9kOCM_IO7WtW8xqbQDzQ9xixi/view?usp=sharing)
-| PDCNet       | megadepth              |  [3] |                                   |  [model](https://drive.google.com/file/d/1nOpC0MFWNV8N6ue0csed4I2K_ffX64BL/view?usp=sharing)    |
-| GLUNet_GOCor_star | megadepth              | [3] |corresponds to GLU-Net-GOCor* in [PDCNet](https://arxiv.org/abs/2101.01710) |    [model](https://drive.google.com/file/d/1bU6ZPMGsyzZJdAE5gmuxYjgxyVzwcLPj/view?usp=sharing)  |
-| GLUNet_GOCor | dynamic                |  [2] |                                   | [model](https://drive.google.com/file/d/1j8lUIRf39wECSNMHJqnu42VoBi6mWd-v/view?usp=sharing)     |
-| GLUNet_GOCor | static                 | [2] |                                    |  [model](https://drive.google.com/file/d/1f-XOVJlMUmmFsQojB7KuiBfX3nXJA_Er/view?usp=sharing)    |
-| PWCNet_GOCor | chairs_things_ft_sintel   |            [2]          |                                     |  [model](https://drive.google.com/file/d/1oL07Fv5qz_H3EzZE2NmmZRR06x8fK3Jn/view?usp=sharing)    |
-| PWCNet_GOCor | chairs_things          | [2] |                                    | [model](https://drive.google.com/file/d/1ofkmCZR7xyUgzreyL7B5QXSl5ZljkMLo/view?usp=sharing)     |
-| GLUNet       | dynamic     |  [2] |                                   |   [model](https://drive.google.com/file/d/1SoCEg0IKfbkTu7aD5HnxIRKirjn3EJte/view?usp=sharing)   |
-| GLUNet       | static (CityScape-DPED-ADE)     | [1] |                                    |  [model](https://drive.google.com/file/d/1cu_8lwhuqeNsIxEsuB6ihDBzz-yLW_L5/view?usp=sharing)    |
-| SemanticGLUNet   | static (CityScape-DPED-ADE) |  [1] |     |  [model](https://drive.google.com/file/d/15cDS1tyySMn-SHBUIa-pS1VY8-zbp0hO/view?usp=sharing)
+The pre-trained models can be found in the [model zoo](https://github.com/PruneTruong/DenseMatching/blob/main/MODEL_ZOO.md)
 
-
-To download all of them, run the command ```bash assets/download_pre_trained_models.sh```. 
-
-All networks are created in 'model_selection.py'. Weights should be put in pre_trained_models/
 
 <br />
 
@@ -233,14 +230,18 @@ We provide an example admin/local_example.py where all datasets are stored in da
 python -c "from admin.environment import create_default_local_file; create_default_local_file()"
 ```
 
-* **Download pre-trained model weights** with the command ```bash assets/download_pre_trained_models.sh```. 
+* **Download pre-trained model weights** with the command ```bash assets/download_pre_trained_models.sh```. See more in [model zoo]()
 
 <br />
 
 ## 2. Test on your own image pairs!  <a name="Test"></a>
 
-Possible model choices are : WarpCGLUNet, GLUNet_star, WarpCSemanticGLUNet, PDCNet_plus, PDCNet, GLUNet_GOCor_star, SemanticGLUNet, 
-GLUNet, GLUNet_GOCor, PWCNet, PWCNet_GOCor
+Possible model choices are : 
+* SFNet, PWarpCSFNet_WS, PWarpCSFNet_SS, NCNet, PWarpCNCNet_WS, PWarpCNCNet_SS, CATs, PWarpCCATs_SS, CATs_ft_features, 
+ PWarpCCATs_ft_features_SS
+* WarpCGLUNet, GLUNet_star, WarpCSemanticGLUNet, 
+* PDCNet_plus, PDCNet, GLUNet_GOCor_star, 
+* SemanticGLUNet, GLUNet, GLUNet_GOCor, PWCNet, PWCNet_GOCor
 
 Possible pre-trained model choices are: static, dynamic, chairs_things, chairs_things_ft_sintel, megadepth, 
 megadepth_stage1, pfpascal, spair
@@ -290,7 +291,7 @@ For this pair of MegaDepth images (provided to check that the code is working pr
 trained on the megadepth dataset, the output is:
 
 ```bash
-python test_models.py --model PDCNet --pre_trained_model megadepth --path_query_image images/piazza_san_marco_0.jpg --path_reference_image images/piazza_san_marco_1.jpg --write_dir evaluation/ PDCNet --multi_stage_type MS --mask_type proba_interval_1_above_10
+python test_models.py --model PDCNet --pre_trained_model megadepth --path_query_image images/piazza_san_marco_0.jpg --path_reference_image images/piazza_san_marco_1.jpg --save_dir evaluation/ PDCNet --multi_stage_type MS --mask_type proba_interval_1_above_10
 ```
 additional optional arguments: --pre_trained_models_dir (default is pre_trained_models/)
 ![alt text](/images/Warped_query_image_PDCNet_megadepth.png)
@@ -301,7 +302,7 @@ additional optional arguments: --pre_trained_models_dir (default is pre_trained_
 Using **GLU-Net-GOCor** trained on the dynamic dataset, the output for this image pair of eth3d is:
 
 ```bash
-python test_models.py --model GLUNet_GOCor --pre_trained_model dynamic --path_query_image images/eth3d_query.png --path_reference_image images/eth3d_reference.png --write_dir evaluation/
+python test_models.py --model GLUNet_GOCor --pre_trained_model dynamic --path_query_image images/eth3d_query.png --path_reference_image images/eth3d_reference.png --save_dir evaluation/
 ```
 ![alt text](/images/eth3d_warped_query_image_GLUNet_GOCor_dynamic.png)
 
@@ -310,7 +311,7 @@ python test_models.py --model GLUNet_GOCor --pre_trained_model dynamic --path_qu
 For baseline **GLU-Net**, the output is instead:
 
 ```bash
-python test_models.py --model GLUNet --pre_trained_model dynamic --path_query_image images/eth3d_query.png --path_reference_image images/eth3d_reference.png --write_dir evaluation/
+python test_models.py --model GLUNet --pre_trained_model dynamic --path_query_image images/eth3d_query.png --path_reference_image images/eth3d_reference.png --save_dir evaluation/
 
 ```
 ![alt text](/images/eth3d_warped_query_image_GLUNet_dynamic.png)
@@ -322,7 +323,7 @@ And for **PWC-Net-GOCor** and baseline **PWC-Net**:
 
 
 ```bash
-python test_models.py --model PWCNet_GOCor --pre_trained_model chairs_things --path_query_image images/kitti2015_query.png --path_reference_image images/kitti2015_reference.png --write_dir evaluation/
+python test_models.py --model PWCNet_GOCor --pre_trained_model chairs_things --path_query_image images/kitti2015_query.png --path_reference_image images/kitti2015_reference.png --save_dir evaluation/
 ```
 
 ![alt text](/images/kitti2015_warped_query_image_PWCNet_GOCor_chairs_things.png)
@@ -330,17 +331,49 @@ python test_models.py --model PWCNet_GOCor --pre_trained_model chairs_things --p
 <br />
 
 ```bash
-python test_models.py --model PWCNet --pre_trained_model chairs_things --path_query_image images/kitti2015_query.png --path_reference_image images/kitti2015_reference.png --write_dir evaluation/
+python test_models.py --model PWCNet --pre_trained_model chairs_things --path_query_image images/kitti2015_query.png --path_reference_image images/kitti2015_reference.png --save_dir evaluation/
 ```
 ![alt text](/images/kitti2015_warped_query_image_PWCNet_chairs_things.png)
 
 <br />
 
 
-## Demo with videos 
+## Demos with videos 
 
-* demo/demo_single_pair.ipynb: Play around with our models on different image pairs, compute the flow field 
+* **demos/demo_single_pair.ipynb**: Play around with our models on different image pairs, compute the flow field 
 relating an image pair and visualize the warped images and confident matches. 
+
+* **demos/demo_pose_estimation_and_reconstruction.ipynb**:  Play around with our models on different image pairs 
+(with intrinsic camera parameters known), compute the flow field and confidence map, then the relative pose.   
+
+* Run the **online demo with a webcam or video** to reproduce the result shown in the GIF above. 
+We compute the flow field between the target (middle) and the source (left). We plot the 1000 top confident matches as well. 
+The warped source is represented on the right (and should resemble the middle). 
+Only the regions for which the matches were predicted as confident are visible. 
+
+
+![alt text](/images/scannet.gif)
+
+We modify the utils code from [SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork), so you need to adhere to 
+their license in order to use that. Then run:
+```bash
+bash demo/run_demo_confident_matches.sh
+``` 
+
+
+* From a video, **warp each frame of the video (left) to the middle frame** like in the GIF below. The warped frame is 
+represented on the right (and should resemble the middle). 
+Only the regions for which the matches were predicted as confident are visible. 
+
+![alt text](/images/camel_5_90_mid_47_84.gif)
+
+We modify the utils code from [SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork), so you need to adhere to 
+their license in order to use that. Then run:
+```bash
+bash demo/run_demo_warping_videos.sh
+``` 
+
+
 
 * More to come!
 
@@ -415,8 +448,16 @@ For pose estimation, we also compute the pose with RANSAC, which leads to some v
 
 Metrics are computed with, 
 ```bash
-python -u eval_matching.py --datasets dataset_name --model model_name --pre_trained_models pre_trained_model_name --optim_iter optim_step  --local_optim_iter local_optim_iter --save_dir path_to_save_dir --plot False 
+python -u eval_matching.py --dataset dataset_name --model model_name --pre_trained_models pre_trained_model_name --optim_iter optim_step  --local_optim_iter local_optim_iter --save_dir path_to_save_dir 
 ```
+
+Optional argument:
+--path_to_pre_trained_models: 
+   * default is pre_trained_models/
+   * if it is a path to a directory: it is the path to the directory containing the model weights, the path to the model weights will be 
+    path_to_pre_trained_models + model_name + '_' + pre_trained_model_name
+   * if it is a path to a checkpoint directly, it is used as the path to the model weights directly, and pre_trained_model_name is only used
+    as the name to save the metrics. 
 
 
 <details>
@@ -443,7 +484,7 @@ megadepth_test_set/
 <br /><br />
 **Evaluation**: After updating the path of 'megadepth' and 'megadepth_csv' in admin/local.py, evaluation is run with
 ```bash
-python eval_matching.py --datasets megadepth --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type MS
+python eval_matching.py --dataset megadepth --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type MS
 ```
 
 
@@ -491,7 +532,7 @@ RobotCar
 <br /><br />
 **Evaluation**: After updating the path of 'robotcar' and 'robotcar_csv' in admin/local.py, evaluation is run with
 ```bash
-python eval_matching.py --datasets robotcar --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type MS
+python eval_matching.py --dataset robotcar --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type MS
 ```
  
 Similar results should be obtained: 
@@ -549,7 +590,7 @@ The organisation of your directories is important, since the bundle files contai
 (lakeside, delivery area and so on). The final metrics are the average over all datasets for each rate. 
 After updating the path of 'eth3d' in admin/local.py, evaluation is run with
 ```bash
-python eval_matching.py --datasets robotcar --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type D
+python eval_matching.py --dataset robotcar --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type D
 ```
 
 <br />
@@ -643,7 +684,7 @@ relating the pairs are listed in assets/.
 <br /><br />
 **Evaluation**: After updating the path of 'hp' in admin/local.py, evaluation is run with
 ```bash
-python eval_matching.py --datasets hp --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir
+python eval_matching.py --dataset hp --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir
 ```
 Similar results should be obtained:
 |                             | Pre-trained model type | AEPE  | PCK-1 (\%)  | PCK-3 (%) | PCK-5 (\%)  |
@@ -672,7 +713,7 @@ Similar results should be obtained:
 
 **Evaluation**: After updating the path of 'kitti2012' and 'kitti2015' in admin/local.py, evaluation is run with
 ```bash
-python eval_matching.py --datasets kitti2015 --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 PDCNet --multi_stage_type direct
+python eval_matching.py --dataset kitti2015 --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 PDCNet --multi_stage_type direct
 ```
 
 Similar results should be obtained:
@@ -711,7 +752,7 @@ bash assets/download_sintel.sh
 **Evaluation**: After updating the path of 'sintel' in admin/local.py, evaluation is run with
 
 ```bash
-python eval_matching.py --datasets sintel --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type direct
+python eval_matching.py --dataset sintel --model PDCNet --pre_trained_models megadepth --optim_iter 3 --local_optim_iter 7 --save_dir path_to_save_dir PDCNet --multi_stage_type direct
 ```
 
 Similar results should be obtained:
@@ -745,7 +786,7 @@ bash assets/download_tss.sh
 
 **Evaluation**: After updating the path of 'tss' in admin/local.py, evaluation is run with
  ```bash
-python eval_matching.py --datasets TSS --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --flipping_condition True --save_dir path_to_save_dir
+python eval_matching.py --dataset TSS --model GLUNet_GOCor --pre_trained_models static --optim_iter 3 --local_optim_iter 7 --flipping_condition True --save_dir path_to_save_dir
 ```
 Similar results should be obtained:
 | Model          | Pre-trained model type      | FGD3Car | JODS | PASCAL | All  |
@@ -773,7 +814,7 @@ bash assets/download_pf_pascal.sh
 
 **Evaluation**: After updating the path of 'PFPascal' in admin/local.py, evaluation is run with
  ```bash
-python eval_matching.py --datasets PFPascal --model WarpCSemanticGLUNet --pre_trained_models pfpascal --flipping_condition False --save_dir path_to_save_dir
+python eval_matching.py --dataset PFPascal --model WarpCSemanticGLUNet --pre_trained_models pfpascal --flipping_condition False --save_dir path_to_save_dir
 ```
 Similar results should be obtained:
 | Model          | Pre-trained model type     |  alpha=0.05 | alpha=0.1  
@@ -798,7 +839,7 @@ bash assets/download_pf_willow.sh
 
 **Evaluation**: After updating the path of 'PFWillow' in admin/local.py, evaluation is run with
  ```bash
-python eval_matching.py --datasets PFWillow --model WarpCSemanticGLUNet --pre_trained_models pfpascal --flipping_condition False --save_dir path_to_save_dir
+python eval_matching.py --dataset PFWillow --model WarpCSemanticGLUNet --pre_trained_models pfpascal --flipping_condition False --save_dir path_to_save_dir
 ```
 Similar results should be obtained:
 | Model          | Pre-trained model type     |  alpha=0.05  |  alpha=0.1  
@@ -823,7 +864,7 @@ bash assets/download_spair.sh
 
 **Evaluation**: After updating the path of 'spair' in admin/local.py, evaluation is run with
  ```bash
-python eval_matching.py --datasets spair --model WarpCSemanticGLUNet --pre_trained_models pfpascal  --flipping_condition False --save_dir path_to_save_dir
+python eval_matching.py --dataset spair --model WarpCSemanticGLUNet --pre_trained_models pfpascal  --flipping_condition False --save_dir path_to_save_dir
 ```
 Similar results should be obtained:
 | Model          | Pre-trained model type     |  alpha=0.1  
@@ -847,7 +888,7 @@ bash assets/download_caltech.sh
 
 **Evaluation**: After updating the path of 'spair' in admin/local.py, evaluation is run with
  ```bash
-python eval_matching.py --datasets caltech --model WarpCSemanticGLUNet --pre_trained_models pfpascal  --flipping_condition False --save_dir path_to_save_dir
+python eval_matching.py --dataset caltech --model WarpCSemanticGLUNet --pre_trained_models pfpascal  --flipping_condition False --save_dir path_to_save_dir
 ```
 </details>
 
@@ -860,7 +901,7 @@ python eval_matching.py --datasets caltech --model WarpCSemanticGLUNet --pre_tra
 
 Metrics are computed with
 ```bash
-python -u eval_pose_estimation.py --datasets dataset_name --model model_name --pre_trained_models pre_trained_model_name --optim_iter optim_step  --local_optim_iter local_optim_iter --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False 
+python -u eval_pose_estimation.py --dataset dataset_name --model model_name --pre_trained_models pre_trained_model_name --optim_iter optim_step  --local_optim_iter local_optim_iter --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir 
 ```
 
 
@@ -887,7 +928,7 @@ YFCC
 **Evaluation**: After updating the path 'yfcc' in admin/local.py, compute metrics on YFCC100M with PDC-Net homography (H) using the command:
 
 ```bash
-python -u eval_pose_estimation.py --datasets YFCC --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False PDCNet --multi_stage_type H --mask_type proba_interval_1_above_10 
+python -u eval_pose_estimation.py --dataset YFCC --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir PDCNet --multi_stage_type H --mask_type proba_interval_1_above_10 
 ```
 
 You should get similar metrics (not exactly the same because of RANSAC):
@@ -906,8 +947,9 @@ You should get similar metrics (not exactly the same because of RANSAC):
 <details>
   <summary><b>ScanNet <a name="scanNet"></a></b></summary>
   
-**Data preparation**:  Go to the [ScanNet github repo](https://github.com/ScanNet/ScanNet) to download the ScanNet test set (100 scenes). 
-You will need to extract the raw sensor data from the 100 .sens files in each scene in the test set using the SensReader tool.
+**Data preparation**:  The images of the ScanNet test set (100 scenes, scene0707_00 to scene0806_00) are provided 
+[here](https://drive.google.com/file/d/19o07SOWpv_DQcIbjb87BAKBHNCcsr4Ax/view?usp=sharing). 
+They were extracted from [ScanNet github repo](https://github.com/ScanNet/ScanNet) and processed. 
 We use the groundtruth provided by in the [SuperGlue repo](https://github.com/magicleap/SuperGluePretrainedNetwork) 
 provided here in the file assets/scannet_test_pairs_with_gt.txt. 
 
@@ -915,7 +957,7 @@ provided here in the file assets/scannet_test_pairs_with_gt.txt.
 <br /><br />
 **Evaluation**: After updating the path 'scannet_test' in admin/local.py, compute metrics on ScanNet with PDC-Net homography (H) using the command:
 ```bash
-python -u eval_pose_estimation.py --datasets scannet --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir --plot False PDCNet --multi_stage_type H --mask_type proba_interval_1_above_10 
+python -u eval_pose_estimation.py --dataset scannet --model PDCNet --pre_trained_models megadepth --optim_iter 3  --local_optim_iter 7 --estimate_at_quarter_reso True --mask_type_for_pose_estimation proba_interval_1_above_10 --save_dir path_to_save_dir PDCNet --multi_stage_type H --mask_type proba_interval_1_above_10 
 ```
 
 
@@ -1055,15 +1097,38 @@ The setting files can be used train the networks, or to know the exact training 
 
 
 <details>
-  <summary><b>Warp Consistency <a name="warpc"></a></b></summary>
+  <summary><b>Probabilistic Warp Consistency (PWarpC) <a name="warpc"></a></b></summary>
+ 
+* **PWarpC.train_weakly_supervised_PWarpC_SFNet_pfpascal**: The default settings used to train the 
+weakly-supervised PWarpC-SF-Net on PF-Pascal. 
 
-* WarpC.train_WarpC_GLUNet_stage1: The default settings used for first stage network training without visibility mask. 
+* **PWarpC.train_weakly_supervised_PWarpC_SFNet_spair_from_pfpascal**: The default settings used to train the 
+weakly-supervised PWarpC-SF-Net on SPair. More precisely, the network is first trained on PF-Pascal (above) and 
+further finetuned on SPair-71K. 
+
+* **PWarpC.train_strongly_supervised_PWarpC_SFNet_pfpascal**: The default settings used to train the strongly-supervised
+PWarpC-SF-Net on PF-Pascal. 
+
+* **PWarpC.train_strongly_supervised_PWarpC_SFNet_spair_from_pfpascal**: The default settings used to train the strongly-supervised
+PWarpC-SF-Net on Spair-71K. 
+
+* The rest to come
+
+</details>
+
+
+
+
+<details>
+  <summary><b>Warp Consistency (WarpC) <a name="warpc"></a></b></summary>
+  
+* **WarpC.train_WarpC_GLUNet_stage1**: The default settings used for first stage network training without visibility mask. 
 We train on real image pairs of the MegaDepth dataset. 
 
-* WarpC.train_WarpC_GLUNet_stage2: We further finetune the network trained with stage1, by including our visibility mask. 
+* **WarpC.train_WarpC_GLUNet_stage2**: We further finetune the network trained with stage1, by including our visibility mask. 
 The network corresponds to our final WarpC-GLU-Net (see [WarpC paper](https://arxiv.org/abs/2104.03308)). 
 
-* WarpC.train_ft_WarpCSemanticGLUNet: The default settings used for training the final WarpC-SemanticGLU-Net 
+* **WarpC.train_ft_WarpCSemanticGLUNet**: The default settings used for training the final WarpC-SemanticGLU-Net 
 (see [WarpC paper](https://arxiv.org/abs/2104.03308)). 
 We finetune the original SemanticGLUNet (trained on the static/CAD synthetic data) on PF-Pascal using Warp Consistency. 
 
@@ -1075,30 +1140,30 @@ We finetune the original SemanticGLUNet (trained on the static/CAD synthetic dat
 <details>
   <summary><b>PDC-Net and PDC-Net+<a name="pdcnet"></a></b></summary>
 
-* PDCNet.train_PDCNet_plus_stage1: The default settings used for first stage network training with fixed backbone weights. 
+* **PDCNet.train_PDCNet_plus_stage1**: The default settings used for first stage network training with fixed backbone weights. 
 We train first on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved), 
 on which we add MULTIPLE independently moving objects and perturbations. We also train by applying our object reprojection mask. 
 
-* PDCNet.train_PDCNet_plus_stage2: The default settings used for training the final PDC-Net+ model (see [PDC-Net+ paper](https://arxiv.org/abs/2109.13912)). 
+* **PDCNet.train_PDCNet_plus_stage2**: The default settings used for training the final PDC-Net+ model (see [PDC-Net+ paper](https://arxiv.org/abs/2109.13912)). 
 This setting fine-tunes all layers in the model trained using PDCNet_stage1 (including the feature backbone). As training
 dataset, we use a combination of the same dataset than in stage 1 as well as image pairs from the MegaDepth dataset 
 and their sparse ground-truth correspondence data. We also apply the reprojection mask. 
 
 
 
-* PDCNet.train_PDCNet_stage1: The default settings used for first stage network training with fixed backbone weights. 
+* **PDCNet.train_PDCNet_stage1**: The default settings used for first stage network training with fixed backbone weights. 
 We initialize the backbone VGG-16 with pre-trained ImageNet weights. We train first on synthetically generated image 
 pairs from the DPED, CityScape and ADE dataset (pre-computed and saved), on which we add independently moving objects and perturbations. 
 
-* PDCNet.train_PDCNet_stage2: The default settings used for training the final PDC-Net model (see [PDC-Net paper](https://arxiv.org/abs/2101.01710)). 
+* **PDCNet.train_PDCNet_stage2**: The default settings used for training the final PDC-Net model (see [PDC-Net paper](https://arxiv.org/abs/2101.01710)). 
 This setting fine-tunes all layers in the model trained using PDCNet_stage1 (including the feature backbone). As training
 dataset, we use a combination of the same dataset than in stage 1 as well as image pairs from the MegaDepth dataset 
 and their sparse ground-truth correspondence data. 
 
-* PDCNet.train_GLUNet_GOCor_star_stage1: Same settings than for PDCNet_stage1, with different model (non probabilistic baseline). 
+* **PDCNet.train_GLUNet_GOCor_star_stage1**: Same settings than for PDCNet_stage1, with different model (non probabilistic baseline). 
 The loss is changed accordingly to the L1 loss instead of the negative log likelihood loss. 
 
-* PDCNet.train_GLUNet_GOCor_star_stage2: The default settings used for training the final GLU-Net-GOCor* 
+* **PDCNet.train_GLUNet_GOCor_star_stage2**: The default settings used for training the final GLU-Net-GOCor* 
 (see [PDCNet paper](https://arxiv.org/abs/2101.01710)). 
 
 </details>
@@ -1108,7 +1173,7 @@ The loss is changed accordingly to the L1 loss instead of the negative log likel
 <details>
   <summary><b>Example training with randomly generated data <a name="glunet"></a></b></summary>
 
-* GLUNet.train_GLUNet_with_synthetically_generated_data: This is a simple example of how to generate random transformations
+* **GLUNet.train_GLUNet_with_synthetically_generated_data**: This is a simple example of how to generate random transformations
 on the fly, and to apply them to original images, in order to create training image pairs and their corresponding 
 ground-truth flow. Here, the random transformations are applied to MegaDepth images. On the created image pairs and 
 ground-truth flows, we additionally add a randomly moving object. 
@@ -1122,19 +1187,31 @@ ground-truth flows, we additionally add a randomly moving object.
 <details>
   <summary><b>GLU-Net <a name="glunet"></a></b></summary>
 
-* GLUNet.train_GLUNet_static: The default settings used training the final GLU-Net (of the paper
+* **GLUNet.train_GLUNet_static**: The default settings used training the final GLU-Net (of the paper
  [GLU-Net](https://arxiv.org/abs/1912.05524)).  
 We fix the  backbone weights and initialize the backbone VGG-16 with pre-trained ImageNet weights. 
 We train on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved),
 which is later ([GOCor paper](https://arxiv.org/abs/2009.07823)) referred to as 'static' dataset. 
 
-* GLUNet.train_GLUNet_dynamic: The default settings used training the final GLU-Net trained on the dynamic 
+* **GLUNet.train_GLUNet_dynamic**: The default settings used training the final GLU-Net trained on the dynamic 
 dataset (of the paper [GOCor](https://arxiv.org/abs/2009.07823)).  
 We fix the  backbone weights and initialize the backbone VGG-16 with pre-trained ImageNet weights. 
 We train on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved), 
 on which we add one independently moving object. 
 This dataset is referred to as 'dynamic' dataset in [GOCor paper](https://arxiv.org/abs/2009.07823). 
 
+* **GLUNet.train_GLUNet_GOCor_static**: The default settings used training the final GLU-Net-GOCor 
+(of the paper [GOCor](https://arxiv.org/abs/2009.07823)).  
+We fix the  backbone weights and initialize the backbone VGG-16 with pre-trained ImageNet weights. 
+We train on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved),
+which is later ([GOCor paper](https://arxiv.org/abs/2009.07823)) referred to as 'static' dataset. 
+
+* **GLUNet.train_GLUNet_GOCor_dynamic**: The default settings used training the final GLU-Net-GOCor trained on the dynamic 
+dataset (of the paper [GOCor](https://arxiv.org/abs/2009.07823)).  
+We fix the  backbone weights and initialize the backbone VGG-16 with pre-trained ImageNet weights. 
+We train on synthetically generated image pairs from the DPED, CityScape and ADE dataset (pre-computed and saved), 
+on which we add one independently moving object. 
+This dataset is referred to as 'dynamic' dataset in [GOCor paper](https://arxiv.org/abs/2009.07823). 
 
 </details>
 
@@ -1175,3 +1252,4 @@ We borrow code from public projects, such as [pytracking](https://github.com/vis
 * 10/21: Added pre-trained models of WarpC 
 * 12/21: Added training code for WarpC and PDC-Net+, + randomly generated data + Caltech evaluation, + pre-trained models of PDC-Net+ + demo on notebook
 * 02/22: Small modifications 
+* 03/22: Major refactoring, added video demos, code for PWarpC, default initialization of deconv to bilinear weights. 

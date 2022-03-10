@@ -37,7 +37,12 @@ def predict_mask(in_planes):
 
 
 def deconv(in_planes, out_planes, kernel_size=4, stride=2, padding=1):
-    return nn.ConvTranspose2d(in_planes, out_planes, kernel_size, stride, padding, bias=True)
+    deconv_ = nn.ConvTranspose2d(in_planes, out_planes, kernel_size, stride, padding, bias=True)
+
+    nn.init.kaiming_normal_(deconv_.weight.data, mode='fan_in')
+    if deconv_.bias is not None:
+        deconv_.bias.data.zero_()
+    return deconv_
 
 
 def unnormalise_and_convert_mapping_to_flow(map):
@@ -62,15 +67,11 @@ def unnormalise_and_convert_mapping_to_flow(map):
 
 
 class OpticalFlowEstimator(nn.Module):
-
-    def __init__(self, in_channels, batch_norm, predict_warping_mask=False, predict_uncertainty=False,
-                 predict_occlusion_mask=False, separate_conv_for_occlusion=False):
+    """
+    Original PWCNet optical flow decoder. With DenseNet connections.
+    """
+    def __init__(self, in_channels, batch_norm):
         super(OpticalFlowEstimator, self).__init__()
-
-        self.predict_warping_mask = predict_warping_mask
-        self.predict_uncertainty = predict_uncertainty
-        self.predict_occlusion_mask = predict_occlusion_mask
-        self.separate_conv_for_occlusion = separate_conv_for_occlusion
 
         dd = np.cumsum([128,128,96,64,32])
         self.conv_0 = conv(in_channels, 128, kernel_size=3, stride=1, batch_norm=batch_norm)
@@ -92,15 +93,12 @@ class OpticalFlowEstimator(nn.Module):
 
 
 class OpticalFlowEstimatorNoDenseConnection(nn.Module):
-
-    def __init__(self, in_channels, batch_norm, predict_warping_mask=False, predict_uncertainty=False,
-                 predict_occlusion_mask=False, separate_conv_for_occlusion=False):
+    """
+    PWCNet optical flow decoder modified with feed forward connections.
+    """
+    def __init__(self, in_channels, batch_norm):
         super(OpticalFlowEstimatorNoDenseConnection, self).__init__()
 
-        self.predict_warping_mask = predict_warping_mask
-        self.predict_uncertainty = predict_uncertainty
-        self.predict_occlusion_mask = predict_occlusion_mask
-        self.separate_conv_for_occlusion = separate_conv_for_occlusion
         self.conv_0 = conv(in_channels, 128, kernel_size=3, stride=1, batch_norm=batch_norm)
         self.conv_1 = conv(128, 128, kernel_size=3, stride=1, batch_norm=batch_norm)
         self.conv_2 = conv(128, 96, kernel_size=3, stride=1, batch_norm=batch_norm)
@@ -115,7 +113,9 @@ class OpticalFlowEstimatorNoDenseConnection(nn.Module):
 
 
 class OpticalFlowEstimatorResidualConnection(nn.Module):
-
+    """
+    PWCNet optical flow decoder modified with residual connections.
+    """
     def __init__(self, in_channels, batch_norm):
         super(OpticalFlowEstimatorResidualConnection, self).__init__()
 
@@ -179,21 +179,19 @@ class CorrespondenceMapBase(nn.Module):
 
 
 class CMDTop(CorrespondenceMapBase):
-    def __init__(self, in_channels, bn=False, predict_warping_mask=False, predict_uncertainty=False, output_x=False,
-                 predict_occlusion_mask=False, separate_conv_for_occlusion=False):
-        super().__init__(in_channels, bn)
+    """
+    original DGC-Net mapping decoder.
+    """
+    def __init__(self, in_channels, batch_norm=False, output_x=False):
+        super().__init__(in_channels, batch_norm)
 
-        self.predict_warping_mask = predict_warping_mask
-        self.predict_uncertainty = predict_uncertainty
-        self.predict_occlusion_mask = predict_occlusion_mask
-        self.separate_conv_for_occlusion = separate_conv_for_occlusion
         self.output_x = output_x
         chan = [128, 128, 96, 64, 32]
-        self.conv0 = conv_blck(in_channels, chan[0], bn=bn)
-        self.conv1 = conv_blck(chan[0], chan[1], bn=bn)
-        self.conv2 = conv_blck(chan[1], chan[2], bn=bn)
-        self.conv3 = conv_blck(chan[2], chan[3], bn=bn)
-        self.conv4 = conv_blck(chan[3], chan[4], bn=bn)
+        self.conv0 = conv_blck(in_channels, chan[0], bn=batch_norm)
+        self.conv1 = conv_blck(chan[0], chan[1], bn=batch_norm)
+        self.conv2 = conv_blck(chan[1], chan[2], bn=batch_norm)
+        self.conv3 = conv_blck(chan[2], chan[3], bn=batch_norm)
+        self.conv4 = conv_blck(chan[3], chan[4], bn=batch_norm)
         self.final = conv_head(chan[-1])
 
     def forward(self, x1, x2=None, x3=None):
@@ -207,17 +205,20 @@ class CMDTop(CorrespondenceMapBase):
 
 
 class CMDTopResidualConnections(CorrespondenceMapBase):
-    def __init__(self, in_channels, bn=False, output_x=False):
-        super().__init__(in_channels, bn)
+    """
+    DGC-Net mapping decoder, with residual connections.
+    """
+    def __init__(self, in_channels, batch_norm=False, output_x=False):
+        super().__init__(in_channels, batch_norm)
 
         self.output_x = output_x
-        self.conv_0 = conv(in_channels, 128, kernel_size=3, stride=1, batch_norm=bn, relu=False)
-        self.conv0_skip = conv(128, 96, kernel_size=1, stride=1, padding=0, batch_norm=bn, relu=False, bias=False)
-        self.conv_1 = conv(128, 128, kernel_size=3, stride=1, batch_norm=bn, relu=True)
-        self.conv_2 = conv(128, 96, kernel_size=3, stride=1, batch_norm=bn, relu=False)
-        self.conv2_skip = conv(96, 32, kernel_size=1, stride=1, padding=0, batch_norm=bn, relu=False, bias=False)
-        self.conv_3 = conv(96, 64, kernel_size=3, stride=1, batch_norm=bn, relu=True)
-        self.conv_4 = conv(64, 32, kernel_size=3, stride=1, batch_norm=bn, relu=False)
+        self.conv_0 = conv(in_channels, 128, kernel_size=3, stride=1, batch_norm=batch_norm, relu=False)
+        self.conv0_skip = conv(128, 96, kernel_size=1, stride=1, padding=0, batch_norm=batch_norm, relu=False, bias=False)
+        self.conv_1 = conv(128, 128, kernel_size=3, stride=1, batch_norm=batch_norm, relu=True)
+        self.conv_2 = conv(128, 96, kernel_size=3, stride=1, batch_norm=batch_norm, relu=False)
+        self.conv2_skip = conv(96, 32, kernel_size=1, stride=1, padding=0, batch_norm=batch_norm, relu=False, bias=False)
+        self.conv_3 = conv(96, 64, kernel_size=3, stride=1, batch_norm=batch_norm, relu=True)
+        self.conv_4 = conv(64, 32, kernel_size=3, stride=1, batch_norm=batch_norm, relu=False)
         self.leakyRELU = nn.LeakyReLU(0.1)
         self.final = conv_head(32)
 
