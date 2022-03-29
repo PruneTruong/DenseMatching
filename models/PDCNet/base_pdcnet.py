@@ -1,16 +1,34 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import cv2
+import numpy as np
 from models.base_matching_net import BaseGLUMultiScaleMatchingNet
 from models.inference_utils import estimate_homography_and_inliers, estimate_homography_and_correspondence_map, \
     estimate_mask, matches_from_flow, from_homography_to_pixel_wise_mapping
-from .mod_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density, estimate_average_variance_of_mixture_density
-import cv2
-import numpy as np
-from datasets.util import pad_to_size
-from ..modules.local_correlation import correlation
+from models.PDCNet.mod_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density, \
+    estimate_average_variance_of_mixture_density
+from models.modules.local_correlation import correlation
 from utils_flow.pixel_wise_mapping import warp, warp_with_mapping
 from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow, convert_flow_to_mapping
+
+
+def pad_to_size(im, size):
+    # load_size first h then w
+    if not isinstance(size, tuple):
+        size = (size, size)
+    # pad to same shape
+    if im.shape[0] < size[0]:
+        pad_y_1 = size[0] - im.shape[0]
+    else:
+        pad_y_1 = 0
+    if im.shape[1] < size[1]:
+        pad_x_1 = size[1] - im.shape[1]
+    else:
+        pad_x_1 = 0
+
+    im = cv2.copyMakeBorder(im, 0, pad_y_1, 0, pad_x_1, cv2.BORDER_CONSTANT)
+    return im
 
 
 class UncertaintyPredictionInference(nn.Module):

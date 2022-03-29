@@ -1,4 +1,3 @@
-import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 import torch
@@ -6,16 +5,15 @@ import torch.nn as nn
 import torchvision.models as models
 from collections import OrderedDict
 import torch.nn.functional as F
-
-from models.modules.mod import CMDTop
-from models.modules.mod import OpticalFlowEstimator, deconv, conv, predict_flow, unnormalise_and_convert_mapping_to_flow
+from models.modules.mod import CMDTop, OpticalFlowEstimator, deconv, conv, predict_flow, \
+    unnormalise_and_convert_mapping_to_flow
 from models.modules.feature_correlation_layer import FeatureL2Norm, GlobalFeatureCorrelationLayer
 from models.modules.consensus_network_modules import MutualMatching, NeighConsensus, FeatureCorrelation
 from models.modules.local_correlation import correlation  # the custom cost volume layer
 from models.base_matching_net import BaseGLUMultiScaleMatchingNet, set_glunet_parameters
-from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
 from models.inference_utils import matches_from_flow, estimate_mask
-from ..modules.bilinear_deconv import BilinearConvTranspose2d
+from models.modules.bilinear_deconv import BilinearConvTranspose2d
+from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
 
 
 class VGGPyramid(nn.Module):

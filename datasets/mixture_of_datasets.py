@@ -54,16 +54,14 @@ class MixDatasets(data.Dataset):
                 list_mask = []
                 for i in range(len(dict_element['correspondence_mask'])):
                     if isinstance(dict_element['correspondence_mask'][i], np.ndarray):
-                        list_mask.append(np.ones(dict_element['correspondence_mask'][i].shape,
-                                                 np.bool if float(torch.__version__[:3]) >= 1.1 else np.uint8))
+                        list_mask.append(np.ones_like(dict_element['correspondence_mask'][i]))
                     else:
                         list_mask.append(torch.ones_like(dict_element['correspondence_mask'][i]))
                 dict_element['correspondence_mask'] = list_mask
             else:
                 # if it is True, overwrites all to True
                 if isinstance(dict_element['correspondence_mask'], np.ndarray):
-                    dict_element['correspondence_mask'] = np.ones(dict_element['correspondence_mask'].shape,
-                                                                  np.bool if float(torch.__version__[:3]) >= 1.1 else np.uint8)
+                    dict_element['correspondence_mask'] = np.ones_like(dict_element['correspondence_mask'])
                 else:
                     dict_element['correspondence_mask'] = torch.ones_like(dict_element['correspondence_mask'])
             dict_element['sparse'] = self.list_sparse[index_dataset]

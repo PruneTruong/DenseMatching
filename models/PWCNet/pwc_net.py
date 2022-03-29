@@ -4,20 +4,20 @@ Adaptation of the implementation of the PWC-DC network for optical flow estimati
 Jinwei Gu and Zhile Ren
 
 """
-
-from third_party.GOCor.GOCor import local_gocor
-from third_party.GOCor.GOCor.optimizer_selection_functions import define_optimizer_local_corr
-from ..modules.local_correlation import correlation
-import numpy as np
-from ..base_matching_net import BaseMultiScaleMatchingNet
 import torch
 import torch.nn as nn
 import math
 import torch.nn.functional as F
+import numpy as np
 from torchvision import transforms
+
+from third_party.GOCor.GOCor import local_gocor
+from third_party.GOCor.GOCor.optimizer_selection_functions import define_optimizer_local_corr
+from models.modules.local_correlation import correlation
+from models.modules.bilinear_deconv import BilinearConvTranspose2d
+from models.base_matching_net import BaseMultiScaleMatchingNet
+from models.inference_utils import matches_from_flow, estimate_mask
 from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
-from ..inference_utils import matches_from_flow, estimate_mask
-from ..modules.bilinear_deconv import BilinearConvTranspose2d
 
 
 def conv(in_planes, out_planes, kernel_size=3, stride=1, padding=1, dilation=1, batch_norm=False):

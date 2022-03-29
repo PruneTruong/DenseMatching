@@ -1,11 +1,11 @@
 # extracted and modified from CATs
 from operator import add
 from functools import reduce, partial
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+
 from timm.models.layers import DropPath, trunc_normal_
 from models.semantic_matching_models import resnet
 from admin.model_constructor import model_constructor

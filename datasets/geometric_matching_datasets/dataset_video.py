@@ -1,7 +1,6 @@
 import torch.utils.data as data
 import os
 import os.path
-from imageio import imread
 import numpy as np
 import cv2
 import pandas as pd

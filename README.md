@@ -230,7 +230,7 @@ We provide an example admin/local_example.py where all datasets are stored in da
 python -c "from admin.environment import create_default_local_file; create_default_local_file()"
 ```
 
-* **Download pre-trained model weights** with the command ```bash assets/download_pre_trained_models.sh```. See more in [model zoo]()
+* **Download pre-trained model weights** with the command ```bash assets/download_pre_trained_models.sh```. See more in [model zoo](https://github.com/PruneTruong/DenseMatching/blob/main/MODEL_ZOO.md)
 
 <br />
 

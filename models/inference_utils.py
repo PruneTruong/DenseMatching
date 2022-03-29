@@ -5,8 +5,8 @@ import numpy as np
 import math
 from scipy import ndimage
 import cv2
-from .PDCNet.mod_uncertainty import (estimate_average_variance_of_mixture_density,
-                                     estimate_probability_of_confidence_interval_of_mixture_density)
+from models.PDCNet.mod_uncertainty import (estimate_average_variance_of_mixture_density,
+                                           estimate_probability_of_confidence_interval_of_mixture_density)
 from utils_flow.flow_and_mapping_operations import unnormalize, normalize
 
 

@@ -26,7 +26,7 @@ def main(args, settings):
     save_dir = args.save_dir
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    if args.network_type == 'PDCNet' and args.multi_stage_type != 'direct':
+    if args.network_type == 'PDCNet' and ('d' not in args.multi_stage_type.lower()):
         # add sub-possibility with mask threshold of internal multi-stage alignment
         save_dir = os.path.join(save_dir, 'mask_for_homo_align_' + args.mask_type)
         if not os.path.exists(save_dir):
@@ -196,7 +196,7 @@ def main(args, settings):
 
         save_dict['{}'.format(pre_trained_model_type)] = output
 
-    if 'GOCor' in args.model or 'gocor' in args.model or 'PDCNet' in args.model:
+    if 'gocor' in args.model.lower() or 'PDCNet' in args.model:
         name_save_metrics = 'metrics_{}_iter_{}_{}'.format(name_to_save, args.optim_iter, local_optim_iter)
     else:
         name_save_metrics = 'metrics_{}'.format(name_to_save)

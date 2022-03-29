@@ -2,15 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from ..modules.mod import deconv, unnormalise_and_convert_mapping_to_flow
-from ..base_matching_net import BaseGLUMultiScaleMatchingNet
-from ..base_matching_net import set_glunet_parameters
-from ..feature_backbones.VGG_features import VGGPyramid
-from ..modules.local_correlation import correlation
-from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
-from ..inference_utils import matches_from_flow, estimate_mask
 from admin.model_constructor import model_constructor
-from ..modules.bilinear_deconv import BilinearConvTranspose2d
+from models.modules.mod import deconv, unnormalise_and_convert_mapping_to_flow
+from models.base_matching_net import BaseGLUMultiScaleMatchingNet, set_glunet_parameters
+from models.feature_backbones.VGG_features import VGGPyramid
+from models.modules.local_correlation import correlation
+from models.inference_utils import matches_from_flow, estimate_mask
+from models.modules.bilinear_deconv import BilinearConvTranspose2d
+from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
 
 
 class GLUNetModel(BaseGLUMultiScaleMatchingNet):

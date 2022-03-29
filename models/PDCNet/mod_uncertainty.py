@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..modules.batch_norm import BatchNorm
 import math
+from models.modules.batch_norm import BatchNorm
 
 
 def estimate_average_variance_of_mixture_density(weight_map, log_var_map, list_item=-1):

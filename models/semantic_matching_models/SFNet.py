@@ -4,14 +4,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 import numpy as np
-from utils_flow.flow_and_mapping_operations import unnormalize, convert_mapping_to_flow
 from collections import OrderedDict
 import torch.nn.functional as F
-from models.non_matching_corr import LearntBinParam
-from admin.model_constructor import model_constructor
 import math
+
+from admin.model_constructor import model_constructor
+from models.non_matching_corr import LearntBinParam
 from utils_flow.pixel_wise_mapping import warp
 from utils_flow.correlation_to_matches_utils import correlation_to_flow_w_argmax, corr_to_matches
+from utils_flow.flow_and_mapping_operations import unnormalize, convert_mapping_to_flow
 from training.losses.cost_volume_losses.losses_on_matching_and_non_matching_pairs import cost_volume_to_probabilistic_mapping
 
 

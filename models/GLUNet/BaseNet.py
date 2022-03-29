@@ -1,11 +1,11 @@
 import torch
+import torch.nn.functional as F
 from models.feature_backbones.VGG_features import VGGPyramid
 from models.modules.mod import deconv, unnormalise_and_convert_mapping_to_flow
 from models.base_matching_net import Base3LevelsMultiScaleMatchingNet
 from models.base_matching_net import set_basenet_parameters
+from models.modules.local_correlation import correlation
 from admin.model_constructor import model_constructor
-import torch.nn.functional as F
-from ..modules.local_correlation import correlation
 
 
 class BaseNet(Base3LevelsMultiScaleMatchingNet):

@@ -2,15 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from admin.model_constructor import model_constructor
-from ..modules.mod import deconv
-from ..feature_backbones.VGG_features import VGGPyramid
-from ..modules.mod import unnormalise_and_convert_mapping_to_flow
-from ..modules.feature_correlation_layer import GlobalFeatureCorrelationLayer
-from ..PDCNet.mod_uncertainty import MixtureDensityEstimatorFromCorr, MixtureDensityEstimatorFromUncertaintiesAndFlow
-from ..base_matching_net import set_glunet_parameters
-from ..PDCNet.base_pdcnet import ProbabilisticGLU
-from ..modules.local_correlation import correlation
-from ..modules.bilinear_deconv import BilinearConvTranspose2d
+from models.modules.mod import deconv, unnormalise_and_convert_mapping_to_flow
+from models.modules.local_correlation import correlation
+from models.modules.bilinear_deconv import BilinearConvTranspose2d
+from models.modules.feature_correlation_layer import GlobalFeatureCorrelationLayer
+from models.feature_backbones.VGG_features import VGGPyramid
+from models.PDCNet.mod_uncertainty import MixtureDensityEstimatorFromCorr, MixtureDensityEstimatorFromUncertaintiesAndFlow
+from models.base_matching_net import set_glunet_parameters
+from models.PDCNet.base_pdcnet import ProbabilisticGLU
 
 
 class PDCNetModel(ProbabilisticGLU):
