@@ -69,9 +69,11 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
         print('GOCor: Local iter {}'.format(local_optim_iter))
         print('GOCor: Global iter {}'.format(global_optim_iter))
 
+    '''
     if pre_trained_model_type not in pre_trained_model_types:
         raise ValueError(
             'The pre trained model that you chose does not exist, you chose {}'.format(pre_trained_model_types))
+    '''
 
     estimate_uncertainty = False
     if model_name == 'GLUNet':
@@ -200,9 +202,6 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
         # similar to original work, we use softargmax as the inference_strategy. This is because the kp loss is the
         # EPE after applying softargmax.
         network = CATs(forward_pass_strategy='flow_prediction', inference_strategy='softargmax')
-
-        # elif 'DHPF' in model_name:
-        #     network = DynamicHPF()
     else:
         raise NotImplementedError('the model that you chose does not exist: {}'.format(model_name))
 

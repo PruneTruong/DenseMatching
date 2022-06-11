@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import cv2
 import numpy as np
+from packaging import version
+
+
 from models.base_matching_net import BaseGLUMultiScaleMatchingNet
 from models.inference_utils import estimate_homography_and_inliers, estimate_homography_and_correspondence_map, \
     estimate_mask, matches_from_flow, from_homography_to_pixel_wise_mapping
@@ -592,7 +595,7 @@ class UncertaintyPredictionInference(nn.Module):
                                                           align_corners=False).squeeze(1).byte()
         else:
             mask_padded = torch.ones(size_of_flow_padded).unsqueeze(0).byte().to(self.device)
-        mask_padded = mask_padded.bool() if float(torch.__version__[:3]) >= 1.1 else mask_padded.byte()
+        mask_padded = mask_padded.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_padded.byte()
 
         # scaling defines the final outputted shape by the network.
         source_padded_torch = data_source['image_resized_padded_torch']

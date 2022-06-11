@@ -31,7 +31,7 @@ Libraries for implementing, training and evaluating dense matching networks. It 
     * And much more...
 
 * **Official implementation** of GLU-Net (CVPR 2020), GLU-Net-GOCor (NeurIPS 2020), PWC-Net-GOCor (NeurIPS 2020), 
-PDC-Net (CVPR 2021), WarpC models (ICCV 2021) including trained models and respective results.
+PDC-Net (CVPR 2021), WarpC models (ICCV 2021), PWarpC models (CVPR 2022) including trained models and respective results.
 
 <br />
 
@@ -46,8 +46,21 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 
 \[[Paper](https://arxiv.org/abs/2203.04279)\]
 \[[Website](https://prunetruong.com/research/pwarpc)\]
+\[[Poster](https://drive.google.com/file/d/1lP5E3BNqdKJL1q-YsQ-C7rOwkcb5S63W/view?usp=sharing)\]
+\[[Video](https://www.youtube.com/watch?v=I2KtnvI8xZU)\]
 
 ![alt text](/images/pwarpc_banner.png)
+
+We propose Probabilistic Warp Consistency, a weakly-supervised learning objective for semantic matching. 
+Our approach directly supervises the dense matching scores predicted by the network, encoded as a conditional 
+probability distribution. We first construct an image triplet by applying a known warp to one of the images in 
+a pair depicting different instances of the same object class. Our probabilistic learning objectives are then 
+derived using the constraints arising from the resulting image triplet. We further account for occlusion and 
+background clutter present in real image pairs by extending our probabilistic output space with a learnable 
+unmatched state. To supervise it, we design an objective between image pairs depicting different object classes. 
+We validate our method by applying it to four recent semantic matching architectures. Our weakly-supervised approach 
+sets a new state-of-the-art on four challenging semantic matching benchmarks. Lastly, we demonstrate that our 
+objective also brings substantial improvements in the strongly-supervised regime, when combined with keypoint annotations. 
 
 
 
@@ -180,6 +193,7 @@ The pre-trained models can be found in the [model zoo](https://github.com/PruneT
     2. [Pose estimation](#pose_estimation)
         1. [YFCC100M](#yfcc)
         2. [ScanNet](#scannet)
+    3. [Sparse evaluation on HPatches](#sparse_hp)
 5. [Training](#training)
 6. [Acknowledgement](#acknowledgement)
 7. [Changelog](#changelog)
@@ -200,7 +214,7 @@ conda activate dense_matching_env
 
 * Install all dependencies (except for cupy, see below) by running the following command:
 ```bash
-pip install numpy opencv-python torch torchvision matplotlib imageio jpeg4py scipy pandas tqdm gdown pycocotools
+pip install numpy opencv-python torch torchvision matplotlib imageio jpeg4py scipy pandas tqdm gdown pycocotools timm
 ```
 
 **Note**: CUDA is required to run the code. Indeed, the correlation layer is implemented in CUDA using CuPy, 
@@ -209,13 +223,9 @@ provided binary packages as outlined in the CuPy repository. The code was develo
 which is why I installed cupy for cuda90. For another CUDA version, change accordingly. 
 
 ```bash
-pip install cupy-cuda90==7.8.0 --no-cache-dir 
+pip install cupy-cuda90 --no-cache-dir 
 ```
 
-There are some issues with latest versions of cupy. So for all cuda, install cupy version 7.8.0. For example, on cuda10, 
-```bash
-pip install cupy-cuda100==7.8.0 --no-cache-dir 
-```
 
 * This repo includes [GOCor](https://arxiv.org/abs/2009.07823) as git submodule. 
 You need to pull submodules with 
@@ -976,6 +986,12 @@ You should get similar metrics (not exactly the same because of RANSAC):
 
 
 
+### 4.3 Sparse evaluation on HPatches <a name="sparse_hp"></a>
+
+
+We provide the link to the cache results [here](https://drive.google.com/drive/folders/1gphUcvBXO12EsqskdMlH3CsLxHPLtIqL?usp=sharing) 
+for the sparse evaluation on HPatches. Check [PDC-Net+](https://arxiv.org/abs/2109.13912) for more details. 
+    
 
 ## 5. Training <a name="Training"></a>
 

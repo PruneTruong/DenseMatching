@@ -9,7 +9,10 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 from torch.utils.data import Dataset
+
+
 from ..util import center_crop
 from utils_flow.flow_and_mapping_operations import unormalise_and_convert_mapping_to_flow
 from datasets.util import define_mask_zero_borders
@@ -108,7 +111,7 @@ class HomoAffTpsDataset(Dataset):
         sampling_grid.data = sampling_grid.data * padding_factor * crop_factor
         # sample transformed image
 
-        if float(torch.__version__[:3]) >= 1.3:
+        if version.parse(torch.__version__) >= version.parse("1.3"):
             warped_image_batch = F.grid_sample(image, sampling_grid, align_corners=True)
         else:
             warped_image_batch = F.grid_sample(image, sampling_grid)
@@ -327,7 +330,7 @@ class HomoAffTpsDataset(Dataset):
             img_src_orig = torch.Tensor(img_src_orig.astype(np.float32))
             img_src_orig = img_src_orig.permute(2, 0, 1)
 
-            if float(torch.__version__[:3]) >= 1.3:
+            if version.parse(torch.__version__) >= version.parse("1.3"):
                 img_orig_target_vrbl = F.grid_sample(img_src_orig.unsqueeze(0),
                                                      grid_full, align_corners=True)
             else:
@@ -400,11 +403,12 @@ class HomoAffTpsDataset(Dataset):
 
         output = {'source_image': cropped_source_image,  'target_image': cropped_target_image,
                   'correspondence_mask': np.logical_and(mask_x[-1].detach().numpy(), mask_y[-1].detach().numpy())
-                      .astype(np.bool if float(torch.__version__[:3]) >= 1.1 else np.uint8), 'sparse': False}
+                      .astype(np.bool if version.parse(torch.__version__) >= version.parse("1.1")
+                              else np.uint8), 'sparse': False}
 
         if self.mask_zero_borders:
-            output['mask_zero_borders']= mask_valid.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 else \
-                mask_valid.astype(np.uint8)
+            output['mask_zero_borders']= mask_valid.astype(np.bool) if \
+                version.parse(torch.__version__) >= version.parse("1.1") else mask_valid.astype(np.uint8)
 
         if self.get_flow:
             # ATTENTION, here we just get the flow of the highest resolution asked, not the pyramid of flows !

@@ -3,7 +3,10 @@ import numpy as np
 import pandas as pd
 import cv2
 from os import path as osp
+from packaging import version
 import torch
+
+
 from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow
 
 
@@ -206,7 +209,8 @@ class HPatchesDataset(Dataset):
             return {'source_image': inputs[0],
                     'target_image': inputs[1],
                     'flow_map': target,
-                    'correspondence_mask': mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte(),
+                    'correspondence_mask': mask.bool() if version.parse(torch.__version__) >= version.parse("1.1")
+                        else mask.byte(),
                     'source_image_size': img1.shape,
                     'homography': H_scale
                     }

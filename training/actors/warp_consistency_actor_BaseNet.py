@@ -3,6 +3,7 @@ from training.losses.basic_losses import realEPE, real_metrics
 from .base_actor import BaseActor
 import torch
 import torch.nn.functional as F
+from packaging import version
 from utils_flow.flow_and_mapping_operations import unormalise_and_convert_mapping_to_flow
 from training.plot.plot_warp_consistency import plot_flows_warpc
 import os
@@ -136,7 +137,7 @@ class GLOCALNetWarpCUnsupervisedBatchPreprocessing:
             # mask_gt does not have the proper shape
             mask = F.interpolate(mask.float().unsqueeze(1), (h, w), mode='bilinear',
                                  align_corners=False).squeeze(1).byte()  # bxhxw
-        mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+        mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
         mini_batch['correspondence_mask'] = mini_batch['correspondence_mask'].to(self.device)
         mini_batch['mask'] = mask

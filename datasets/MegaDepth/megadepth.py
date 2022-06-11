@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import numpy as np
+from packaging import version
 from torch.utils.data import Dataset
 import torch
 from ..util import pad_to_same_shape, pad_to_size, resize_keeping_aspect_ratio
@@ -458,14 +459,14 @@ class MegaDepthDataset(Dataset):
             if type(mask) in [tuple, list]:
                 # flow field at different resolution
                 for i in range(len(flow)):
-                    mask[i] = torch.from_numpy(mask[i].astype(np.bool if float(torch.__version__[:3]) >= 1.1 else np.uint8))
+                    mask[i] = torch.from_numpy(mask[i].astype(np.bool if version.parse(torch.__version__) >= version.parse("1.1") else np.uint8))
             else:
-                mask = torch.from_numpy(mask.astype(np.bool if float(torch.__version__[:3]) >= 1.1 else np.uint8))
+                mask = torch.from_numpy(mask.astype(np.bool if version.parse(torch.__version__) >= version.parse("1.1") else np.uint8))
 
             output = {'source_image': source, 'target_image': target, 'flow_map': flow, 'correspondence_mask': mask,
                       'source_image_size': source_size, 'sparse': True}
             if self.compute_mask_zero_borders:
-                output['mask_zero_borders'] = mask_valid.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 \
+                output['mask_zero_borders'] = mask_valid.astype(np.bool) if version.parse(torch.__version__) >= version.parse("1.1") \
                                                    else mask_valid.astype(np.uint8)
 
         else:

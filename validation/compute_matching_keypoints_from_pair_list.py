@@ -7,6 +7,8 @@ import os
 from tqdm import tqdm
 torch.set_grad_enabled(False)
 from matplotlib import pyplot as plt
+
+from packaging import version
 env_path = os.path.join(os.path.dirname(__file__), '../')
 if env_path not in sys.path:
     sys.path.append(env_path)
@@ -317,7 +319,7 @@ def retrieve_matching_keypoints_from_pair_list(args, cfg, pair_names, images_dir
                                                                                        2).cuda().float()
             mask_from_1_to_0 = torch.from_numpy(mask_from_1_to_0).unsqueeze(
                 0).cuda().float()
-            mask_from_1_to_0 = mask_from_1_to_0.bool() if float(torch.__version__[:3]) >= 1.1 \
+            mask_from_1_to_0 = mask_from_1_to_0.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
                 else mask_from_1_to_0.byte()
 
         else:
@@ -343,7 +345,7 @@ def retrieve_matching_keypoints_from_pair_list(args, cfg, pair_names, images_dir
                                                                                            2).cuda().float()
                 mask_from_0_to_1 = torch.from_numpy(mask_from_0_to_1).unsqueeze(
                     0).cuda().float()
-                mask_from_0_to_1 = mask_from_0_to_1.bool() if float(torch.__version__[:3]) >= 1.1 \
+                mask_from_0_to_1 = mask_from_0_to_1.bool() if version.parse(torch.__version__) >= version.parse("1.1")\
                     else mask_from_0_to_1.byte()
             else:
                 flow_from_0_to_1, confidence_map_from_0_to_1, mask_from_0_to_1 = network.perform_matching(

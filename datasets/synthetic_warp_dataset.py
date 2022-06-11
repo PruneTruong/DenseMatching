@@ -1,10 +1,12 @@
-from datasets.util import define_mask_zero_borders
 from torch.utils.data import Dataset
 import torch
-from utils_flow.flow_and_mapping_operations import get_gt_correspondence_mask
-import numpy as np
-from utils_flow.pixel_wise_mapping import warp
+from packaging import version
 import torch.nn.functional as F
+import numpy as np
+
+
+from utils_flow.flow_and_mapping_operations import get_gt_correspondence_mask
+from utils_flow.pixel_wise_mapping import warp
 
 
 class WarpingDataset(torch.utils.data.Dataset):
@@ -146,7 +148,7 @@ class WarpingDataset(torch.utils.data.Dataset):
 
             mask_zero_borders = F.interpolate(mask_zero_borders.float().unsqueeze(1), self.output_size,
                                               mode='bilinear', align_corners=False).byte().squeeze(1)
-            mask_zero_borders = mask_zero_borders.bool() if float(torch.__version__[:3]) >= 1.1 \
+            mask_zero_borders = mask_zero_borders.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
                 else mask_zero_borders.byte()
 
         # put back the images and flow to numpy array, channel last

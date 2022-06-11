@@ -5,6 +5,9 @@ import torch.nn as nn
 import torchvision.models as models
 from collections import OrderedDict
 import torch.nn.functional as F
+from packaging import version
+
+
 from models.modules.mod import CMDTop, OpticalFlowEstimator, deconv, conv, predict_flow, \
     unnormalise_and_convert_mapping_to_flow
 from models.modules.feature_correlation_layer import FeatureL2Norm, GlobalFeatureCorrelationLayer
@@ -92,7 +95,7 @@ class VGGPyramid(nn.Module):
                 x = self.__dict__['_modules']['level_' + str(layer_n)](x)
                 outputs.append(x)
 
-            if float(torch.__version__[:3]) >= 1.6:
+            if version.parse(torch.__version__) >= version.parse("1.6"):
                 x = torch.nn.functional.interpolate(x, scale_factor=0.5, mode='bilinear', align_corners=False,
                                                     recompute_scale_factor=True)
             else:

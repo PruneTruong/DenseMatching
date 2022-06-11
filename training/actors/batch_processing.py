@@ -1,6 +1,7 @@
 import torch.utils.data
 import torch
 import torch.nn.functional as F
+from packaging import version
 from utils_flow.flow_and_mapping_operations import unormalise_and_convert_mapping_to_flow
 from models.base_matching_net import pre_process_image_glunet
 
@@ -103,7 +104,7 @@ class GLUNetBatchPreprocessing:
 
             mask_256 = F.interpolate(mask.unsqueeze(1).float(), (256, 256), mode='bilinear',
                                      align_corners=False).squeeze(1).byte()  # bx256x256, rounding
-            mask_256 = mask_256.bool() if float(torch.__version__[:3]) >= 1.1 else mask_256.byte()
+            mask_256 = mask_256.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_256.byte()
         elif self.apply_mask:
             if self.sparse_ground_truth:
                 mask = mini_batch['correspondence_mask'][0].to(self.device)
@@ -112,7 +113,7 @@ class GLUNetBatchPreprocessing:
                 mask = mini_batch['correspondence_mask'].to(self.device)  # bxhxw, torch.uint8
                 mask_256 = F.interpolate(mask.unsqueeze(1).float(), (256, 256), mode='bilinear',
                                          align_corners=False).squeeze(1).byte()   # bx256x256, rounding
-                mask_256 = mask_256.bool() if float(torch.__version__[:3]) >= 1.1 else mask_256.byte()
+                mask_256 = mask_256.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_256.byte()
 
         mini_batch['source_image'] = source_image
         mini_batch['target_image'] = target_image
@@ -187,7 +188,7 @@ class GLOCALNetBatchPreprocessing:
             # mask_gt does not have the proper shape
             mask = F.interpolate(mask.float().unsqueeze(1), (h, w), mode='bilinear',
                                  align_corners=False).squeeze(1).byte()  #bxhxw
-            mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+            mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
         mini_batch['source_image'] = normalize_image_with_imagenet_weights(mini_batch['source_image']).to(self.device)
         mini_batch['target_image'] = normalize_image_with_imagenet_weights(mini_batch['target_image']).to(self.device)
@@ -251,7 +252,7 @@ class ImageNetNormalizationBatchPreprocessing:
             # mask_gt does not have the proper shape
             mask = F.interpolate(mask.float().unsqueeze(1), (h, w), mode='bilinear',
                                  align_corners=False).squeeze(1).byte()  #bxhxw
-            mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+            mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
         mini_batch['source_image'] = normalize_image_with_imagenet_weights(mini_batch['source_image']).to(self.device)
         mini_batch['target_image'] = normalize_image_with_imagenet_weights(mini_batch['target_image']).to(self.device)

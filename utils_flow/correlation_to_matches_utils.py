@@ -2,6 +2,7 @@ import torch
 import torch.nn
 from torch.autograd import Variable
 import numpy as np
+from packaging import version
 from models.modules.feature_correlation_layer import compute_global_correlation, featureL2Norm
 from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow, convert_flow_to_mapping, normalize, unnormalize
 import torch.nn.functional as F
@@ -194,7 +195,7 @@ def estimate_epe_from_correlation(correlation, flow_gt, mask_gt, pck_thresh_1=1.
     if mask_gt is not None:
         mask_gt = F.interpolate(mask_gt.unsqueeze(1).float(), (h_flow, w_flow), mode='bilinear',
                                 align_corners=False).squeeze(1).byte()
-        mask_gt = mask_gt.bool() if float(torch.__version__[:3]) >= 1.1 else mask_gt.byte()
+        mask_gt = mask_gt.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_gt.byte()
 
         flow_gt = flow_gt[mask_gt]  # N, 2
         flow_est = flow_est[mask_gt]

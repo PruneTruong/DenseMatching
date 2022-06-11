@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import math
+from packaging import version
 
 from models.modules.consensus_network_modules import MutualMatching, NeighConsensus, FeatureCorrelation
 from models.modules.mod import conv, predict_flow
@@ -252,7 +253,7 @@ class BaseMultiScaleMatchingNet(nn.Module):
 
         vgrid = vgrid.permute(0, 2, 3, 1)
 
-        if float(torch.__version__[:3]) >= 1.3:
+        if version.parse(torch.__version__) >= version.parse("1.3"):
             # to be consistent to old version, I put align_corners=True.
             # to investigate if align_corners False is better.
             output = nn.functional.grid_sample(x, vgrid, align_corners=True)

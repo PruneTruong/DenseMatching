@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 import pickle
 import torch
+from packaging import version
 
 
 class ETHInterval(data.Dataset):
@@ -94,7 +95,7 @@ class ETHInterval(data.Dataset):
         return {'source_image': inputs[0],
                 'target_image': inputs[1],
                 'flow_map': target,
-                'correspondence_mask': mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1
+                'correspondence_mask': mask.astype(np.bool) if version.parse(torch.__version__) >= version.parse("1.1")
                   else mask.astype(np.uint8),
                 'source_image_size': source_size,
                 }

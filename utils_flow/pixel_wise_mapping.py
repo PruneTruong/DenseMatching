@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import torch
 import torch.nn as nn
+from packaging import version
 
 
 def remap_using_flow_fields(image, disp_x, disp_y, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT):
@@ -81,7 +82,7 @@ def warp(x, flo, padding_mode='zeros', return_mask=False):
 
     vgrid = vgrid.permute(0, 2, 3, 1)
 
-    if float(torch.__version__[:3]) >= 1.3:
+    if version.parse(torch.__version__) >= version.parse("1.3"):
         output = nn.functional.grid_sample(x, vgrid, align_corners=True, padding_mode=padding_mode)
     else:
         output = nn.functional.grid_sample(x, vgrid, padding_mode=padding_mode)
@@ -111,7 +112,7 @@ def warp_with_mapping(x, vgrid, padding_mode='zeros', return_mask=False):
     vgrid[:, 1, :, :] = 2.0 * vgrid[:, 1, :, :].clone() / max(H - 1, 1) - 1.0
 
     vgrid = vgrid.permute(0, 2, 3, 1)
-    if float(torch.__version__[:3]) >= 1.3:
+    if version.parse(torch.__version__) >= version.parse("1.3"):
         output = nn.functional.grid_sample(x, vgrid, align_corners=True, padding_mode=padding_mode)
     else:
         output = nn.functional.grid_sample(x, vgrid, padding_mode=padding_mode)

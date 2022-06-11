@@ -6,6 +6,9 @@ import numpy as np
 import torch
 import jpeg4py
 import random
+from packaging import version
+
+
 from utils_flow.pixel_wise_mapping import remap_using_flow_fields, warp
 from utils_data.augmentations.geometric_distortions import ElasticTransform
 from utils_flow.flow_and_mapping_operations import (convert_flow_to_mapping, convert_mapping_to_flow,
@@ -176,13 +179,13 @@ class DiscontinuityDatasetV2(data.Dataset):
         output = {'source_image': inputs[0],
                   'target_image': inputs[1],
                   'correspondence_mask': mask_valid_correspondences.astype(np.bool) if
-                  float(torch.__version__[:3]) >= 1.1 else mask_valid_correspondences.astype(np.uint8),
+                  version.parse(torch.__version__) >= version.parse("1.1") else mask_valid_correspondences.astype(np.uint8),
                   'source_image_size': source_size,
                   'sparse': False
                   }
 
         if self.mask_zero_borders:
-            output['mask_zero_borders'] = mask_valid.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 \
+            output['mask_zero_borders'] = mask_valid.astype(np.bool) if version.parse(torch.__version__) >= version.parse("1.1") \
                                               else mask_valid.astype(np.uint8),
         if self.get_mapping:
             output['correspondence_map']: convert_flow_to_mapping(final_flow)

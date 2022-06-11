@@ -2,6 +2,10 @@ import torch
 
 import cupy
 import re
+if hasattr(cupy, 'util'):
+    import cupy.util as cupyutil
+else:
+    import cupy as cupyutil
 
 
 class Stream:
@@ -271,7 +275,7 @@ def cupy_kernel(strFunction, objectVariables):
     return strKernel
 
 
-@cupy.util.memoize(for_each_device=True)
+@cupyutil.memoize(for_each_device=True)
 def cupy_launch(strFunction, strKernel):
     return cupy.cuda.compile_with_cache(strKernel).get_function(strFunction)
 

@@ -2,9 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from packaging import version
 import math
 from scipy import ndimage
 import cv2
+
+
 from models.PDCNet.mod_uncertainty import (estimate_average_variance_of_mixture_density,
                                            estimate_probability_of_confidence_interval_of_mixture_density)
 from utils_flow.flow_and_mapping_operations import unnormalize, normalize
@@ -93,7 +96,7 @@ def estimate_mask(mask_type, uncertainty_est, list_item=-1):
         valid_kp = mask_valid[YA, XA]
         mask = torch.zeros_like(mask_valid)
         mask[YA[valid_kp], XA[valid_kp]] = True
-        mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+        mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
     elif 'proba_interval' in mask_type and ('NMS' not in mask_type or 'grid' not in mask_type):
         # ex 'proba_interval_1_above_10'
         min_confidence = float(mask_type.split('above_', 1)[-1])

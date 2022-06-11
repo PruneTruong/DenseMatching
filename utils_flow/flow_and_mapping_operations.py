@@ -1,4 +1,5 @@
 import numpy as np
+from packaging import version
 from utils_flow.pixel_wise_mapping import remap_using_correspondence_map
 import torch
 
@@ -24,7 +25,7 @@ def get_gt_correspondence_mask(flow):
             mask_x = np.logical_and(mapping[0] >= 0, mapping[0] <= w - 1)
             mask_y = np.logical_and(mapping[1] >= 0, mapping[1] <= h - 1)
             mask = np.logical_and(mask_x, mask_y)
-        mask = mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 else mask.astype(np.uint8)
+        mask = mask.astype(np.bool) if version.parse(torch.__version__) >= version.parse("1.1") else mask.astype(np.uint8)
     else:
         if len(mapping.shape) == 4:
             # shape is B,C,H,W
@@ -33,7 +34,7 @@ def get_gt_correspondence_mask(flow):
         else:
             _, h, w = mapping.shape
             mask = mapping[0].ge(0) & mapping[0].le(w-1) & mapping[1].ge(0) & mapping[1].le(h-1)
-        mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+        mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
     return mask
 
 

@@ -3,11 +3,15 @@ import os
 import torch
 import pandas as pd
 import numpy as np
+from packaging import version
+import scipy.io as sio
+import random
+
+
 from datasets.util import pad_to_same_shape
 from .semantic_keypoints_datasets import SemanticKeypointsDataset, random_crop
 from datasets.util import define_mask_zero_borders
-import scipy.io as sio
-import random
+
 
 
 def read_mat(path, obj_name):
@@ -197,7 +201,8 @@ class PFPascalDataset(SemanticKeypointsDataset):
                 flow = self.flow_transform(flow)
 
             batch['flow_map'] = flow
-            batch['correspondence_mask'] = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+            batch['correspondence_mask'] = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
+                else mask.byte()
 
         return batch
 

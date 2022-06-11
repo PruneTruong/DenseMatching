@@ -3,8 +3,10 @@ import os.path
 import numpy as np
 import torch.utils.data as data
 import cv2
-from utils_data.io import load_flo
+from packaging import version
 import torch
+
+from utils_data.io import load_flo
 
 
 def pad_to_same_shape(im1, im2, flow, mask):
@@ -162,8 +164,8 @@ class TSSDataset(data.Dataset):
         return {'source_image': inputs[0],
                 'target_image': inputs[1],
                 'flow_map': target,
-                'correspondence_mask': mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 else
-                mask.astype(np.uint8),
+                'correspondence_mask': mask.astype(np.bool) if version.parse(torch.__version__) >= version.parse("1.1")
+                    else mask.astype(np.uint8),
                 'source_image_size': np.array(source_size),
                 'target_image_size': np.array(target_size),
                 'pckthres': L_pck

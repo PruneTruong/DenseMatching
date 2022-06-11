@@ -1,4 +1,7 @@
 import math
+from packaging import version
+
+
 import training.losses.cost_volume_losses.geometry as geometry
 from ..multiscale_loss import MultiScaleFlow
 from ..basic_losses import EPE
@@ -363,7 +366,8 @@ class SparseSupervisedOneHotCE(SupervisionStrategy):
         mask = torch.zeros(b, h, w).cuda()
         mapping = torch.zeros(b, h, w, 2).long().cuda()
         mask[batch_index, target_kp_rounded[range(M), 1], target_kp_rounded[range(M), 0]] = 1
-        mask = mask.view(-1).bool() if float(torch.__version__[:3]) >= 1.1 else mask.view(-1).byte()  # b*h_tp*w_tp
+        mask = mask.view(-1).bool() if version.parse(torch.__version__) >= version.parse("1.1") else \
+            mask.view(-1).byte()  # b*h_tp*w_tp
 
         mapping[batch_index, target_kp_rounded[range(M), 1], target_kp_rounded[range(M), 0]] = \
             source_kp_rounded[range(M)]

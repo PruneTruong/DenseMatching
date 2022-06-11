@@ -1,15 +1,16 @@
 import numpy as np
 import cv2 as cv
-from .base_video_dataset import BaseVideoDataset
-from datasets.object_augmented_dataset.bounding_box_utils import masks_to_bboxes
-import random
-import torch
-from utils_flow.pixel_wise_mapping import remap_using_flow_fields
+from packaging import version
 import cv2
 import torch.nn.functional as F
+import random
+import torch
+
+
+from .base_video_dataset import BaseVideoDataset
+from datasets.object_augmented_dataset.bounding_box_utils import masks_to_bboxes
+from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 from utils_flow.flow_and_mapping_operations import get_gt_correspondence_mask
-import psutil
-import gc
 
 
 def from_homography_to_pixel_wise_mapping(shape, H):
@@ -241,7 +242,7 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
             correspondence_mask = torch.from_numpy(background_sample['correspondence_mask'])
         else:
             correspondence_mask = background_sample['correspondence_mask']
-        correspondence_mask = correspondence_mask.bool() if float(torch.__version__[:3]) >= 1.1 \
+        correspondence_mask = correspondence_mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
             else correspondence_mask.byte()
 
         if self.compute_zero_border_mask:
@@ -325,8 +326,10 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
                 flow_x, flow_y = from_homography_to_pixel_wise_mapping(target_image.shape[:2], h)
                 flow_fg_object = np.dstack([flow_x, flow_y])
 
-                source_mask_fg = source_mask_fg.bool() if float(torch.__version__[:3]) >= 1.1 else source_mask_fg.byte()
-                target_mask_fg = target_mask_fg.bool() if float(torch.__version__[:3]) >= 1.1 else target_mask_fg.byte()
+                source_mask_fg = source_mask_fg.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
+                    else source_mask_fg.byte()
+                target_mask_fg = target_mask_fg.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
+                    else target_mask_fg.byte()
 
                 # compute newly augmented source image. it is the source background except at location of object !
                 source_image = np.where(source_mask_fg.unsqueeze(2).numpy(), source_image_fg, bg_frame_list[0])
@@ -356,7 +359,8 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
                                                  np.ones((3, 3), np.uint8), iterations=1),
                                       np.ones((3, 3), np.uint8), iterations=1))
                         mask_fg_object_source_in_target_frame = mask_fg_object_source_in_target_frame.bool() \
-                            if float(torch.__version__[:3]) >= 1.1 else mask_fg_object_source_in_target_frame.byte()
+                            if version.parse(torch.__version__) >= version.parse("1.1")\
+                            else mask_fg_object_source_in_target_frame.byte()
 
                         # not fully valid if object was further covered
                         if area_of_source_objects_covered_by_new_object.sum() > 0:
@@ -367,7 +371,7 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
                                                         flow_file[:, :, 1].numpy()), 0, 1)
                             mask_occluded_in_source = torch.Tensor(mask_occluded_in_source).byte()
                             mask_occluded_in_source = mask_occluded_in_source.bool() \
-                                if float(torch.__version__[:3]) >= 1.1 else mask_occluded_in_source.byte()
+                                if version.parse(torch.__version__) >= version.parse("1.1") else mask_occluded_in_source.byte()
                             mask_of_reprojected_object_from_source_to_target = \
                                 mask_of_reprojected_object_from_source_to_target | mask_occluded_in_source
 
@@ -408,12 +412,13 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
             correspondence_mask = ~mask_of_reprojected_object_from_source_to_target
         else:
             correspondence_mask = correspondence_mask
-        correspondence_mask = correspondence_mask.bool() if float(torch.__version__[:3]) >= 1.1 \
+        correspondence_mask = correspondence_mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
             else correspondence_mask.byte()
 
         if self.co_transform is not None:
             # this one is wrong if flow_file is a list
-            [source_image, target_image], flow_file = self.co_transform([source_image, target_image], flow_file)
+            [source_image, target_image], flow_file, correspondence_mask = \
+                self.co_transform([source_image, target_image], flow_file, correspondence_mask)
         if self.first_image_transform is not None:
             source_image = self.first_image_transform(source_image)
         if self.second_image_transform is not None:
@@ -432,7 +437,8 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
                 list_of_flows.append(flow_resized) # already in dimension c, h, w
                 mask_resized = F.interpolate(input=correspondence_mask.unsqueeze(0).unsqueeze(0).float(), size=i_size,
                                              mode='bilinear', align_corners=False).squeeze()
-                list_of_masks.append(mask_resized.bool() if float(torch.__version__[:3]) >= 1.1 else mask_resized.byte())
+                list_of_masks.append(mask_resized.bool() if version.parse(torch.__version__) >= version.parse("1.1")
+                                     else mask_resized.byte())
 
             flow_file = list_of_flows
             correspondence_mask = list_of_masks

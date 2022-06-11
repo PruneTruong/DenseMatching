@@ -1,5 +1,7 @@
 import torch
 import torch.nn.functional as F
+from packaging import version
+
 from utils_flow.pixel_wise_mapping import warp
 from utils_flow.flow_and_mapping_operations import get_gt_correspondence_mask
 
@@ -132,8 +134,8 @@ class WBipathLoss:
                 # to invalid flow regions.
                 mask_used_resized = F.interpolate(mask_used.unsqueeze(1).float(), (h_, w_), mode='bilinear',
                                                   align_corners=False).byte().squeeze(1)
-                mask_used_resized = mask_used_resized.bool() if float(torch.__version__[:3]) >= 1.1 else \
-                    mask_used_resized.byte()
+                mask_used_resized = mask_used_resized.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
+                    else mask_used_resized.byte()
                 mask = mask & mask_used_resized
 
             if self.compute_cyclic_consistency:

@@ -6,9 +6,11 @@ import os
 import torch
 import pandas as pd
 import numpy as np
+from packaging import version
 from torch.utils.data import Dataset
 from imageio import imread
 import cv2
+
 from datasets.util import pad_to_same_shape
 
 
@@ -110,7 +112,7 @@ class PFWillowDataset(Dataset):
                 'source_image_size': image_source_size,
                 'target_image_size': img_target_size,
                 'flow_map': flow,
-                'correspondence_mask': mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 \
+                'correspondence_mask': mask.astype(np.bool) if version.parse(torch.__version__) >= version.parse("1.1") \
                     else mask.astype(np.uint8),
                 'source_coor': point_source_coords,
                 'target_coor': point_target_coords,
@@ -248,7 +250,7 @@ class PFPascalDataset(Dataset):
                   'source_image_size': image_source_size,
                   'target_image_size': image_target_size,
                   'flow_map': flow,
-                  'correspondence_mask': mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 \
+                  'correspondence_mask': mask.astype(np.bool) if version.parse(torch.__version__) >= version.parse("1.1") \
                     else mask.astype(np.uint8),
                   'source_coor': point_source_coords,
                   'target_coor': point_target_coords,

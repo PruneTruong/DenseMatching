@@ -2,6 +2,7 @@
 from __future__ import print_function, division
 import numpy as np
 import torch
+from packaging import version
 from torch.nn.modules.module import Module
 import torch.nn.functional as F
 
@@ -341,7 +342,7 @@ class ComposedGeometricTnf(object):
         sampling_grid_aff = torch.add((in_bound_mask_aff.float() - 1) * (1e10), sampling_grid_aff)
 
         # compose transformations
-        if float(torch.__version__[:3]) >= 1.3:
+        if version.parse(torch.__version__) >= version.parse("1.3"):
             sampling_grid_aff_tps_comp = F.grid_sample(sampling_grid_aff.transpose(2, 3).transpose(1, 2),
                                                        sampling_grid_aff_tps, align_corners=True)\
                 .transpose(1, 2).transpose(2, 3)
@@ -426,7 +427,7 @@ class GeometricTnf(object):
             return sampling_grid
 
         # sample transformed image
-        if float(torch.__version__[:3]) >= 1.3:
+        if version.parse(torch.__version__) >= version.parse("1.3"):
             warped_image_batch = F.grid_sample(image_batch, sampling_grid, align_corners=True)
         else:
             warped_image_batch = F.grid_sample(image_batch, sampling_grid)

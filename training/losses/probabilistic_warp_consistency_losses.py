@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 from models.modules.feature_correlation_layer import compute_global_correlation
 from models.modules.feature_correlation_layer import featureL2Norm
@@ -222,7 +223,7 @@ class ProbabilisticWarpConsistencyForGlobalCorr(nn.Module):
         if mask_valid is not None:
             mask_valid = F.interpolate(mask_valid.unsqueeze(1).float(), (h, w), mode='bilinear',
                                        align_corners=False).squeeze(1)
-            mask_valid = mask_valid.bool() if float(torch.__version__[:3]) >= 1.1 else mask_valid.byte()
+            mask_valid = mask_valid.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_valid.byte()
             mask_corr = mask_valid & mask_corr
 
         mapping_gt = mapping_gt.view(b, 2, -1).permute(0, 2, 1).contiguous().view(-1, 2)  # b*h_tp*w_tp, 2
@@ -328,7 +329,7 @@ class ProbabilisticWarpConsistencyForGlobalCorr(nn.Module):
         value_sorted, indice_sorted = torch.topk(proba, indice_for_top_percent)
         mask = torch.zeros_like(proba)
         mask[indice_sorted] = 1.0
-        return mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+        return mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
     def forward(self, flow_gt_full, mask_valid=None, c_source=None, c_target=None, c_target_prime=None,
                 A_target_prime_to_source=None, A_source_to_target=None, A_target_prime_to_target=None, *args, **kwargs):

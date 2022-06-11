@@ -3,7 +3,7 @@ import os
 import sys
 import numpy as np
 import argparse
-from tqdm import tqdm
+from packaging import version
 import h5py
 import importlib
 import imageio
@@ -601,7 +601,7 @@ def retrieve_matches_at_keypoints_locations_from_pair_list(args, cfg, pair_names
                                                                                        2).cuda().float()
             mask_from_1_to_0 = torch.from_numpy(mask_from_1_to_0).unsqueeze(
                 0).cuda().float()
-            mask_from_1_to_0 = mask_from_1_to_0.bool() if float(torch.__version__[:3]) >= 1.1 \
+            mask_from_1_to_0 = mask_from_1_to_0.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
                 else mask_from_1_to_0.byte()
 
         else:
@@ -627,7 +627,7 @@ def retrieve_matches_at_keypoints_locations_from_pair_list(args, cfg, pair_names
                                                                                            2).cuda().float()
                 mask_from_0_to_1 = torch.from_numpy(mask_from_0_to_1).unsqueeze(
                     0).cuda().float()
-                mask_from_0_to_1 = mask_from_0_to_1.bool() if float(torch.__version__[:3]) >= 1.1 \
+                mask_from_0_to_1 = mask_from_0_to_1.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
                     else mask_from_0_to_1.byte()
             else:
                 flow_from_0_to_1, confidence_map_from_0_to_1, mask_from_0_to_1 = network.perform_matching(

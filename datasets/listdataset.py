@@ -5,6 +5,9 @@ import cv2
 import numpy as np
 import torch
 import jpeg4py
+from packaging import version
+
+
 from utils_flow.flow_and_mapping_operations import get_gt_correspondence_mask, convert_flow_to_mapping
 from utils_data.io import load_flo
 from datasets.util import define_mask_zero_borders
@@ -147,16 +150,16 @@ class ListDataset(data.Dataset):
 
         output = {'source_image': inputs[0],
                   'target_image': inputs[1],
-                  'correspondence_mask': mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1
-                  else mask.astype(np.uint8),
+                  'correspondence_mask': mask.astype(np.bool) if \
+                        version.parse(torch.__version__) >= version.parse("1.1") else mask.astype(np.uint8),
                   'source_image_size': source_size,
                   'sparse': False}
         if self.load_occlusion_mask:
             output['occlusion_mask'] = occ_mask
 
         if self.mask_zero_borders:
-            output['mask_zero_borders'] = mask_valid.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 \
-                else mask_valid.astype(np.uint8)
+            output['mask_zero_borders'] = mask_valid.astype(np.bool) if \
+                version.parse(torch.__version__) >= version.parse("1.1") else mask_valid.astype(np.uint8)
 
         if self.get_mapping:
             output['correspondence_map'] = convert_flow_to_mapping(flow)

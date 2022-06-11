@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import cv2
+from packaging import version
 
 
 def define_mask_zero_borders(image, epsilon=1e-6):
@@ -23,7 +24,7 @@ def define_mask_zero_borders(image, epsilon=1e-6):
                                                      image[:, :, 1] < epsilon),
                                       image[:, :, 2] < epsilon)
         mask = ~occ_mask
-        mask = mask.astype(np.bool) if float(torch.__version__[:3]) >= 1.1 else mask.astype(np.uint8)
+        mask = mask.astype(np.bool) if version.parse(torch.__version__) >= version.parse("1.1") else mask.astype(np.uint8)
     else:
         # torch tensor
         if len(image.shape) == 4:
@@ -37,7 +38,7 @@ def define_mask_zero_borders(image, epsilon=1e-6):
                 image = image.permute(1, 2, 0)
             occ_mask = image[:, :, 0].le(epsilon) & image[:, :, 1].le(epsilon) & image[:, :, 2].le(epsilon)
         mask = ~occ_mask
-        mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+        mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
     return mask
 
 

@@ -1,4 +1,5 @@
 import torch
+from packaging import version
 import torch.nn.functional as F
 from utils_flow.pixel_wise_mapping import warp
 from utils_flow.flow_and_mapping_operations import create_border_mask
@@ -153,8 +154,8 @@ class BatchedImageTripletCreation:
                     mask_gt_target_to_source = F.interpolate(mask_gt_target_to_source.unsqueeze(1).float(),
                                                              self.output_size,
                                                              mode='bilinear', align_corners=False)
-                    mask_gt_target_to_source = mask_gt_target_to_source.bool() if float(torch.__version__[:3]) >= 1.1 \
-                        else mask_gt_target_to_source.byte()
+                    mask_gt_target_to_source = mask_gt_target_to_source.bool() if \
+                        version.parse(torch.__version__) >= version.parse("1.1") else mask_gt_target_to_source.byte()
 
             # if target kps, also resize them
             if 'target_kps' in mini_batch.keys():
@@ -165,7 +166,7 @@ class BatchedImageTripletCreation:
 
         # create ground truth correspondence mask for flow between target prime and target
         mask_gt = create_border_mask(flow_gt_resized)
-        mask_gt = mask_gt.bool() if float(torch.__version__[:3]) >= 1.1 else mask_gt.byte()
+        mask_gt = mask_gt.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_gt.byte()
 
         if self.compute_mask_zero_borders:
             # if mask_gt has too little commun areas, overwrite to use that mask in anycase
@@ -177,8 +178,8 @@ class BatchedImageTripletCreation:
                 # mask black borders that might have appeared from the warping, when creating target_image_prime
                 mask_zero_borders = define_mask_zero_borders(target_image_prime_resized)
             '''
-            mini_batch['mask_zero_borders'] = mask_zero_borders.bool() if float(torch.__version__[:3]) >= 1.1 else \
-                mask_zero_borders.byte()
+            mini_batch['mask_zero_borders'] = mask_zero_borders.bool() if \
+                version.parse(torch.__version__) >= version.parse("1.1") else mask_zero_borders.byte()
 
         if 'target_kps' in mini_batch.keys():
             mini_batch['target_kps'] = target_kp  # b, N, 2
@@ -250,13 +251,13 @@ class BatchedImageTripletCreation2Flows:
         # compute mask gt
         # create ground truth mask (for eval at least)
         mask_gt = create_border_mask(flow_gt_resized)
-        mask_gt = mask_gt.bool() if float(torch.__version__[:3]) >= 1.1 else mask_gt.byte()
+        mask_gt = mask_gt.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_gt.byte()
 
         if self.compute_mask_zero_borders:
             # if mask_gt is all zero (no commun areas), overwrite to use the mask in anycase
             if mask_gt.sum() < mask_gt.shape[-1] * mask_gt.shape[-2] * self.min_percent_valid_corr:
                 mask_zero_borders = mask_gt
-        mask_zero_borders = mask_zero_borders.bool() if float(torch.__version__[:3]) >= 1.1 else \
+        mask_zero_borders = mask_zero_borders.bool() if version.parse(torch.__version__) >= version.parse("1.1") else \
             mask_zero_borders.byte()
         return mask_zero_borders, mask_gt
 
@@ -399,8 +400,8 @@ class BatchedImageTripletCreation2Flows:
                 if mask_gt_target_to_source is not None:
                     mask_gt_target_to_source = F.interpolate(mask_gt_target_to_source.unsqueeze(1).float(),
                                                              self.output_size, mode='bilinear', align_corners=False)
-                    mask_gt_target_to_source = mask_gt_target_to_source.bool() if float(torch.__version__[:3]) >= 1.1 \
-                        else mask_gt_target_to_source.byte()
+                    mask_gt_target_to_source = mask_gt_target_to_source.bool() if \
+                        version.parse(torch.__version__) >= version.parse("1.1") else mask_gt_target_to_source.byte()
 
             if 'target_kps' in mini_batch.keys():
                 source_kp[:, :, 0] *= float(self.output_size[1]) / float(self.crop_size[1])

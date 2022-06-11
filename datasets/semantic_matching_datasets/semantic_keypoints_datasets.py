@@ -3,8 +3,11 @@ import random
 import torch
 import cv2
 from torch.utils.data import Dataset
+from packaging import version
 import pandas as pd
 import numpy as np
+
+
 from ..util import pad_to_same_shape, pad_to_size, resize_keeping_aspect_ratio
 
 
@@ -330,7 +333,7 @@ class SemanticKeypointsDataset(Dataset):
 
             # computes the flow
             flow, mask = self.keypoints_to_flow(points2D1, points2D2, h_size, w_size)
-            mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+            mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
             list_of_flow.append(flow)
             list_of_mask.append(mask)

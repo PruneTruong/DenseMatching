@@ -1,5 +1,6 @@
 import torch.nn.functional as F
 import torch
+from packaging import version
 
 
 class MultiScaleFlow:
@@ -33,7 +34,7 @@ class MultiScaleFlow:
                 if mask.shape[2] != h or mask.shape[3] != w:
                     mask = F.interpolate(mask.float(), (h, w), mode='bilinear', align_corners=False).byte()
                     # round not to include the borders
-                    mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+                    mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
         else:
             b, _, h, w = gt_flow.shape
             # upsample output to ground truth flow load_size
@@ -43,7 +44,7 @@ class MultiScaleFlow:
                 if mask.shape[2] != h or mask.shape[3] != w:
                     mask = F.interpolate(mask.float(), (h, w), mode='bilinear', align_corners=False).byte()
                     # round not to include the borders
-                    mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+                    mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
         return self.loss_function(est_flow, gt_flow, mask=mask)
 
@@ -118,7 +119,7 @@ class MultiScaleSingleDensity:
             gt_flow = F.interpolate(gt_flow, (h, w), mode='bilinear', align_corners=False)
             if mask is not None:
                 mask = F.interpolate(mask.float().unsqueeze(1), (h, w), mode='bilinear', align_corners=False).byte()
-                mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+                mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
         else:
             b, _, h, w = gt_flow.shape
             # upsample output to ground truth flow load_size
@@ -192,7 +193,7 @@ class MultiScaleMixtureDensity:
             gt_flow = F.interpolate(gt_flow, (h, w), mode='bilinear', align_corners=False)
             if mask is not None:
                 mask = F.interpolate(mask.float().unsqueeze(1), (h, w), mode='bilinear', align_corners=False).byte()
-                mask = mask.bool() if float(torch.__version__[:3]) >= 1.1 else mask.byte()
+                mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
         else:
             b, _, h, w = gt_flow.shape
             # upsample output to ground truth flow load_size
