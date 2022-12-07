@@ -11,6 +11,7 @@ import numpy as np
 from collections import OrderedDict
 import torch.nn.functional as F
 import math
+from packaging import version
 
 from admin.model_constructor import model_constructor
 from models.semantic_matching_models.eval_util_dynamic import bilinearInterpPointTnf, PointsToPixelCoords, PointsToUnitCoords
