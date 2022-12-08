@@ -408,7 +408,7 @@ class UncertaintyPredictionInference(nn.Module):
             if ratio == 1.0:
                 list_of_H_target.append(np.eye(3))
                 list_of_H_source.append(np.eye(3))
-                list_of_normalization_value.append(float(h_t * w_t / scaling[0] * scaling[1]))
+                list_of_normalization_value.append(float(h_t * w_t / (scaling[0] * scaling[1])))
                 list_of_padded_target_images.append(np.expand_dims(image_target_original_padded, 0))
                 list_of_padded_source_images.append(np.expand_dims(image_source_original_padded, 0))
             elif ratio < 1.0:
@@ -419,7 +419,7 @@ class UncertaintyPredictionInference(nn.Module):
                 H_target_resized = np.array([[ratio_w, 0, 0], [0, ratio_h, 0], [0, 0, 1]])
                 list_of_H_target.append(H_target_resized)
                 list_of_H_source.append(np.eye(3))
-                list_of_normalization_value.append(float(w_resized * h_resized / scaling[0] * scaling[1]))
+                list_of_normalization_value.append(float(w_resized * h_resized / (scaling[0] * scaling[1])))
 
                 image_target_resized = cv2.warpPerspective(image_target_original_padded, H_target_resized,
                                                            (w_resized, h_resized))
@@ -436,7 +436,7 @@ class UncertaintyPredictionInference(nn.Module):
                 H_source_resized = np.array([[ratio_w, 0, 0], [0, ratio_h, 0], [0, 0, 1]])
                 list_of_H_source.append(H_source_resized)
                 list_of_H_target.append(np.eye(3))
-                list_of_normalization_value.append(float(h_t * w_t / scaling[0] * scaling[1]))
+                list_of_normalization_value.append(float(h_t * w_t / (scaling[0] * scaling[1])))
 
                 image_source_resized = cv2.warpPerspective(image_source_original_padded, H_source_resized,
                                                            (w_resized, h_resized))
