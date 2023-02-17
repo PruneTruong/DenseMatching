@@ -336,7 +336,7 @@ trained on the megadepth dataset, the output is:
 ```bash
 python test_models.py --model PDCNet --pre_trained_model megadepth --path_query_image images/piazza_san_marco_0.jpg --path_reference_image images/piazza_san_marco_1.jpg --save_dir evaluation/ PDCNet --multi_stage_type MS --mask_type proba_interval_1_above_10
 ```
-additional optional arguments: --pre_trained_models_dir (default is pre_trained_models/)
+additional optional arguments: ----path_to_pre_trained_models (default is pre_trained_models/)
 ![alt text](/images/Warped_query_image_PDCNet_megadepth.png)
 
 
