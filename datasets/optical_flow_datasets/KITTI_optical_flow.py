@@ -1,18 +1,12 @@
 from __future__ import division
 import os.path
 import glob
-from datasets.listdataset import ListDataset
-from datasets.util import split2list
 import numpy as np
+import cv2
 
-try:
-    import cv2
-except ImportError as e:
-    import warnings
-    with warnings.catch_warnings():
-        warnings.filterwarnings("default", category=ImportWarning)
-        warnings.warn("failed to load openCV, which is needed"
-                      "for KITTI which uses 16bit PNG images", ImportWarning)
+from datasets.listdataset import ListDataset
+from utils_flow.img_processing_utils import split2list
+
 
 '''
 Dataset routines for KITTI_flow, 2012 and 2015.

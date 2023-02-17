@@ -1,10 +1,10 @@
-import torch.nn.functional as F
-from utils_flow.pixel_wise_mapping import warp
 import numpy as np
 import torch
 import torch.nn.functional as F
-from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 from matplotlib import pyplot as plt
+
+from utils_flow.pixel_wise_mapping import remap_using_flow_fields
+from utils_flow.pixel_wise_mapping import warp
 
 
 def plot_basenet_only_flow(save_path, name, mini_batch, flow_gt, output_net, gt_occ_mask=None,

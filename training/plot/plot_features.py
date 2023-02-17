@@ -10,19 +10,17 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import torch.nn.functional as F
 from numpy import unravel_index
-from cv2 import imwrite
 
 
 def plot_correlation_for_probabilistic_warpc(target_image, source_image, target_image_prime, flow_gt, correlation_volume_tp_to_s,
                                              correlation_volume_s_to_t, correlation_volume_tp_to_t, correlation_volume_t_to_s, save_path, name,
                                              normalization='relu_l2norm', mask=None, plot_individual=False, mask_top=None):
-    '''
-
-    :param target_image: 3xHxW
-    :param source_image: 3xHxW
-    :param correlation: (HxW)xH_c x W_c
-    :return:
-    '''
+    """
+    Args:
+        target_image: 3xHxW
+        source_image: 3xHxW
+        correlation: (HxW)xH_c x W_c
+    """
     # choose 10 random points
     _, H_ori, W_ori = flow_gt.shape
     _, H, W = correlation_volume_s_to_t.shape

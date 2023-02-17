@@ -7,6 +7,12 @@ For any questions, issues or recommendations, please contact Prune at prune.truo
 <br />
 
 
+**If you're interested in training a probabilistic correspondence network unsupervised (mix of 
+[PDCNet](https://arxiv.org/abs/2101.01710) and [WarpC](https://arxiv.org/abs/2104.03308)), 
+check out our recent work [Refign](https://ieeexplore.ieee.org/document/10030987), with [code](https://github.com/brdav/refign).** It will be integrated
+in this code base soon. 
+
+
 ## Updates
 
 06/03/2022: We found that significantly better performance and reduced training time are obtained when 
@@ -39,6 +45,7 @@ PDC-Net (CVPR 2021), WarpC models (ICCV 2021), PWarpC models (CVPR 2022) includi
 
 The repo contains the implementation of the following matching models. 
 We provide pre-trained model weights, data preparation, evaluation commands, and results for each dataset and method. 
+If you find this library useful, please consider citing the relevant following research papers.  
 
 ### [6] PWarpC: Probabilistic Warp Consistency for Weakly-Supervised Semantic Correspondences. (CVPR 2022)
 Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/), 
@@ -48,6 +55,9 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 \[[Website](https://prunetruong.com/research/pwarpc)\]
 \[[Poster](https://drive.google.com/file/d/1lP5E3BNqdKJL1q-YsQ-C7rOwkcb5S63W/view?usp=sharing)\]
 \[[Video](https://www.youtube.com/watch?v=I2KtnvI8xZU)\]
+\[[Citation](https://dblp.org/rec/conf/cvpr/TruongDYG22.html?view=bibtex)\]
+
+<details>
 
 ![alt text](/images/pwarpc_banner.png)
 
@@ -62,13 +72,14 @@ We validate our method by applying it to four recent semantic matching architect
 sets a new state-of-the-art on four challenging semantic matching benchmarks. Lastly, we demonstrate that our 
 objective also brings substantial improvements in the strongly-supervised regime, when combined with keypoint annotations. 
 
-
+</details>
 
 ### [5] PDC-Net+: Enhanced Probabilistic Dense Correspondence Network. (Preprint)
 Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/), Radu Timofte, Luc Van Gool <br />
 
 \[[Paper](https://arxiv.org/abs/2109.13912)\]
 \[[Website](https://prunetruong.com/research/pdcnet+)\]
+\[[Citation](https://dblp.org/rec/journals/corr/abs-2109-13912.html?view=bibtex)\]
 
 
 
@@ -81,6 +92,11 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 \[[Poster](https://drive.google.com/file/d/1PCXkjxvVsjHAbYzsBtgKWLO1uE6oGP6p/view?usp=sharing)\]
 \[[Slides](https://drive.google.com/file/d/1mVpLBW55nlNJZBsvxkBCti9_KhH1r9V_/view?usp=sharing)\]
 \[[Video](https://www.youtube.com/watch?v=IsMotj7-peA)\]
+\[[Citation](https://dblp.org/rec/conf/iccv/TruongDYG21.html?view=bibtex)\]
+
+
+<details>
+
 
 Warp Consistency Graph            |  Results 
 :-------------------------:|:-------------------------:
@@ -102,6 +118,7 @@ We validate our warp consistency loss by training three recent dense corresponde
 semantic matching tasks. Our approach sets a new state-of-the-art on several challenging benchmarks, including MegaDepth, 
 RobotCar and TSS. 
 
+</details>
 
 
 ### [3] PDC-Net: Learning Accurate Correspondences and When to Trust Them. (CVPR 2021 - ORAL)
@@ -112,6 +129,11 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 \[[Poster](https://drive.google.com/file/d/18ya__AdEIgZyix8dXuRpJ15tdrpbMUsB/view?usp=sharing)\]
 \[[Slides](https://drive.google.com/file/d/1zUQmpmVp6WSa_psuI3KFvKVrNyJE-beG/view?usp=sharing)\]
 \[[Video](https://youtu.be/bX0rEaSf88o)\]
+\[[Citation](https://dblp.org/rec/conf/cvpr/TruongDGT21.html?view=bibtex)\]
+
+
+<details>
+
 
 ![alt text](/images/PDCNet.png)
 
@@ -126,6 +148,7 @@ distribution as a constrained mixture model, ensuring better modelling of both a
 Moreover, we develop an architecture and training strategy tailored for robust and generalizable uncertainty 
 prediction in the context of self-supervised training. 
 
+</details>
 
 ### [2] GOCor: Bringing Globally Optimized Correspondence Volumes into Your Neural Network. (NeurIPS 2020)
 Authors: [Prune Truong](https://prunetruong.com/) *, [Martin Danelljan](https://martin-danelljan.github.io/) *, Luc Van Gool, Radu Timofte<br />
@@ -133,7 +156,10 @@ Authors: [Prune Truong](https://prunetruong.com/) *, [Martin Danelljan](https://
 \[[Paper](https://arxiv.org/abs/2009.07823)\]
 \[[Website](https://prunetruong.com/research/gocor)\]
 \[[Video](https://www.youtube.com/watch?v=V22MyFChBCs)\]
+\[[Citation](https://dblp.org/rec/conf/nips/TruongDGT20.html?view=bibtex)\]
 
+
+<details>
 
 The feature correlation layer serves as a key neural network module in numerous computer vision problems that
 involve dense correspondences between image pairs. It predicts a correspondence volume by evaluating dense scalar products 
@@ -148,7 +174,7 @@ capable of effectively learning spatial matching priors to resolve further match
 
 ![alt text](/images/corr_diff_iteration.jpg)
 
-
+</details>
 
 
 ### [1] GLU-Net: Global-Local Universal Network for dense flow and correspondences (CVPR 2020 - ORAL).
@@ -158,9 +184,14 @@ Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://ma
 \[[Poster](https://drive.google.com/file/d/1pS_OMZ83EG-oalD-30vDa3Ru49GWi-Ky/view?usp=sharing)\]
 \[[Oral Video](https://www.youtube.com/watch?v=xB2gNx8f8Xc&feature=emb_title)\]
 \[[Teaser Video](https://www.youtube.com/watch?v=s5OUdkM9QLo)\]
+\[[Citation](https://dblp.org/rec/conf/cvpr/TruongDT20.html?view=bibtex)\]
+
+<details>
+
 
 ![alt text](/images/glunet.png)
 
+</details>
 
 <br />
 <br />
@@ -174,10 +205,12 @@ The pre-trained models can be found in the [model zoo](https://github.com/PruneT
 
 ## Table of Content
 
-1. [Installation](#Installation)
+1. [Installation](#installation)
 2. [Test on your own image pairs!](#test)
+    1. [Test on image pairs](#test1)
+    2. [Various demos](#test2)
 3. [Overview](#overview)
-4. [Benchmarks and results](#Results)
+4. [Benchmarks and results](#results)
     1. [Correspondence evaluation](#correspondence_eval)
         1. [MegaDepth](#megadepth)
         2. [RobotCar](#robotcar)
@@ -201,7 +234,7 @@ The pre-trained models can be found in the [model zoo](https://github.com/PruneT
 
 <br />
 
-## 1. Installation <a name="Installation"></a>
+## 1. Installation <a name="installation"></a>
 
 Inference runs for torch version >= 1.0
 
@@ -244,7 +277,7 @@ python -c "from admin.environment import create_default_local_file; create_defau
 
 <br />
 
-## 2. Test on your own image pairs!  <a name="Test"></a>
+## 2. Test on your own image pairs!  <a name="test"></a>
 
 Possible model choices are : 
 * SFNet, PWarpCSFNet_WS, PWarpCSFNet_SS, NCNet, PWarpCNCNet_WS, PWarpCNCNet_SS, CATs, PWarpCCATs_SS, CATs_ft_features, 
@@ -286,7 +319,7 @@ PDCNet --multi_stage_type H --mask_type proba_interval_1_above_10
 </details>
 
 
-### Test on a specific image pair 
+### Test on a specific image pair  <a name="test1"></a>
 
 
 You can test the networks on a pair of images using test_models.py and the provided trained model weights. 
@@ -348,7 +381,7 @@ python test_models.py --model PWCNet --pre_trained_model chairs_things --path_qu
 <br />
 
 
-## Demos with videos 
+## Demos with videos <a name="test2"></a>
 
 * **demos/demo_single_pair.ipynb**: Play around with our models on different image pairs, compute the flow field 
 relating an image pair and visualize the warped images and confident matches. 
@@ -413,7 +446,7 @@ flow and uncertainty.
 
 
 
-## 4. Benchmark and results  <a name="Results"></a>
+## 4. Benchmark and results  <a name="results"></a>
 
 All paths to the datasets must be provided in file admin/local.py. 
 We provide an example admin/local_example.py where all datasets are stored in data/. 
@@ -993,7 +1026,7 @@ We provide the link to the cache results [here](https://drive.google.com/drive/f
 for the sparse evaluation on HPatches. Check [PDC-Net+](https://arxiv.org/abs/2109.13912) for more details. 
     
 
-## 5. Training <a name="Training"></a>
+## 5. Training <a name="training"></a>
 
 ### Quick Start
 
@@ -1253,7 +1286,7 @@ network correctly, and calculating the training loss. The batch preprocessing is
 
 
 
-## 6. Acknowledgement <a name="Acknowledgement"></a>
+## 6. Acknowledgement <a name="acknowledgement"></a>
 
 We borrow code from public projects, such as [pytracking](https://github.com/visionml/pytracking), [GLU-Net](https://github.com/PruneTruong/GLU-Net), 
 [DGC-Net](https://github.com/AaltoVision/DGC-Net), [PWC-Net](https://github.com/NVlabs/PWC-Net), 

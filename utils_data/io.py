@@ -3,10 +3,9 @@
 import os
 import re
 import numpy as np
-import uuid
-import numpy as np
 import sys
 import imageio
+
 
 # Argument parsing
 def boolean_string(s):

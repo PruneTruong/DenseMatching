@@ -1,14 +1,13 @@
 import math
 from packaging import version
+import torch
 
-
-import training.losses.cost_volume_losses.geometry as geometry
+import training.losses.cost_volume_losses.cost_volume_geometry as geometry
 from ..multiscale_loss import MultiScaleFlow
 from ..basic_losses import EPE
 from .losses_on_matching_and_non_matching_pairs import SupervisionStrategy
-import torch
 from ..cross_entropy_supervised import build_one_hot
-from .losses_on_matching_and_non_matching_pairs import cost_volume_to_probabilistic_mapping
+from utils_flow.correlation_to_matches_utils import cost_volume_to_probabilistic_mapping
 
 
 class SparseSupervisedSmoothGT(SupervisionStrategy):

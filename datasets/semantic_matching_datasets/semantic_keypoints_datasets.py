@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 
-from ..util import pad_to_same_shape, pad_to_size, resize_keeping_aspect_ratio
+from utils_flow.img_processing_utils import pad_to_same_shape, pad_to_size, resize_keeping_aspect_ratio
 
 
 def resize(img, kps, bbox, size=(256, 256)):

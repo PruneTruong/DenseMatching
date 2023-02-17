@@ -1,3 +1,7 @@
+import os.path as osp
+import torch
+import os
+
 from models.GLUNet.GLU_Net import GLUNetModel
 from models.PWCNet.pwc_net import PWCNetModel
 from models.PDCNet.PDCNet import PDCNet_vgg16
@@ -5,10 +9,6 @@ from models.GLUNet.Semantic_GLUNet import SemanticGLUNetModel
 from models.semantic_matching_models.SFNet import SFNet, SFNetWithBin
 from models.semantic_matching_models.NCNet import NCNetWithBin, ImMatchNet
 from models.semantic_matching_models.cats import CATs
-from models.semantic_matching_models.DHPF.dhpf import DynamicHPF
-import os.path as osp
-import torch
-import os
 
 
 def load_network(net, checkpoint_path=None, **kwargs):
@@ -39,7 +39,6 @@ model_type = ['GLUNet', 'GLUNet_interp',
               'GLUNet_star', 'WarpCGLUNet', 'SemanticGLUNet', 'WarpCSemanticGLUNet', 'WarpCGLUNet_interp',
               'SFNet', 'PWarpCSFNet_WS', 'PWarpCSFNet_SS', 'NCNet', 'PWarpCNCNet_WS', 'PWarpCNCNet_SS',
               'CATs', 'PWarpCCATs_SS', 'CATs_ft_features', 'PWarpCCATs_ft_features_SS',
-              # 'DHPF', 'PWarpCDHPF_SS'
               ]
 pre_trained_model_types = ['static', 'dynamic', 'chairs_things', 'chairs_things_ft_sintel', 'megadepth',
                            'megadepth_stage1', 'pfpascal', 'spair']

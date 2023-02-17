@@ -13,9 +13,9 @@ from packaging import version
 from torch.utils.data import Dataset
 
 
-from ..util import center_crop
+from utils_flow.img_processing_utils import center_crop
 from utils_flow.flow_and_mapping_operations import unormalise_and_convert_mapping_to_flow
-from datasets.util import define_mask_zero_borders
+from utils_flow.img_processing_utils import define_mask_zero_borders
 
 
 class HomoAffTpsDataset(Dataset):

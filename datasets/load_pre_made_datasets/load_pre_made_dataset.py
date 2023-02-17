@@ -1,7 +1,8 @@
 import os.path
 import glob
+
 from datasets.listdataset import ListDataset
-from datasets.util import split2list
+from utils_flow.img_processing_utils import split2list
 from datasets.load_pre_made_datasets.load_data_and_add_discontinuity_dataset_with_interpolation import DiscontinuityDatasetV2
 
 

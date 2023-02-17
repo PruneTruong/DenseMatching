@@ -1,7 +1,11 @@
 from termcolor import colored
 import torch.optim as optim
+import os
+import torch
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
+
+
 from utils_data.image_transforms import ArrayToTensor
 from training.actors.batch_processing import GLUNetBatchPreprocessing
 from training.losses.neg_log_likelihood import NLLMixtureLaplace
@@ -16,8 +20,6 @@ from datasets.object_augmented_dataset import MSCOCO, AugmentedImagePairsDataset
 from datasets.object_augmented_dataset.synthetic_object_augmentation_for_pairs_multiple_ob import RandomAffine
 from datasets.MegaDepth.megadepth import MegaDepthDataset
 from datasets.mixture_of_datasets import MixDatasets
-import os
-import torch
 from utils_data.sampler import RandomSampler
 from admin.loading import partial_load
 

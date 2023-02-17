@@ -1,11 +1,13 @@
 """ Modified from NC-Net. """
 import torch
 import numpy as np
+import random
+
+
 from utils_flow.pixel_wise_mapping import warp, warp_with_mapping
 from utils_data.augmentations.geometric_distortions import ElasticTransform
 from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping, convert_mapping_to_flow, \
     get_gt_correspondence_mask, unormalise_and_convert_mapping_to_flow
-import random
 from utils_data.augmentations.geometric_distortions import GridDistortion
 from utils_data.geometric_transformation_sampling.aff_homo_tps_generation import HomographyGridGen, TpsGridGen, AffineGridGen, \
     ComposedGeometricTnf

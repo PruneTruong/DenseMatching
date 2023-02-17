@@ -10,7 +10,7 @@ from packaging import version
 
 from utils_flow.flow_and_mapping_operations import get_gt_correspondence_mask, convert_flow_to_mapping
 from utils_data.io import load_flo
-from datasets.util import define_mask_zero_borders
+from utils_flow.img_processing_utils import define_mask_zero_borders
 
 
 def default_loader(root, path_imgs, path_flo):

@@ -8,9 +8,11 @@ import torch.nn as nn
 import imageio
 import numpy as np
 import sys
+
 env_path = os.path.join(os.path.dirname(__file__), '..')
 if env_path not in sys.path:
     sys.path.append(env_path)
+
 from utils_flow.visualization_utils import overlay_semantic_mask
 from utils_flow.flow_and_mapping_operations import get_gt_correspondence_mask
 from datasets.geometric_matching_datasets.dataset_video import DatasetNoGT

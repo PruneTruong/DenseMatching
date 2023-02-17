@@ -1,8 +1,11 @@
 from termcolor import colored
 import torch.optim as optim
+import numpy as np
 import torchvision.transforms as transforms
 from torchvision.transforms import ColorJitter
 import torch.optim.lr_scheduler as lr_scheduler
+
+
 from utils_data.image_transforms import ArrayToTensor
 from training.losses.probabilistic_warp_consistency_losses import ProbabilisticWarpConsistencyForGlobalCorr, NegProbabilisticBin
 from training.trainers.matching_trainer import MatchingTrainer
@@ -14,7 +17,6 @@ from training.actors.warp_consistency_utils.synthetic_flow_generation_from_pair_
     GetRandomSyntheticAffHomoTPSFlow, SynthecticAffHomoTPSTransfo
 from training.actors.warp_consistency_actor_BaseNet import GLOCALNetWarpCUnsupervisedBatchPreprocessing
 from datasets.semantic_matching_datasets.pfpascal import PFPascalDataset
-import numpy as np
 from utils_data.augmentations.color_augmentation_torch import ColorJitter, RandomGaussianBlur
 from models.semantic_matching_models.SFNet import sfnet_with_bin
 

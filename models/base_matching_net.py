@@ -5,13 +5,13 @@ import numpy as np
 import math
 from packaging import version
 
+from third_party.GOCor.GOCor.global_gocor_modules import GlobalGOCorWithFlexibleContextAwareInitializer
+from third_party.GOCor.GOCor import local_gocor
+from third_party.GOCor.GOCor.optimizer_selection_functions import define_optimizer_local_corr
 from models.modules.consensus_network_modules import MutualMatching, NeighConsensus, FeatureCorrelation
 from models.modules.mod import conv, predict_flow
 from models.modules.feature_correlation_layer import FeatureL2Norm, GlobalFeatureCorrelationLayer
 from models.modules.matching_modules import initialize_flow_decoder_, initialize_mapping_decoder_
-from third_party.GOCor.GOCor.global_gocor_modules import GlobalGOCorWithFlexibleContextAwareInitializer
-from third_party.GOCor.GOCor import local_gocor
-from third_party.GOCor.GOCor.optimizer_selection_functions import define_optimizer_local_corr
 from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow, convert_flow_to_mapping
 
 

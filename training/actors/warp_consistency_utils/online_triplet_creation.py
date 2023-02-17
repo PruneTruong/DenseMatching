@@ -1,9 +1,9 @@
 import torch
 from packaging import version
 import torch.nn.functional as F
+
 from utils_flow.pixel_wise_mapping import warp
 from utils_flow.flow_and_mapping_operations import create_border_mask
-from datasets.util import define_mask_zero_borders
 
 
 class BatchedImageTripletCreation:

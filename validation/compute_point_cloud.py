@@ -1,4 +1,7 @@
 from PIL import Image
+import numpy as np
+import cv2
+import os
 from matplotlib import cm
 cmap = cm.get_cmap("jet")
 from matplotlib.colors import Normalize
@@ -7,9 +10,6 @@ try:
     import trimesh
 except:
     print('didnt load trimesh')
-import numpy as np
-import cv2
-import os
 
 
 def mesh_triangles(match, idx_mat):

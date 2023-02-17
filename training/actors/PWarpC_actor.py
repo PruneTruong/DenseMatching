@@ -1,11 +1,13 @@
-from training.actors.base_actor import BaseActor
+
 import os
+import torch
+import math
+
+from training.actors.base_actor import BaseActor
 from training.plot.plot_features import plot_correlation_for_probabilistic_warpc
 from training.plot.plot_sparse_keypoints import plot_sparse_keypoints, plot_matches
 from training.plot.plot_corr import plot_correlation
 from utils_flow.correlation_to_matches_utils import estimate_epe_from_correlation, correlation_to_flow_w_argmax
-import torch
-import math
 
 
 class ModelWithPairWiseLoss(BaseActor):

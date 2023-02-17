@@ -9,13 +9,13 @@ import cv2
 def plot_correlation(target_image, source_image, flow_gt, correlation_volume, save_path, name,
                      exchange_source_dimensions=False, target_pts=None,
                      normalization='relu_l2norm', mask=None, image_normalization=True, plot_ind=True):
-    '''
+    """
+    Args:
+        target_image: 3xHxW
+        source_image: 3xHxW
+        correlation: (HxW)xH_c x W_c
 
-    :param target_image: 3xHxW
-    :param source_image: 3xHxW
-    :param correlation: (HxW)xH_c x W_c
-    :return:
-    '''
+    """
     # choose 10 random points
     _, H_ori, W_ori = flow_gt.shape
 

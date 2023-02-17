@@ -1,7 +1,9 @@
 import numpy as np
 from packaging import version
-from utils_flow.pixel_wise_mapping import remap_using_correspondence_map
 import torch
+
+
+from utils_flow.pixel_wise_mapping import remap_using_correspondence_map
 
 
 def create_border_mask(flow):

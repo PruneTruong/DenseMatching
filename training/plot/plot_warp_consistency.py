@@ -1,10 +1,9 @@
-import torch.nn.functional as F
-from utils_flow.pixel_wise_mapping import warp
 import numpy as np
 import torch
 import torch.nn.functional as F
-from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 from matplotlib import pyplot as plt
+
+from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 from utils_flow.util_optical_flow import flow_to_image
 from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
 

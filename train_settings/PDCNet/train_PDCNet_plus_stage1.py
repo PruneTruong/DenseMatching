@@ -1,7 +1,10 @@
 from termcolor import colored
 import torch.optim as optim
+import torch
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
+
+
 from utils_data.image_transforms import ArrayToTensor
 from training.actors.batch_processing import GLUNetBatchPreprocessing
 from training.losses.neg_log_likelihood import NLLMixtureLaplace
@@ -15,7 +18,7 @@ from models.PDCNet.PDCNet import PDCNet_vgg16
 from datasets.load_pre_made_datasets.load_pre_made_dataset import PreMadeDataset
 from datasets.object_augmented_dataset.synthetic_object_augmentation_for_pairs_multiple_ob import RandomAffine
 from admin.loading import partial_load
-import torch
+
 
 
 def run(settings):

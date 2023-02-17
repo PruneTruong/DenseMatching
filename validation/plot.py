@@ -1,19 +1,16 @@
 import numpy as np
 import os
-import torch.nn as nn
-from utils_flow.util_optical_flow import flow_to_image
 import imageio
 import torch.nn.functional as F
 import torch
-from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 from matplotlib import pyplot as plt
-from utils_flow.visualization_utils import draw_matches
-from utils_flow.pixel_wise_mapping import warp
-from validation.flow_evaluation.metrics_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density
-import cv2
-from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
 from imageio import imwrite
-import shutil
+
+from utils_flow.pixel_wise_mapping import remap_using_flow_fields
+from utils_flow.visualization_utils import draw_matches
+from validation.flow_evaluation.metrics_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density
+from utils_flow.util_optical_flow import flow_to_image
+from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
 from utils_flow.visualization_utils import make_and_save_video, overlay_semantic_mask, replace_area
 
 

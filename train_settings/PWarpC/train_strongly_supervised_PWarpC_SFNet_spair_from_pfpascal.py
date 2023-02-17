@@ -2,6 +2,11 @@ from termcolor import colored
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
+import torch
+import os
+import numpy as np
+
+
 from utils_data.image_transforms import ArrayToTensor
 from training.losses.probabilistic_warp_consistency_losses import ProbabilisticWarpConsistencyForGlobalCorr
 from training.trainers.matching_trainer import MatchingTrainer
@@ -13,14 +18,11 @@ from training.actors.warp_consistency_utils.synthetic_flow_generation_from_pair_
     GetRandomSyntheticAffHomoTPSFlow, SynthecticAffHomoTPSTransfo
 from training.actors.warp_consistency_actor_BaseNet import GLOCALNetWarpCUnsupervisedBatchPreprocessing
 from datasets.semantic_matching_datasets.spair import SPairDataset
-import numpy as np
 from training.losses.cross_entropy_supervised import SmoothCrossEntropy
 from training.losses.cost_volume_losses.losses_with_keypoint_annotations import SparseSupervisedSmoothGT
 from utils_data.augmentations.color_augmentation_torch import ColorJitter, RandomGaussianBlur
 from models.semantic_matching_models.SFNet import SFNet
 from utils_data.sampler import RandomSampler
-import torch
-import os
 
 
 def run(settings):

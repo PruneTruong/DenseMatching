@@ -2,6 +2,8 @@ from termcolor import colored
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
+
+
 from utils_data.image_transforms import ArrayToTensor
 from training.actors.batch_processing import GLUNetBatchPreprocessing
 from training.losses.neg_log_likelihood import NLLMixtureLaplace

@@ -1,10 +1,11 @@
 import math
 import torch.nn.functional as F
-import torch
 from abc import ABC, abstractmethod
 import numpy as np
 import torch
-from .geometry import Correlation, Norm
+
+
+from utils_flow.correlation_to_matches_utils import Correlation, Norm
 
 
 class SupervisionStrategy(ABC):
@@ -24,41 +25,6 @@ class SupervisionStrategy(ABC):
     def compute_loss(self, correlation_matrix, *args, **kwargs):
         """Compute weakly-supervised matching loss on positive and negative image pairs"""
         pass
-
-
-def cost_volume_to_probabilistic_mapping(A, activation, temperature):
-    """ Convert cost volume to probabilistic mapping.
-    Args:
-        A: cost volume, dimension B x C x H x W, matching points are in C
-        activation: function to convert the cost volume to a probabilistic mapping
-        temperature: to apply to the cost volume scores before the softmax function
-    """
-    def l1normalize(x):
-        r"""L1-normalization"""
-        vector_sum = torch.sum(x, dim=1, keepdim=True)
-        vector_sum[vector_sum == 0] = 1.0
-        return x / vector_sum
-
-    if activation == 'softmax':
-        proba = F.softmax(A / temperature, dim=1)
-    elif activation == 'unit_gaussian_softmax':
-        A = Norm.unit_gaussian_normalize(A, dim=1)
-        proba = F.softmax(A / temperature, dim=1)
-    elif activation == 'stable_softmax':
-        M, _ = A.max(dim=1, keepdim=True)
-        A = A - M  # subtract maximum value for stability
-        return F.softmax(A / temperature, dim=1)
-    elif activation == 'l1norm':
-        proba = l1normalize(A)
-    elif activation == 'l1norm_nn_mutual':
-        b, c, h, w = A.shape
-        A = Correlation.mutual_nn_filter(A.view(b, c, -1)).view(b, -1, h, w)
-        proba = l1normalize(A)
-    elif activation == 'noactivation':
-        proba = A
-    else:
-        raise ValueError
-    return proba
 
 
 class EntropyObjective:

@@ -4,11 +4,13 @@ import os
 from PIL import Image
 from tqdm import tqdm
 import pandas as pd
-from datasets.util import pad_to_same_shape
+from torch.utils.data import DataLoader
+
+
+from utils_flow.img_processing_utils import pad_to_same_shape
 from validation.flow_evaluation.metrics_uncertainty import (compute_average_of_uncertainty_metrics, compute_aucs,
                                                             compute_uncertainty_per_image)
 from datasets.geometric_matching_datasets.ETH3D_interval import ETHInterval
-from torch.utils.data import DataLoader
 from validation.plot import plot_sparse_keypoints, plot_flow_and_uncertainty, plot_individual_images
 from .metrics_segmentation_matching import poly_str_to_mask, intersection_over_union, label_transfer_accuracy
 from utils_flow.pixel_wise_mapping import warp

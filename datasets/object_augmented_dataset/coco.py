@@ -1,13 +1,14 @@
 import os
-from datasets.object_augmented_dataset.base_image_dataset import BaseImageDataset
+import cv2
+import random
 import torch
 from pycocotools.coco import COCO
 from collections import OrderedDict
-from datasets.object_augmented_dataset.image_loader import jpeg4py_loader
 from torch.utils.data import Dataset
-from ..util import pad_to_size, resize_keeping_aspect_ratio
-import cv2
-import random
+
+from datasets.object_augmented_dataset.base_image_dataset import BaseImageDataset
+from datasets.object_augmented_dataset.image_loader import jpeg4py_loader
+from utils_flow.img_processing_utils import pad_to_size, resize_keeping_aspect_ratio
 
 
 class MSCOCOImages(Dataset):

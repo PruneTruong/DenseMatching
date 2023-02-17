@@ -5,19 +5,22 @@ import importlib
 import imageio
 import os
 from tqdm import tqdm
-torch.set_grad_enabled(False)
 from matplotlib import pyplot as plt
-
 from packaging import version
+
 env_path = os.path.join(os.path.dirname(__file__), '../')
 if env_path not in sys.path:
     sys.path.append(env_path)
+
 from model_selection import select_model
 from utils_data.io import writeFlow, writeMask, load_flo
 from utils_flow.visualization_utils import draw_matches, horizontal_combine_images, draw_keypoints
 from validation.utils import (resize_image, matches_from_flow, assign_flow_to_keypoints, get_mutual_matches)
 from .compute_matches_at_sparse_keypoints_from_pair_list import (get_image_pair_info_, filter_matches_pydegensac,
                                                                  filter_matches_magsac)
+
+
+torch.set_grad_enabled(False)
 
 
 def names_to_pair_simlocmatch(img_fname0, img_fname1):

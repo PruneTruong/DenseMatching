@@ -17,9 +17,8 @@ from admin.model_constructor import model_constructor
 from models.semantic_matching_models.eval_util_dynamic import bilinearInterpPointTnf, PointsToPixelCoords, PointsToUnitCoords
 from models.non_matching_corr import LearntBinParam
 from utils_flow.correlation_to_matches_utils import correlation_to_flow_w_argmax, corr_to_matches, \
-    correlation_to_flow_w_soft_argmax
+    correlation_to_flow_w_soft_argmax, cost_volume_to_probabilistic_mapping
 from utils_flow.pixel_wise_mapping import warp
-from training.losses.cost_volume_losses.losses_on_matching_and_non_matching_pairs import cost_volume_to_probabilistic_mapping
 
 
 def featureL2Norm(feature):
@@ -724,8 +723,8 @@ class NCNetWithBin(nn.Module):
         """
 
         b, _, h_scale, w_scale = target_img.shape
+
         # define output_shape
-        output_shape = (h_scale, w_scale)
         if output_shape is None and scaling != 1.0:
             output_shape = (int(h_scale * scaling), int(w_scale * scaling))
         elif output_shape is None:

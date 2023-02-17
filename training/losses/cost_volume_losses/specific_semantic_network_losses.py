@@ -1,11 +1,13 @@
 r"""Training objectives of DHPF"""
-import math
-import torch.nn.functional as F
-from .losses_on_matching_and_non_matching_pairs import SupervisionStrategy
+
 from skimage import draw
 import numpy as np
 import torch
-from .geometry import Norm, Correlation
+
+
+from .losses_on_matching_and_non_matching_pairs import SupervisionStrategy
+from utils_flow.correlation_to_matches_utils import Norm
+
 
 # ------------------ SPECIFIC TO DHPF -------------------------------------------------------
 def where(predicate):

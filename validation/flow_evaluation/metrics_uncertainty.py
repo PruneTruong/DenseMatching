@@ -1,10 +1,10 @@
 import torch
 import numpy as np
-import torch.nn as nn
 import torch.nn.functional as F
 from matplotlib import pyplot as plt
-from validation.flow_evaluation.metrics_flow import Fl_kitti_2015, correct_correspondences
 import math
+
+from validation.flow_evaluation.metrics_flow import Fl_kitti_2015, correct_correspondences
 
 
 def compute_uncertainty_per_image(uncertainty_est, flow_gt, flow_est, mask_valid, dict_list_uncertainties):

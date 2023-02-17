@@ -1,12 +1,13 @@
-from training.losses.basic_losses import real_metrics, realEPE
-from admin.stats import merge_dictionaries
-from .base_actor import BaseActor
+import os
 import torch
 import torch.nn.functional as F
 from packaging import version
+
+from training.losses.basic_losses import real_metrics, realEPE
+from admin.stats import merge_dictionaries
+from .base_actor import BaseActor
 from utils_flow.flow_and_mapping_operations import unormalise_and_convert_mapping_to_flow
 from training.plot.plot_warp_consistency import plot_flows_warpc
-import os
 from admin.multigpu import is_multi_gpu
 from training.losses.warp_consistency_losses import WBipathLoss, weights_self_supervised_and_unsupervised
 from .batch_processing import pre_process_image_glunet

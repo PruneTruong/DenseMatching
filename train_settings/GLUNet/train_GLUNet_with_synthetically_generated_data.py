@@ -3,6 +3,10 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 from torchvision.transforms import ColorJitter, ToPILImage, RandomGrayscale
 import torch.optim.lr_scheduler as lr_scheduler
+import os
+import numpy as np
+
+
 from utils_data.image_transforms import ArrayToTensor, PILToNumpy, ToTensor, RandomBlur
 from training.actors.batch_processing import GLUNetBatchPreprocessing
 from training.actors.self_supervised_actor import GLUNetBasedActor
@@ -11,11 +15,9 @@ from utils_data.loaders import Loader
 from admin.multigpu import MultiGPU
 from models.GLUNet.GLU_Net import glunet_vgg16
 from training.losses.basic_losses import EPE
-import os
 from datasets.MegaDepth.megadepth import MegaDepthDataset
 from datasets.synthetic_warp_dataset import WarpingDataset
 from utils_data.geometric_transformation_sampling.synthetic_warps_sampling import SynthecticAffHomoTPSTransfo
-import numpy as np
 from training.losses.multiscale_loss import MultiScaleFlow
 from datasets.object_augmented_dataset.synthetic_object_augmentation_for_pairs_multiple_ob import RandomAffine
 from datasets.object_augmented_dataset import MSCOCO, AugmentedImagePairsDatasetMultipleObjects

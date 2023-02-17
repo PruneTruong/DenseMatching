@@ -11,9 +11,8 @@ import math
 from admin.model_constructor import model_constructor
 from models.non_matching_corr import LearntBinParam
 from utils_flow.pixel_wise_mapping import warp
-from utils_flow.correlation_to_matches_utils import correlation_to_flow_w_argmax, corr_to_matches
+from utils_flow.correlation_to_matches_utils import correlation_to_flow_w_argmax, cost_volume_to_probabilistic_mapping
 from utils_flow.flow_and_mapping_operations import unnormalize, convert_mapping_to_flow
-from training.losses.cost_volume_losses.losses_on_matching_and_non_matching_pairs import cost_volume_to_probabilistic_mapping
 
 
 class FeatureExtraction(nn.Module):

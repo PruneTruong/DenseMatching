@@ -1,8 +1,13 @@
 
 from termcolor import colored
 import torch.optim as optim
+import torch
+import numpy as np
+import os
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
+
+
 from training.actors.warp_consistency_actor_GLUNet import GLUNetWarpCUnsupervisedBatchPreprocessing, GLUNetWarpCUnsupervisedActor
 from training.losses.basic_losses import L1
 from training.losses.multiscale_loss import MultiScaleFlow
@@ -14,9 +19,6 @@ from training.actors.warp_consistency_utils.online_triplet_creation import Batch
 from training.actors.warp_consistency_utils.synthetic_flow_generation_from_pair_batch import \
     GetRandomSyntheticAffHomoTPSFlow, SynthecticAffHomoTPSTransfo
 from datasets.semantic_matching_datasets.pfpascal import PFPascalDataset
-import torch
-import numpy as np
-import os
 from models.GLUNet.Semantic_GLUNet import SemanticGLUNetModel
 from utils_data.augmentations.color_augmentation_torch import ColorJitter, RandomGaussianBlur
 

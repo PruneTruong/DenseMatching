@@ -1,8 +1,9 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 from matplotlib import pyplot as plt
+
+from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 from utils_flow.visualization_utils import draw_matches
 
 

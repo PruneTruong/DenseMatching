@@ -106,7 +106,7 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
         # image and flow transformations
         self.first_image_transform = source_image_transform
         self.second_image_transform = target_image_transform
-        self.target_transform = flow_transform
+        self.flow_transform = flow_transform
         self.co_transform = co_transform
 
         self.object_proba = object_proba
@@ -444,8 +444,8 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
             correspondence_mask = list_of_masks
 
         else:
-            if self.target_transform is not None:
-                flow_file = self.target_transform(flow_file)
+            if self.flow_transform is not None:
+                flow_file = self.flow_transform(flow_file)
 
         output = {'source_image': source_image,  'target_image': target_image, 'flow_map': flow_file,
                   'correspondence_mask': correspondence_mask, 'source_image_size': size_bg, 'sparse': False}

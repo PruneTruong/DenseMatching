@@ -1,5 +1,4 @@
 import torch
-import os
 import sys
 import numpy as np
 import argparse
@@ -15,11 +14,13 @@ from collections import OrderedDict
 torch.set_grad_enabled(False)
 from pathlib import Path
 from matplotlib import pyplot as plt
+
 env_path = os.path.join(os.path.dirname(__file__), '../')
 if env_path not in sys.path:
     sys.path.append(env_path)
+
 from model_selection import select_model
-from datasets.util import pad_to_same_shape
+from utils_flow.img_processing_utils import pad_to_same_shape
 from utils_data.io import writeFlow, writeMask, load_flo
 from utils_flow.visualization_utils import draw_matches, horizontal_combine_images, draw_keypoints
 from validation.utils import (resize_image, matches_from_flow, assign_flow_to_keypoints, get_mutual_matches)

@@ -14,7 +14,7 @@ from utils_data.augmentations.geometric_distortions import ElasticTransform
 from utils_flow.flow_and_mapping_operations import (convert_flow_to_mapping, convert_mapping_to_flow,
                                                     get_gt_correspondence_mask)
 from utils_data.io import load_flo
-from datasets.util import define_mask_zero_borders
+from utils_flow.img_processing_utils import define_mask_zero_borders
 
 
 def default_loader(root, path_imgs, path_flo):

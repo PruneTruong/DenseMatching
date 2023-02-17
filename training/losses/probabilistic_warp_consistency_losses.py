@@ -7,13 +7,13 @@ from packaging import version
 
 from models.modules.feature_correlation_layer import compute_global_correlation
 from models.modules.feature_correlation_layer import featureL2Norm
-from training.losses.cost_volume_losses.geometry import getBlurredGT_multiple_kp
+from training.losses.cost_volume_losses.cost_volume_geometry import getBlurredGT_multiple_kp
 from training.losses.cost_volume_losses.losses_on_matching_and_non_matching_pairs import SupervisionStrategy
 from training.losses.cross_entropy_supervised import (BinaryCrossEntropy, OneHotCrossEntropy,
                                                       OneHotBinaryCrossEntropy, SmoothCrossEntropy)
 from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping
 from utils_flow.flow_and_mapping_operations import get_gt_correspondence_mask
-from .cost_volume_losses.losses_on_matching_and_non_matching_pairs import cost_volume_to_probabilistic_mapping
+from utils_flow.correlation_to_matches_utils import cost_volume_to_probabilistic_mapping
 
 
 class ProbabilisticWarpConsistencyForGlobalCorr(nn.Module):

@@ -1,6 +1,6 @@
+import numpy as np
 from models.modules.mod import OpticalFlowEstimator,  OpticalFlowEstimatorNoDenseConnection, CMDTop, \
     CMDTopResidualConnections, OpticalFlowEstimatorResidualConnection
-import numpy as np
 
 
 def initialize_mapping_decoder_(decoder_type, in_channels, batch_norm=True, **kwargs):

@@ -1,9 +1,11 @@
 import torch
+import os
+
+
 from training.losses.basic_losses import realEPE
 from admin.stats import merge_dictionaries
 from training.actors.base_actor import BaseActor
 from training.plot.plot_GLUNet import plot_predictions
-import os
 from admin.multigpu import is_multi_gpu
 from training.actors.batch_processing import pre_process_image_glunet
 

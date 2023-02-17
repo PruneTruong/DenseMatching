@@ -2,12 +2,13 @@ import torch
 import torch.nn
 from torch.autograd import Variable
 import numpy as np
-from packaging import version
-from models.modules.feature_correlation_layer import compute_global_correlation, featureL2Norm
-from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow, convert_flow_to_mapping, normalize, unnormalize
 import torch.nn.functional as F
 import math
-from utils_flow.flow_and_mapping_operations import unormalise_and_convert_mapping_to_flow
+from packaging import version
+
+from models.modules.feature_correlation_layer import compute_global_correlation, featureL2Norm
+from utils_flow.flow_and_mapping_operations import (convert_mapping_to_flow, convert_flow_to_mapping,
+                                                    unormalise_and_convert_mapping_to_flow)
 
 
 def normalize_image_with_imagenet_weights(source_img):
@@ -326,6 +327,97 @@ def corr_to_matches(corr4d, delta4d=None, k_size=1, do_softmax=False, scale='pos
         return xA, yA, xB, yB, score, iA, jA, iB, jB
     else:
         return xA, yA, xB, yB, score
+
+
+###########################  Correlation classes ##############################
+
+def cost_volume_to_probabilistic_mapping(A, activation, temperature):
+    """ Convert cost volume to probabilistic mapping.
+    Args:
+        A: cost volume, dimension B x C x H x W, matching points are in C
+        activation: function to convert the cost volume to a probabilistic mapping
+        temperature: to apply to the cost volume scores before the softmax function
+    """
+    def l1normalize(x):
+        r"""L1-normalization"""
+        vector_sum = torch.sum(x, dim=1, keepdim=True)
+        vector_sum[vector_sum == 0] = 1.0
+        return x / vector_sum
+
+    if activation == 'softmax':
+        proba = F.softmax(A / temperature, dim=1)
+    elif activation == 'unit_gaussian_softmax':
+        A = Norm.unit_gaussian_normalize(A, dim=1)
+        proba = F.softmax(A / temperature, dim=1)
+    elif activation == 'stable_softmax':
+        M, _ = A.max(dim=1, keepdim=True)
+        A = A - M  # subtract maximum value for stability
+        return F.softmax(A / temperature, dim=1)
+    elif activation == 'l1norm':
+        proba = l1normalize(A)
+    elif activation == 'l1norm_nn_mutual':
+        b, c, h, w = A.shape
+        A = Correlation.mutual_nn_filter(A.view(b, c, -1)).view(b, -1, h, w)
+        proba = l1normalize(A)
+    elif activation == 'noactivation':
+        proba = A
+    else:
+        raise ValueError
+    return proba
+
+
+class Correlation:
+    @classmethod
+    def bmm_interp(cls, src_feat, trg_feat, interp_size):
+        r"""Performs batch-wise matrix-multiplication after interpolation"""
+        src_feat = F.interpolate(src_feat, interp_size, mode='bilinear', align_corners=True)
+        trg_feat = F.interpolate(trg_feat, interp_size, mode='bilinear', align_corners=True)
+
+        src_feat = src_feat.view(src_feat.size(0), src_feat.size(1), -1).transpose(1, 2)
+        trg_feat = trg_feat.view(trg_feat.size(0), trg_feat.size(1), -1)
+
+        return torch.bmm(src_feat, trg_feat)
+
+    @classmethod
+    def mutual_nn_filter(cls, correlation_matrix):
+        r"""Mutual nearest neighbor filtering (Rocco et al. NeurIPS'18)"""
+        corr_src_max = torch.max(correlation_matrix, dim=2, keepdim=True)[0]
+        corr_trg_max = torch.max(correlation_matrix, dim=1, keepdim=True)[0]
+        corr_src_max[corr_src_max == 0] += 1e-30
+        corr_trg_max[corr_trg_max == 0] += 1e-30
+
+        corr_src = correlation_matrix / corr_src_max
+        corr_trg = correlation_matrix / corr_trg_max
+
+        return correlation_matrix * (corr_src * corr_trg)
+
+
+class Norm:
+    r"""Vector normalization"""
+    @classmethod
+    def feat_normalize(cls, x, interp_size):
+        r"""L2-normalizes given 2D feature map after interpolation"""
+        x = F.interpolate(x, interp_size, mode='bilinear', align_corners=True)
+        return x.pow(2).sum(1).view(x.size(0), -1)
+
+    @classmethod
+    def l1normalize(cls, x):
+        r"""L1-normalization"""
+        vector_sum = torch.sum(x, dim=2, keepdim=True)
+        vector_sum[vector_sum == 0] = 1.0
+        return x / vector_sum
+
+    @classmethod
+    def unit_gaussian_normalize(cls, x, dim=2):
+        r"""Make each (row) distribution into unit gaussian"""
+        correlation_matrix = x - x.mean(dim=dim).unsqueeze(dim).expand_as(x)
+
+        with torch.no_grad():
+            standard_deviation = correlation_matrix.std(dim=dim)
+            standard_deviation[standard_deviation == 0] = 1.0
+        correlation_matrix /= standard_deviation.unsqueeze(dim).expand_as(correlation_matrix)
+
+        return correlation_matrix
 
 
 ##########################  from NC-Net  ######################################

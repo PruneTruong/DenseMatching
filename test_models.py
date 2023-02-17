@@ -2,13 +2,14 @@ import os
 import torch
 import argparse
 import imageio
-from matplotlib import pyplot as plt
-from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+
+from utils_flow.pixel_wise_mapping import remap_using_flow_fields
 from model_selection import select_model
 from utils_flow.util_optical_flow import flow_to_image
 from utils_flow.visualization_utils import overlay_semantic_mask
-import numpy as np
 from validation.test_parser import define_model_parser
 
 

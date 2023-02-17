@@ -6,7 +6,8 @@ except:
 import os
 import numpy as np
 import cv2
-from datasets.util import pad_to_same_shape
+
+from utils_flow.img_processing_utils import pad_to_same_shape
 
 
 def horizontal_combine_images(img1, img2):

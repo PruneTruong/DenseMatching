@@ -1,10 +1,12 @@
+import os
+
+
 from training.losses.basic_losses import realEPE, real_metrics
 from admin.stats import merge_dictionaries
 from .base_actor import BaseActor
 from training.plot.plot_GLOCALNet import plot_basenet_during_training
-import os
 from training.plot. plot_sparse_keypoints import plot_sparse_keypoints
-from training.plot.plot_GLUNet import plot_during_training_with_uncertainty, plot_during_training, plot_sparse_keypoints_GLUNet
+from training.plot.plot_GLUNet import plot_during_training_with_uncertainty, plot_sparse_keypoints_GLUNet
 
 
 class GLOCALNetActor(BaseActor):

@@ -9,9 +9,8 @@ import numpy as np
 from packaging import version
 from torch.utils.data import Dataset
 from imageio import imread
-import cv2
 
-from datasets.util import pad_to_same_shape
+from utils_flow.img_processing_utils import pad_to_same_shape
 
 
 class PFWillowDataset(Dataset):

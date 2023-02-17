@@ -1,5 +1,64 @@
+import torch
 import numpy as np
 import cv2
+from packaging import version
+
+
+def define_mask_zero_borders(image, epsilon=1e-6):
+    """Computes the binary mask, equal to 0 when image is 0 and 1 otherwise."""
+    if isinstance(image, np.ndarray):
+        if len(image.shape) == 4:
+            if image.shape[1] == 3:
+                # image b, 3, H, W
+                image = image.transpose(0, 2, 3, 1)
+            # image is b, H, W, 3
+            occ_mask = np.logical_and(np.logical_and(image[:, :, :, 0] < epsilon,
+                                                     image[:, :, :, 1] < epsilon),
+                                      image[:, :, :, 2] < epsilon)
+        else:
+            if image.shape[0] == 3:
+                # image 3, H, W
+                image = image.transpose(1, 2, 0)
+            # image is H, W, 3
+            occ_mask = np.logical_and(np.logical_and(image[:, :, 0] < epsilon,
+                                                     image[:, :, 1] < epsilon),
+                                      image[:, :, 2] < epsilon)
+        mask = ~occ_mask
+        mask = mask.astype(np.bool) if version.parse(torch.__version__) >= version.parse("1.1") else mask.astype(np.uint8)
+    else:
+        # torch tensor
+        if len(image.shape) == 4:
+            if image.shape[1] == 3:
+                # image b, 3, H, W
+                image = image.permute(0, 2, 3, 1)
+            occ_mask = image[:, :, :, 0].le(epsilon) & image[:, :, :, 1].le(epsilon) & image[:, :, :, 2].le(epsilon)
+        else:
+            if image.shape[0] == 3:
+                # image 3, H, W
+                image = image.permute(1, 2, 0)
+            occ_mask = image[:, :, 0].le(epsilon) & image[:, :, 1].le(epsilon) & image[:, :, 2].le(epsilon)
+        mask = ~occ_mask
+        mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
+    return mask
+
+
+def split2list(images, split, default_split=0.9):
+    if isinstance(split, str):
+        with open(split) as f:
+            split_values = [x.strip() == '1' for x in f.readlines()]
+        assert(len(images) == len(split_values))
+    elif split is None:
+        split_values = np.random.uniform(0, 1, len(images)) < default_split
+    else:
+        try:
+            split = float(split)
+        except TypeError:
+            print("Invalid Split value, it must be either a filepath or a float")
+            raise
+        split_values = np.random.uniform(0, 1, len(images)) < split
+    train_samples = [sample for sample, split in zip(images, split_values) if split]
+    test_samples = [sample for sample, split in zip(images, split_values) if not split]
+    return train_samples, test_samples
 
 
 def resize_keeping_aspect_ratio(image, size):

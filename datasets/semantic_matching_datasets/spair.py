@@ -8,8 +8,8 @@ import random
 
 
 from .semantic_keypoints_datasets import SemanticKeypointsDataset, random_crop
-from datasets.util import pad_to_same_shape
-from datasets.util import define_mask_zero_borders
+from utils_flow.img_processing_utils import pad_to_same_shape
+from utils_flow.img_processing_utils import define_mask_zero_borders
 
 
 class SPairDataset(SemanticKeypointsDataset):

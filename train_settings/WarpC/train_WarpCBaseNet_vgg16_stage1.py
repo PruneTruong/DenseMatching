@@ -1,8 +1,12 @@
-
+import torch
+import numpy as np
+import os
 from termcolor import colored
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
+
+
 from training.actors.warp_consistency_actor_BaseNet import GLOCALNetWarpCUnsupervisedBatchPreprocessing, GLOCALNetWarpCUnsupervisedActor
 from training.losses.basic_losses import L1
 from training.losses.multiscale_loss import MultiScaleFlow
@@ -14,9 +18,6 @@ from utils_data.image_transforms import ArrayToTensor, ScaleToZeroOne
 from training.actors.warp_consistency_utils.online_triplet_creation import BatchedImageTripletCreation
 from training.actors.warp_consistency_utils.synthetic_flow_generation_from_pair_batch import GetRandomSyntheticAffHomoTPSFlow, SynthecticAffHomoTPSTransfo
 from datasets.MegaDepth.megadepth import MegaDepthDataset
-import torch
-import numpy as np
-import os
 from models.GLUNet.BaseNet import basenet_vgg16
 from utils_data.augmentations.color_augmentation_torch import ColorJitter, RandomGaussianBlur
 from utils_data.euler_wrapper import prepare_data

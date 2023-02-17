@@ -4,8 +4,9 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 import argparse
 import datasets
-from utils_data.image_transforms import ArrayToTensor
 import json
+
+from utils_data.image_transforms import ArrayToTensor
 from validation.flow_evaluation.evaluate_per_dataset import (run_evaluation_generic, run_evaluation_kitti,
                                                              run_evaluation_megadepth_or_robotcar,
                                                              run_evaluation_sintel, run_evaluation_eth3d,
@@ -14,6 +15,7 @@ from model_selection import select_model
 import admin.settings as ws_settings
 from admin.stats import merge_dictionaries
 from validation.test_parser import define_model_parser, boolean_string
+
 torch.set_grad_enabled(False)
 
 

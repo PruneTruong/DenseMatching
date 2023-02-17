@@ -1,12 +1,12 @@
 import numpy as np
 import cv2
 import torch
-import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
 from imageio import imread
 import math
 from skimage.feature import peak_local_max
+
 from utils_flow.flow_and_mapping_operations import convert_flow_to_mapping, normalize, unnormalize
 from utils_data.geometric_transformation_sampling.homography_parameters_sampling import from_homography_to_pixel_wise_mapping
 

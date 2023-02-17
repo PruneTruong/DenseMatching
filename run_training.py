@@ -6,9 +6,10 @@ import torch
 import torch.backends.cudnn
 import random
 import numpy as np
-import admin.settings as ws_settings
 from shutil import copyfile
 from datetime import date
+
+import admin.settings as ws_settings
 
 
 def run_training(train_module, train_name, seed, cudnn_benchmark=True):
