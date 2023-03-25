@@ -201,7 +201,7 @@ class PFPascalDataset(Dataset):
         img_target = imread(os.path.join(self.root, self.img_B_names.iloc[idx])).astype(np.uint8)
         img_source = imread(os.path.join(self.root, self.img_A_names.iloc[idx])).astype(np.uint8)
         image_source_size = np.float32(img_source.shape)
-        image_target_size = np.float32(img_target.shape)  # load_size of the original images
+        image_target_size = np.float32(img_target.shape)  # size of the original images
 
         # get pre-processed point coords
         point_source_coords = self.get_points(self.point_A_coords, idx)
@@ -219,7 +219,7 @@ class PFPascalDataset(Dataset):
             h_size, w_size, _ = img_target.shape
         else:
             img_source, img_target = pad_to_same_shape(img_source, img_target)
-            L_pck = max(image_source_size[0], image_source_size[1])  # original images load_size
+            L_pck = max(image_source_size[0], image_source_size[1])  # original images size
             h_size, w_size, _ = img_target.shape
 
         flow = np.zeros((h_size, w_size, 2), dtype=np.float32)

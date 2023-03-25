@@ -283,12 +283,12 @@ class MegaDepthDataset(Dataset):
 
         if self.output_image_size is not None:
             if isinstance(self.output_image_size, list):
-                # resize to a fixed load_size and rescale the keypoints accordingly
+                # resize to a fixed size and rescale the keypoints accordingly
                 image = cv2.resize(image, (self.output_image_size[1], self.output_image_size[0]))
 
             else:
-                # rescale both images so that the largest dimension is equal to the desired load_size of image and
-                # then pad to obtain load_size 256x256 or whatever desired load_size. and change keypoints accordingly
+                # rescale both images so that the largest dimension is equal to the desired size of image and
+                # then pad to obtain size 256x256 or whatever desired size. and change keypoints accordingly
                 image, ratio_ = resize_keeping_aspect_ratio(image, self.output_image_size)
                 image = pad_to_size(image, self.output_image_size)
 
@@ -334,7 +334,7 @@ class MegaDepthDataset(Dataset):
 
         if self.output_image_size is not None:
             if isinstance(self.output_image_size, list):
-                # resize to a fixed load_size and rescale the keypoints accordingly
+                # resize to a fixed size and rescale the keypoints accordingly
                 h1, w1 = image1.shape[:2]
                 image1 = cv2.resize(image1, (self.output_image_size[1], self.output_image_size[0]))
                 points2D1_from_file[:, 0] *= float(self.output_image_size[1]) / float(w1)
@@ -345,8 +345,8 @@ class MegaDepthDataset(Dataset):
                 points2D2_from_file[:, 0] *= float(self.output_image_size[1]) / float(w2)
                 points2D2_from_file[:, 1] *= float(self.output_image_size[0]) / float(h2)
             else:
-                # rescale both images so that the largest dimension is equal to the desired load_size of image and
-                # then pad to obtain load_size 256x256 or whatever desired load_size. and change keypoints accordingly
+                # rescale both images so that the largest dimension is equal to the desired size of image and
+                # then pad to obtain size 256x256 or whatever desired size. and change keypoints accordingly
                 image1, ratio_1 = resize_keeping_aspect_ratio(image1, self.output_image_size)
                 image1 = pad_to_size(image1, self.output_image_size)
                 points2D1_from_file *= ratio_1
@@ -359,7 +359,7 @@ class MegaDepthDataset(Dataset):
         # create the flow field from the matches and the mask for training
         if self.output_flow_size is None:
             size_of_flow = [[h, w]]
-            # creates a flow of the same load_size as the images
+            # creates a flow of the same size as the images
         else:
             size_of_flow = self.output_flow_size
 

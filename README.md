@@ -9,8 +9,8 @@ For any questions, issues or recommendations, please contact Prune at prune.truo
 
 **If you're interested in training a probabilistic correspondence network unsupervised (mix of 
 [PDCNet](https://arxiv.org/abs/2101.01710) and [WarpC](https://arxiv.org/abs/2104.03308)), 
-check out our recent work [Refign](https://ieeexplore.ieee.org/document/10030987), with [code](https://github.com/brdav/refign).** It will be integrated
-in this code base soon. 
+check out our recent work [Refign](https://ieeexplore.ieee.org/document/10030987), with [code](https://github.com/brdav/refign).** 
+It is also integrated in this code base as UAWarpC. 
 
 
 ## Updates
@@ -74,7 +74,7 @@ objective also brings substantial improvements in the strongly-supervised regime
 
 </details>
 
-### [5] PDC-Net+: Enhanced Probabilistic Dense Correspondence Network. (Preprint)
+### [5] PDC-Net+: Enhanced Probabilistic Dense Correspondence Network. (TPAMI 2023)
 Authors: [Prune Truong](https://prunetruong.com/), [Martin Danelljan](https://martin-danelljan.github.io/), Radu Timofte, Luc Van Gool <br />
 
 \[[Paper](https://arxiv.org/abs/2109.13912)\]
@@ -281,7 +281,8 @@ python -c "from admin.environment import create_default_local_file; create_defau
 
 Possible model choices are : 
 * SFNet, PWarpCSFNet_WS, PWarpCSFNet_SS, NCNet, PWarpCNCNet_WS, PWarpCNCNet_SS, CATs, PWarpCCATs_SS, CATs_ft_features, 
- PWarpCCATs_ft_features_SS
+ PWarpCCATs_ft_features_SS, 
+* UAWarpC (no pre-trained models available), 
 * WarpCGLUNet, GLUNet_star, WarpCSemanticGLUNet, 
 * PDCNet_plus, PDCNet, GLUNet_GOCor_star, 
 * SemanticGLUNet, GLUNet, GLUNet_GOCor, PWCNet, PWCNet_GOCor
@@ -336,7 +337,7 @@ trained on the megadepth dataset, the output is:
 ```bash
 python test_models.py --model PDCNet --pre_trained_model megadepth --path_query_image images/piazza_san_marco_0.jpg --path_reference_image images/piazza_san_marco_1.jpg --save_dir evaluation/ PDCNet --multi_stage_type MS --mask_type proba_interval_1_above_10
 ```
-additional optional arguments: ----path_to_pre_trained_models (default is pre_trained_models/)
+additional optional arguments: --path_to_pre_trained_models (default is pre_trained_models/)
 ![alt text](/images/Warped_query_image_PDCNet_megadepth.png)
 
 
@@ -1146,7 +1147,25 @@ The setting files can be used train the networks, or to know the exact training 
 
 
 <details>
-  <summary><b>Probabilistic Warp Consistency (PWarpC) <a name="warpc"></a></b></summary>
+  <summary><b>UAWarpC <a name="uawarpc"></a></b></summary>
+ 
+This is adapted from our recent work [Refign](https://ieeexplore.ieee.org/document/10030987), with [code](https://github.com/brdav/refign).
+It allows training a probabilistic correspondence network unsupervised (mix of 
+[PDCNet](https://arxiv.org/abs/2101.01710) and [WarpC](https://arxiv.org/abs/2104.03308)). 
+It uses a simplifided version of PDCNet, without GOCor and which is predicting a uni-modal 
+Gaussian probability distribution at every pixel instead of a Mixture of Laplacians. 
+
+* **UAWarpC.train_UAWarpC_PDCNet_stage1**: The default settings used for first stage network training without visibility mask. 
+We train on real image pairs of the MegaDepth dataset. 
+
+* **UAWarpC.train_UAWarpC_PDCNet_stage2**: We further finetune the network trained with stage1, by including our visibility mask. 
+
+</details>
+
+
+
+<details>
+  <summary><b>Probabilistic Warp Consistency (PWarpC) <a name="pwarpc"></a></b></summary>
  
 * **PWarpC.train_weakly_supervised_PWarpC_SFNet_pfpascal**: The default settings used to train the 
 weakly-supervised PWarpC-SF-Net on PF-Pascal. 

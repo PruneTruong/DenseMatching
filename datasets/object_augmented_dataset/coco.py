@@ -7,7 +7,7 @@ from collections import OrderedDict
 from torch.utils.data import Dataset
 
 from datasets.object_augmented_dataset.base_image_dataset import BaseImageDataset
-from datasets.object_augmented_dataset.image_loader import jpeg4py_loader
+from datasets.object_augmented_dataset.image_loader import jpeg4py_loader, opencv_loader
 from utils_flow.img_processing_utils import pad_to_size, resize_keeping_aspect_ratio
 
 
@@ -68,12 +68,12 @@ class MSCOCOImages(Dataset):
 
         if self.output_image_size is not None:
             if isinstance(self.output_image_size, list):
-                # resize to a fixed load_size and rescale the keypoints accordingly
+                # resize to a fixed size and rescale the keypoints accordingly
                 image = cv2.resize(image, (self.output_image_size[1], self.output_image_size[0]))
 
             else:
-                # rescale both images so that the largest dimension is equal to the desired load_size of image and
-                # then pad to obtain load_size 256x256 or whatever desired load_size.
+                # rescale both images so that the largest dimension is equal to the desired size of image and
+                # then pad to obtain size 256x256 or whatever desired size.
                 image, ratio_ = resize_keeping_aspect_ratio(image, self.output_image_size)
                 image = pad_to_size(image, self.output_image_size)
 

@@ -8,3 +8,4 @@ unzip PF-dataset-PASCAL.zip -d .
 rm PF-dataset-PASCAL.zip
 mv test_pairs_pf_pascal.csv PF-dataset-PASCAL
 mv val_pairs_pf_pascal.csv PF-dataset-PASCAL
+mv train_pairs_pf_pascal.csv PF-dataset-PASCAL

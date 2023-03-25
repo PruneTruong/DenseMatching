@@ -55,7 +55,7 @@ def convert_flow_to_mapping(flow, output_channel_first=True):
         # torch tensor
         if len(flow.shape) == 4:
             if flow.shape[1] != 2:
-                # load_size is BxHxWx2
+                # size is BxHxWx2
                 flow = flow.permute(0, 3, 1, 2)
 
             B, C, H, W = flow.size()
@@ -73,7 +73,7 @@ def convert_flow_to_mapping(flow, output_channel_first=True):
                 mapping = mapping.permute(0,2,3,1)
         else:
             if flow.shape[0] != 2:
-                # load_size is HxWx2
+                # size is HxWx2
                 flow = flow.permute(2, 0, 1)
 
             C, H, W = flow.size()
@@ -94,7 +94,7 @@ def convert_flow_to_mapping(flow, output_channel_first=True):
         # here numpy arrays
         if len(flow.shape) == 4:
             if flow.shape[3] != 2:
-                # load_size is Bx2xHxW
+                # size is Bx2xHxW
                 flow = flow.transpose(0, 2, 3, 1)
             # BxHxWx2
             b, h_scale, w_scale = flow.shape[:3]
@@ -108,7 +108,7 @@ def convert_flow_to_mapping(flow, output_channel_first=True):
                 mapping = mapping.transpose(0,3,1,2)
         else:
             if flow.shape[0] == 2:
-                # load_size is 2xHxW
+                # size is 2xHxW
                 flow = flow.transpose(1,2,0)
             # HxWx2
             h_scale, w_scale = flow.shape[:2]
@@ -128,7 +128,7 @@ def convert_mapping_to_flow(mapping, output_channel_first=True):
         # torch tensor
         if len(mapping.shape) == 4:
             if mapping.shape[1] != 2:
-                # load_size is BxHxWx2
+                # size is BxHxWx2
                 mapping = mapping.permute(0, 3, 1, 2)
 
             B, C, H, W = mapping.size()
@@ -146,7 +146,7 @@ def convert_mapping_to_flow(mapping, output_channel_first=True):
                 flow = flow.permute(0,2,3,1)
         else:
             if mapping.shape[0] != 2:
-                # load_size is HxWx2
+                # size is HxWx2
                 mapping = mapping.permute(2, 0, 1)
 
             C, H, W = mapping.size()
@@ -168,7 +168,7 @@ def convert_mapping_to_flow(mapping, output_channel_first=True):
         # here numpy arrays
         if len(mapping.shape) == 4:
             if mapping.shape[3] != 2:
-                # load_size is Bx2xHxW
+                # size is Bx2xHxW
                 mapping = mapping.transpose(0, 2, 3, 1)
             # BxHxWx2
             b, h_scale, w_scale = mapping.shape[:3]
@@ -182,7 +182,7 @@ def convert_mapping_to_flow(mapping, output_channel_first=True):
                 flow = flow.transpose(0,3,1,2)
         else:
             if mapping.shape[0] == 2:
-                # load_size is 2xHxW
+                # size is 2xHxW
                 mapping = mapping.transpose(1, 2, 0)
             # HxWx2
             h_scale, w_scale = mapping.shape[:2]
@@ -203,7 +203,7 @@ def unormalise_and_convert_mapping_to_flow(map, output_channel_first=True):
         # torch tensor
         if len(map.shape) == 4:
             if map.shape[1] != 2:
-                # load_size is BxHxWx2
+                # size is BxHxWx2
                 map = map.permute(0, 3, 1, 2)
 
             # channel first, here map is normalised to -1;1
@@ -227,7 +227,7 @@ def unormalise_and_convert_mapping_to_flow(map, output_channel_first=True):
                 flow = flow.permute(0,2,3,1)
         else:
             if map.shape[0] != 2:
-                # load_size is HxWx2
+                # size is HxWx2
                 map = map.permute(2, 0, 1)
 
             # channel first, here map is normalised to -1;1
@@ -255,7 +255,7 @@ def unormalise_and_convert_mapping_to_flow(map, output_channel_first=True):
         flow = np.copy(map)
         if len(map.shape) == 4:
             if map.shape[1] == 2:
-                # load_size is Bx2xHxWx
+                # size is Bx2xHxWx
                 map = map.transpose(0, 2, 3, 1)
 
             # BxHxWx2
@@ -272,7 +272,7 @@ def unormalise_and_convert_mapping_to_flow(map, output_channel_first=True):
                 flow = flow.transpose(0, 3, 1, 2)
         else:
             if map.shape[0] == 2:
-                # load_size is 2xHxW
+                # size is 2xHxW
                 map = map.transpose(1, 2, 0)
 
             # HxWx2
@@ -296,7 +296,7 @@ def unormalise_flow_or_mapping(map, output_channel_first=True):
         # torch tensor
         if len(map.shape) == 4:
             if map.shape[1] != 2:
-                # load_size is BxHxWx2
+                # size is BxHxWx2
                 map = map.permute(0, 3, 1, 2)
 
             # channel first, here map is normalised to -1;1
@@ -311,7 +311,7 @@ def unormalise_flow_or_mapping(map, output_channel_first=True):
                 mapping = mapping.permute(0, 2, 3, 1)
         else:
             if map.shape[0] != 2:
-                # load_size is HxWx2
+                # size is HxWx2
                 map = map.permute(2, 0, 1)
 
             # channel first, here map is normalised to -1;1
@@ -329,7 +329,7 @@ def unormalise_flow_or_mapping(map, output_channel_first=True):
         # here numpy arrays
         if len(map.shape) == 4:
             if map.shape[1] == 2:
-                # load_size is Bx2xHxWx
+                # size is Bx2xHxWx
                 map = map.transpose(0, 2, 3, 1)
 
             # BxHxWx2
@@ -342,7 +342,7 @@ def unormalise_flow_or_mapping(map, output_channel_first=True):
                 mapping = mapping.transpose(0, 3, 1, 2)
         else:
             if map.shape[0] == 2:
-                # load_size is 2xHxW
+                # size is 2xHxW
                 map = map.transpose(1, 2, 0)
 
             # HxWx2

@@ -37,6 +37,7 @@ model_type = ['GLUNet', 'GLUNet_interp',
               'GLUNet_GOCor', 'PWCNet', 'PWCNet_GOCor',
               'GLUNet_GOCor_star', 'PDCNet', 'PDCNet_plus',
               'GLUNet_star', 'WarpCGLUNet', 'SemanticGLUNet', 'WarpCSemanticGLUNet', 'WarpCGLUNet_interp',
+              'UAWarpC',
               'SFNet', 'PWarpCSFNet_WS', 'PWarpCSFNet_SS', 'NCNet', 'PWarpCNCNet_WS', 'PWarpCNCNet_SS',
               'CATs', 'PWarpCCATs_SS', 'CATs_ft_features', 'PWarpCCATs_ft_features_SS',
               ]
@@ -168,6 +169,17 @@ def select_model(model_name, pre_trained_model_type, arguments, global_optim_ite
                                    give_layer_before_flow_to_uncertainty_decoder=True,
                                    var_2_plus=520 ** 2, var_2_plus_256=256 ** 2, var_1_minus_plus=1.0, var_2_minus=2.0,
                                    make_two_feature_copies=True)
+    elif model_name == 'UAWarpC':
+        estimate_uncertainty = True
+        # probabilistic model with a single mode. Uncertainty predictors are based on PDCNet. Does not use GOCor.
+        # the predictions from the LNet (pyramid network taking 256x256 images) are scaled to original resolution
+        network = PDCNet_vgg16(global_corr_type='global_corr', normalize='relu_l2norm',
+                               cyclic_consistency=True, local_decoder_type='OpticalFlowEstimatorResidualConnection',
+                               global_decoder_type='CMDTopResidualConnection',
+                               use_interp_instead_of_deconv=True, scale_low_resolution=True,
+                               corr_for_corr_uncertainty_decoder='corr', estimate_one_mode=True,
+                               laplace_distr=False,  # Gaussian distribution
+                               give_layer_before_flow_to_uncertainty_decoder=True)
     elif model_name == 'GLUNet_star' or model_name == 'WarpCGLUNet':
         # replaced the DenseNet connections in original network by residual connections to make the network lighter.
         network = GLUNetModel(iterative_refinement=True, global_corr_type='feature_corr_layer',

@@ -10,14 +10,14 @@ from models.base_matching_net import BaseGLUMultiScaleMatchingNet
 from models.inference_utils import estimate_homography_and_inliers, estimate_homography_and_correspondence_map, \
     estimate_mask, matches_from_flow, from_homography_to_pixel_wise_mapping
 from models.PDCNet.mod_uncertainty import estimate_probability_of_confidence_interval_of_mixture_density, \
-    estimate_average_variance_of_mixture_density
+    estimate_average_variance_of_mixture_density, estimate_probability_of_confidence_interval_of_unimodal_density
 from models.modules.local_correlation import correlation
 from utils_flow.pixel_wise_mapping import warp, warp_with_mapping
 from utils_flow.flow_and_mapping_operations import convert_mapping_to_flow, convert_flow_to_mapping
 
 
 def pad_to_size(im, size):
-    # load_size first h then w
+    # size first h then w
     if not isinstance(size, tuple):
         size = (size, size)
     # pad to same shape
@@ -53,7 +53,8 @@ class UncertaintyPredictionInference(nn.Module):
                                         'compute_cyclic_consistency_error': False}
         self.inference_parameters = inference_parameters_default
 
-    def set_inference_parameters(self, confidence_R=1.0, ransac_thresh=1.0, multi_stage_type='direct',
+    def set_inference_parameters(self, confidence_R=1.0,
+                                 ransac_thresh=1.0, multi_stage_type='direct',
                                  mask_type_for_2_stage_alignment='proba_interval_1_above_5',
                                  homography_visibility_mask=True,
                                  list_resizing_ratios=[0.5, 0.6, 0.88, 1, 1.33, 1.66, 2],
@@ -157,9 +158,14 @@ class UncertaintyPredictionInference(nn.Module):
         Returns:
             flow_est: estimated flow field relating the target to the reference image, resized and scaled to
                       output_shape (can be defined by scaling parameter)
-            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance' and
+            uncertainty_est: dict with keys 'p_r', 'inference_parameters', 'variance' and
                             'cyclic_consistency_error' if self.inference_parameters['compute_cyclic_consistency_error']
-                             is True
+                             is True.
+                             if multimodal density, also contains fields 'log_var_map', 'weight_map' with
+                             shapes (B, K, H, W)
+                             Otherwise (single mode), contains 'log_var_map', with shape (B, 1, H, W)
+
+
         """
         flow_est, uncertainty_est = self.estimate_flow_and_confidence_map_(source_img, target_img, output_shape,
                                                                            scaling, mode)
@@ -235,7 +241,10 @@ class UncertaintyPredictionInference(nn.Module):
         Returns:
             flow_est: estimated flow field relating the target to the reference image, resized and scaled to
                       output_shape (can be defined by scaling parameter)
-            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance'
+            uncertainty_est: dict with keys 'p_r', 'inference_parameters', 'variance'
+                             if multimodal density, also contains fields 'log_var_map', 'weight_map' with
+                             shapes (B, K, H, W)
+                             Otherwise (single mode), contains 'log_var_map', with shape (B, 1, H, W)
         """
         b, _, h_ori, w_ori = target_img.shape
         image_shape = (h_ori, w_ori)
@@ -250,7 +259,7 @@ class UncertaintyPredictionInference(nn.Module):
                                                                                  output_shape=inter_shape)
 
         # do multi-stage by estimating homography from confident matches
-        mask_pre = estimate_mask(inference_parameters['mask_type'], uncertainty_est, list_item=-1)
+        mask_pre = estimate_mask(inference_parameters['mask_type'], uncertainty_est)
         H_image_size, mapping_from_homography = estimate_homography_and_correspondence_map(
             flow_est, mask_pre, original_shape=image_shape, mapping_output_shape=output_shape,
             scaling=np.float32(image_shape)[::-1] / np.float32(inter_shape)[::-1],
@@ -290,7 +299,7 @@ class UncertaintyPredictionInference(nn.Module):
 
         else:
             if inter_shape[0] != output_shape[0] or inter_shape[1] != output_shape[1]:
-                # recompute so the output is the proper load_size
+                # recompute so the output is the proper size
                 flow_est, uncertainty_est = self.estimate_flow_and_confidence_map_direct(source_img, target_img,
                                                                                          inference_parameters,
                                                                                          output_shape=output_shape)
@@ -324,7 +333,10 @@ class UncertaintyPredictionInference(nn.Module):
         Returns:
             flow_est: estimated flow field relating the target to the reference image, resized and scaled to
                       output_shape (can be defined by scaling parameter)
-            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance'
+            uncertainty_est: dict with keys 'p_r', 'inference_parameters', 'variance'
+                             if multimodal density, also contains fields 'log_var_map', 'weight_map' with
+                             shapes (B, K, H, W)
+                             Otherwise (single mode), contains 'log_var_map', with shape (B, 1, H, W)
         """
 
         b, _, h_ori, w_ori = target_img.shape
@@ -339,7 +351,7 @@ class UncertaintyPredictionInference(nn.Module):
             min_nbr_points=inference_parameters['min_nbr_points_for_multi_scale'],
             output_shape=output_shape, inference_parameters=inference_parameters,
             min_inlier_threshold=inference_parameters['min_inlier_threshold_for_multi_scale'])
-        # output shape must be the load_size of the flow, while H_image_size corresponds to the image_size
+        # output shape must be the size of the flow, while H_image_size corresponds to the image_size
 
         if mapping_from_homography is not None:
             flow_est_first = self.resize_and_rescale_flow(flow_est_first, output_shape)
@@ -459,7 +471,7 @@ class UncertaintyPredictionInference(nn.Module):
         flow_est_first_original_resolution = flow_est_pre[index_of_original_resolution].unsqueeze(0)
 
         # do multi-stage by estimating homography from confident matches
-        mask_pre = estimate_mask(inference_parameters['mask_type'], uncertainty_est_pre, list_item=-1)
+        mask_pre = estimate_mask(inference_parameters['mask_type'], uncertainty_est_pre)
 
         list_H_padded_reso = []
         list_inliers = []
@@ -527,7 +539,7 @@ class UncertaintyPredictionInference(nn.Module):
         flow_estimated, uncertainty_est = self.estimate_flow_and_confidence_map(
             source_img, target_img, scaling=scaling)
 
-        mask = estimate_mask(confident_mask_type, uncertainty_est, list_item=-1)
+        mask = estimate_mask(confident_mask_type, uncertainty_est)
         if 'warping_mask' in list(uncertainty_est.keys()):
             # get mask from internal multi stage alignment, if it took place
             mask = mask * uncertainty_est['warping_mask']
@@ -608,8 +620,7 @@ class UncertaintyPredictionInference(nn.Module):
             mask_padded = uncertainty_est_padded['warping_mask'] * mask_padded
 
         # get the mask according to uncertainty estimation
-        mask_padded = estimate_mask(cfg.mask_type_for_pose_estimation, uncertainty_est_padded,
-                                    list_item=-1) * mask_padded
+        mask_padded = estimate_mask(cfg.mask_type_for_pose_estimation, uncertainty_est_padded) * mask_padded
 
         # remove the padding
         flow = flow_estimated_padded[:, :, :size_of_flow[0], :size_of_flow[1]]
@@ -628,6 +639,8 @@ class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInfere
 
     def __init__(self, params, pyramid=None, pyramid_256=None, *args, **kwargs):
         super().__init__(params=params, pyramid=pyramid, pyramid_256=pyramid_256, *args, **kwargs)
+        self.estimate_one_mode = False  # will be overwritten
+        self.laplace_distr = True  # Laplace distributions?
 
     def estimate_flow_and_confidence_map_direct(self, source_img, target_img, inference_parameters,
                                                 output_shape=None, mode='channel_first'):
@@ -651,7 +664,10 @@ class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInfere
         Returns:
             flow_est: estimated flow field relating the target to the reference image, resized and scaled to
                       output_shape (can be defined by scaling parameter)
-            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance'
+            uncertainty_est: dict with keys 'p_r', 'inference_parameters', 'variance'
+                             if multimodal density, also contains fields 'log_var_map', 'weight_map' with
+                             shapes (B, K, H, W)
+                             Otherwise (single mode), contains 'log_var_map', with shape (B, 1, H, W)
         """
         w_scale = target_img.shape[3]
         h_scale = target_img.shape[2]
@@ -677,7 +693,7 @@ class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInfere
             return flow_est.permute(0, 2, 3, 1), uncertainty_est
 
     def compute_flow_and_uncertainty(self, source_img, target_img, source_img_256, target_img_256, output_shape,
-                                     inference_parameters, ratio_x=1.0, ratio_y=1.0, list_item=-1):
+                                     inference_parameters, ratio_x=1.0, ratio_y=1.0):
         """
         Returns the flow field and uncertainty estimation dictionary relating the target to the source image, using the
         a single forward pass of the network.
@@ -700,13 +716,17 @@ class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInfere
         Returns:
             flow_est: estimated flow field relating the target to the reference image, resized and scaled to
                       output_shape (can be defined by scaling parameter)
-            uncertainty_est: dict with keys 'log_var_map', 'weight_map', 'p_r', 'inference_parameters', 'variance'
+            uncertainty_est: dict with keys 'p_r', 'inference_parameters', 'variance'
+                             if multimodal density, also contains fields 'log_var_map', 'weight_map' with
+                             shapes (B, K, H, W)
+                             Otherwise (single mode), contains 'log_var_map', with shape (B, 1, H, W)
         """
         # define output shape and scaling ratios
         output_256, output = self.forward(target_img, source_img, target_img_256, source_img_256)
         flow_est_list = output['flow_estimates']
         flow_est = flow_est_list[-1]
-        uncertainty_list = output['uncertainty_estimates'][-1]  # contains log_var_map and weight_map
+        uncertainty_list = output['uncertainty_estimates'][-1]
+        # contains log_var_map and weight_map if multi-modal, only log_var_map if unimodal
 
         # get the flow field
         flow_est = torch.nn.functional.interpolate(input=flow_est, size=output_shape, mode='bilinear',
@@ -715,20 +735,23 @@ class ProbabilisticGLU(BaseGLUMultiScaleMatchingNet, UncertaintyPredictionInfere
         flow_est[:, 1, :, :] *= ratio_y
 
         # get the confidence value
-        if isinstance(uncertainty_list[0], list):
-            # estimate multiple uncertainty maps per level
-            log_var_map = torch.nn.functional.interpolate(input=uncertainty_list[0][list_item], size=output_shape,
+        if self.estimate_one_mode:
+            log_var_map = torch.nn.functional.interpolate(input=uncertainty_list, size=output_shape,
                                                           mode='bilinear', align_corners=False)
-            weight_map = torch.nn.functional.interpolate(input=uncertainty_list[1][list_item], size=output_shape,
-                                                         mode='bilinear', align_corners=False)
+            p_r = estimate_probability_of_confidence_interval_of_unimodal_density\
+                (log_var_map=log_var_map, R=inference_parameters['R'],
+                 gaussian=not self.laplace_distr)
+            variance = torch.exp(log_var_map)
+            uncertainty_est = {'log_var_map': log_var_map}
         else:
             log_var_map = torch.nn.functional.interpolate(input=uncertainty_list[0], size=output_shape,
                                                           mode='bilinear', align_corners=False)
             weight_map = torch.nn.functional.interpolate(input=uncertainty_list[1], size=output_shape,
                                                          mode='bilinear', align_corners=False)
-        p_r = estimate_probability_of_confidence_interval_of_mixture_density(weight_map, log_var_map,
-                                                                             R=inference_parameters['R'])
-        variance = estimate_average_variance_of_mixture_density(weight_map, log_var_map)
-        uncertainty_est = {'log_var_map': log_var_map, 'weight_map': weight_map,
-                           'p_r': p_r, 'inference_parameters': inference_parameters, 'variance': variance}
+            p_r = estimate_probability_of_confidence_interval_of_mixture_density\
+                (weight_map, log_var_map, R=inference_parameters['R'],
+                 gaussian=not self.laplace_distr)
+            variance = estimate_average_variance_of_mixture_density(weight_map, log_var_map)
+            uncertainty_est = {'log_var_map': log_var_map, 'weight_map': weight_map}
+        uncertainty_est.update({'p_r': p_r, 'inference_parameters': inference_parameters, 'variance': variance})
         return flow_est, uncertainty_est

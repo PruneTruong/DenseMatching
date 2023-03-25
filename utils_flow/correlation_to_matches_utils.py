@@ -49,14 +49,14 @@ def apply_gaussian_kernel(corr, sigma=5):
     return gauss_kernel * corr
 
 
-def correlation_to_flow_w_soft_argmax(correlation, output_shape, temperature=1.0, apply_softmax=True,
+def correlation_to_flow_w_soft_argmax(correlation_target_to_source, output_shape, temperature=1.0, apply_softmax=True,
                                       stable_softmax=False):
     """
     Convert correlation to flow, with soft argmax.
     Modified from SFNet: Learning Object-aware Semantic Flow (Lee et al.)
     Args:
-        correlation: shape is B, H_s*W_s, H_t, W_t
-        output_shape: output shape of the flow from the target to the source image (H, W)
+        correlation_target_to_source: shape is B, H_s*W_s, H_t, W_t
+        output_shape: output shape of the flow relating the target to the source image (H, W)
         temperature: to apply in the softmax operation
         apply_softmax: bool. Otherwise, the softmax was applied before.
         stable_softmax: bool. use stable softmax?
@@ -98,12 +98,13 @@ def correlation_to_flow_w_soft_argmax(correlation, output_shape, temperature=1.0
         grid_y = (grid_y * y_normal).sum(dim=1, keepdim=True)  # b x 1 x h x w
         return grid_x, grid_y
 
-    B = correlation.shape[0]
-    if len(correlation.shape) == 3:
-        h = w = int(math.sqrt(correlation.shape[-1]))
+    B = correlation_target_to_source.shape[0]
+    if len(correlation_target_to_source.shape) == 3:
+        h = w = int(math.sqrt(correlation_target_to_source.shape[-1]))
     else:
-        h, w = correlation.shape[-2:]
-    grid_x, grid_y = soft_argmax(correlation.view(B, -1, h, w), temperature_=temperature, apply_softmax_=apply_softmax,
+        h, w = correlation_target_to_source.shape[-2:]
+    grid_x, grid_y = soft_argmax(correlation_target_to_source.view(B, -1, h, w), temperature_=temperature,
+                                 apply_softmax_=apply_softmax,
                                  stable_softmax_=stable_softmax)
 
     flow = torch.cat((grid_x, grid_y), dim=1)
@@ -115,11 +116,11 @@ def correlation_to_flow_w_soft_argmax(correlation, output_shape, temperature=1.0
     return flow_est
 
 
-def correlation_to_flow_w_argmax(correlation, output_shape=None, return_mapping=False, do_softmax=False):
+def correlation_to_flow_w_argmax(correlation_target_to_source, output_shape=None, return_mapping=False, do_softmax=False):
     """
     Convert correlation to flow, with argmax.
     Args:
-        correlation: shape is B, H_s*W_s, H_t, W_t
+        correlation_target_to_source: shape is B, H_s*W_s, H_t, W_t
         output_shape: output shape of the flow from the target to the source image (H, W)
         do_softmax: bool, apply softmax to the correlation before finding the best match? (should not change anything)
         return_mapping: bool
@@ -130,11 +131,12 @@ def correlation_to_flow_w_argmax(correlation, output_shape=None, return_mapping=
         else:
             flow_est: flow field relating the target to the source, at output_shape.
     """
-    H, W = correlation.shape[-2:]
-    b = correlation.shape[0]
+    H, W = correlation_target_to_source.shape[-2:]
+    b = correlation_target_to_source.shape[0]
     # get matches corresponding to maximum in correlation
-    (x_source, y_source, x_target, y_target, score) = corr_to_matches(correlation.view(b, H, W, H, W).unsqueeze(1),
-                                                                      get_maximum=True, do_softmax=do_softmax)
+    (x_source, y_source, x_target, y_target, score) = corr_to_matches(
+        correlation_target_to_source.view(b, H, W, H, W).unsqueeze(1),
+        get_maximum=True, do_softmax=do_softmax)
 
     # x_source dimension is B x H*W
     mapping_est = torch.cat((x_source.unsqueeze(-1), y_source.unsqueeze(-1)), dim=-1).view(b, H, W, 2).permute(0, 3, 1, 2)

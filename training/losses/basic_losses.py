@@ -38,7 +38,7 @@ def realEPE(output, target, mask_gt, ratio_x=None, ratio_y=None):
         upsampled_output[:, 1, :, :] *= ratio_y
     else:
         upsampled_output = F.interpolate(output, (h, w), mode='bilinear', align_corners=False)
-    # output interpolated to original load_size (supposed to be in the right range then)
+    # output interpolated to original size (supposed to be in the right range then)
 
     flow_target_x = target.permute(0, 2, 3, 1)[:, :, :, 0]
     flow_target_y = target.permute(0, 2, 3, 1)[:, :, :, 1]
@@ -58,7 +58,7 @@ def realEPE(output, target, mask_gt, ratio_x=None, ratio_y=None):
 def real_metrics(output, target, mask_gt, ratio_x=None, ratio_y=None, thresh_1=1.0, thresh_2=3.0, thresh_3=5.0):
     """
     Computes real EPE, PCK-1, PCK-3 and PCK-3:
-    the network output (quarter of original resolution) is upsampled to the load_size of
+    the network output (quarter of original resolution) is upsampled to the size of
     the target (and scaled if necessary by ratio_x and ratio_y), it should be equal to target flow.
     Args:
         output: estimated flow field, shape (b,2,h,w)
@@ -81,7 +81,7 @@ def real_metrics(output, target, mask_gt, ratio_x=None, ratio_y=None, thresh_1=1
         upsampled_output[:, 1, :, :] *= ratio_y
     else:
         upsampled_output = F.interpolate(output, (h, w), mode='bilinear', align_corners=False)
-    # output interpolated to originale load_size (supposed to be in the right range then)
+    # output interpolated to originale size (supposed to be in the right range then)
 
     flow_target_x = target.permute(0, 2, 3, 1)[:, :, :, 0]
     flow_target_y = target.permute(0, 2, 3, 1)[:, :, :, 1]
@@ -103,13 +103,13 @@ def real_metrics(output, target, mask_gt, ratio_x=None, ratio_y=None, thresh_1=1
 
 class EPE:
     """Compute EPE loss. """
-    def __init__(self, sum_normalized=True):
+    def __init__(self, reduction='weighted_sum_normalized'):
         """
         Args:
-            sum_normalized: bool, compute the sum over tensor and divide by number of image pairs per batch?
+            reduction: str, type of reduction to apply to loss
         """
         super().__init__()
-        self.sum_normalized = sum_normalized
+        self.reduction = reduction
 
     def __call__(self, gt_flow, est_flow, mask=None):
         """
@@ -125,33 +125,40 @@ class EPE:
             mask = ~torch.isnan(EPE_map.detach()) & ~torch.isinf(EPE_map.detach()) & mask
         else:
             mask = ~torch.isnan(EPE_map.detach()) & ~torch.isinf(EPE_map.detach())
-    
-        if mask is not None:
-            EPE_map = EPE_map * mask.float()
-            L = 0
-            for bb in range(0, b):
-                norm_const = float(h*w) / (mask[bb, ...].sum().float() + 1e-6)
-                L += EPE_map[bb][mask[bb, ...] != 0].sum() * norm_const
-            if self.sum_normalized:
-                return L / b
+
+        if self.reduction == 'mean':
+            if mask is not None:
+                loss = torch.masked_select(EPE_map, mask).mean()
             else:
+                loss = EPE_map.mean()
+            return loss
+        elif 'weighted_sum' in self.reduction:
+            if mask is not None:
+                EPE_map = EPE_map * mask.float()
+                L = 0
+                for bb in range(0, b):
+                    norm_const = float(h*w) / (mask[bb, ...].sum().float() + 1e-6)
+                    L += EPE_map[bb][mask[bb, ...] != 0].sum() * norm_const
+                if 'normalized' in self.reduction:
+                    return L / b
                 return L
-    
-        if self.sum_normalized:
-            return EPE_map.sum()/b
-        else:
+
+            if 'normalized' in self.reduction:
+                return EPE_map.sum()/b
             return EPE_map
+        else:
+            raise ValueError
 
 
 class L1:
     """ Computes L1 loss. """
-    def __init__(self, sum_normalized=True):
+    def __init__(self, reduction='weighted_sum_normalized'):
         """
         Args:
-            sum_normalized: bool, compute the sum over tensor and divide by number of image pairs per batch?
+            reduction: str, type of reduction to apply to loss
         """
         super().__init__()
-        self.sum_normalized = sum_normalized
+        self.reduction = reduction
 
     def __call__(self, gt_flow, est_flow, mask=None):
         """
@@ -167,34 +174,40 @@ class L1:
             mask = ~torch.isnan(L1.detach()) & ~torch.isinf(L1.detach()) & mask
         else:
             mask = ~torch.isnan(L1.detach()) & ~torch.isinf(L1.detach())
-    
-        if mask is not None:
-            L1 = L1 * mask.float()
-            L = 0
-            for bb in range(0, b):
-                norm_const = float(h*w) / (mask[bb, ...].sum().float() + 1e-6)
-                L += L1[bb][mask[bb, ...] != 0].sum() * norm_const
-            if self.sum_normalized:
-                return L / b
+
+        if self.reduction == 'mean':
+            if mask is not None:
+                loss = torch.masked_select(L1, mask).mean()
             else:
+                loss = L1.mean()
+            return loss
+        elif 'weighted_sum' in self.reduction:
+            if mask is not None:
+                L1 = L1 * mask.float()
+                L = 0
+                for bb in range(0, b):
+                    norm_const = float(h*w) / (mask[bb, ...].sum().float() + 1e-6)
+                    L += L1[bb][mask[bb, ...] != 0].sum() * norm_const
+                if 'normalized' in self.reduction:
+                    return L / b
                 return L
 
-        if self.sum_normalized:
-            return L1.sum()/b
-        else:
+            if 'normalized' in self.reduction:
+                return L1.sum()/b
             return L1
+        else:
+            raise ValueError
 
 
 class L1Charbonnier:
     """Computes L1 Charbonnier loss. """
-    def __init__(self, sum_normalized=True):
+    def __init__(self, reduction='weighted_sum_normalized'):
         """
         Args:
-            sum_normalized: bool, compute the sum over tensor and divide by number of image pairs per batch?
-            ratio:
+            reduction: str, type of reduction to apply to loss
         """
         super().__init__()
-        self.sum_normalized = sum_normalized
+        self.reduction = reduction
 
     def __call__(self, gt_flow, est_flow, mask=None):
         """
@@ -213,19 +226,26 @@ class L1Charbonnier:
             mask = ~torch.isnan(norm.detach()) & ~torch.isinf(norm.detach()) & mask
         else:
             mask = ~torch.isnan(norm.detach()) & ~torch.isinf(norm.detach())
-    
-        if mask is not None:
-            norm = norm * mask.float()
-            L = 0
-            for bb in range(0, b):
-                norm_const = float(h*w) / (mask[bb, ...].sum().float() + 1e-6)
-                L = L + norm[bb][mask[bb, ...] != 0].sum() * norm_const
-            if self.sum_normalized:
-                return L / b
+
+        if self.reduction == 'mean':
+            if mask is not None:
+                loss = torch.masked_select(norm, mask).mean()
             else:
+                loss = norm.mean()
+            return loss
+        elif 'weighted_sum' in self.reduction:
+            if mask is not None:
+                norm = norm * mask.float()
+                L = 0
+                for bb in range(0, b):
+                    norm_const = float(h*w) / (mask[bb, ...].sum().float() + 1e-6)
+                    L = L + norm[bb][mask[bb, ...] != 0].sum() * norm_const
+                if 'normalized' in self.reduction:
+                    return L / b
                 return L
-    
-        if self.sum_normalized:
-            return norm.sum() / b
-        else:
+
+            if 'normalized' in self.reduction:
+                return norm.sum() / b
             return norm
+        else:
+            raise ValueError

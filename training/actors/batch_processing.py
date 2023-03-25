@@ -38,10 +38,18 @@ class GLUNetBatchPreprocessing:
             settings: settings
             apply_mask: apply ground-truth correspondence mask for loss computation?
             apply_mask_zero_borders: apply mask zero borders (equal to 0 at black borders in target image) for loss
-                                     computation?
+                                     computation? This is specifically needed when the target image was computed
+                                     by warping another image with a synthetic transformation.
+                                     It can have many black borders due to the warp. That can cause instability
+                                     during training, if the loss is applied also in the black areas (where the network
+                                     cannot infer any correct predictions).
             sparse_ground_truth: is ground-truth sparse? Important for downscaling/upscaling of the flow field
             mapping: load correspondence map instead of flow field?
         """
+
+        assert not (apply_mask and apply_mask_zero_borders), \
+            'apply_mask and apply_mask_zero_borders cannot both be applied at the same time, choose only one'
+
         self.apply_mask = apply_mask
         self.apply_mask_zero_borders = apply_mask_zero_borders
         self.sparse_ground_truth = sparse_ground_truth
@@ -63,6 +71,11 @@ class GLUNetBatchPreprocessing:
             TensorDict: output data block with following fields:
                         'source_image', 'target_image', 'source_image_256', 'target_image_256', flow_map',
                         'flow_map_256', 'mask', 'mask_256', 'correspondence_mask'
+
+                        'flow_map' is the ground-truth flow relating the target to the source. 'mask' is the mask
+                        where the loss will be applied (in coordinate system of the target).
+                        Similar for the 256x256 tensors.
+
         """
         source_image, source_image_256 = pre_process_image_glunet(mini_batch['source_image'], self.device)
         target_image, target_image_256 = pre_process_image_glunet(mini_batch['target_image'], self.device)
@@ -100,11 +113,12 @@ class GLUNetBatchPreprocessing:
         mask = None
         mask_256 = None
         if self.apply_mask_zero_borders:
+            assert 'mask_zero_borders' in mini_batch
             # make mask to remove all black borders
             mask = mini_batch['mask_zero_borders'].to(self.device)  # bxhxw, torch.uint8
 
             mask_256 = F.interpolate(mask.unsqueeze(1).float(), (256, 256), mode='bilinear',
-                                     align_corners=False).squeeze(1).byte()  # bx256x256, rounding
+                                     align_corners=False).squeeze(1).floor()  # bx256x256, flooring
             mask_256 = mask_256.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_256.byte()
         elif self.apply_mask:
             if self.sparse_ground_truth:
@@ -113,8 +127,9 @@ class GLUNetBatchPreprocessing:
             else:
                 mask = mini_batch['correspondence_mask'].to(self.device)  # bxhxw, torch.uint8
                 mask_256 = F.interpolate(mask.unsqueeze(1).float(), (256, 256), mode='bilinear',
-                                         align_corners=False).squeeze(1).byte()   # bx256x256, rounding
-                mask_256 = mask_256.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_256.byte()
+                                         align_corners=False).squeeze(1).floor()   # bx256x256, flooring
+                mask_256 = mask_256.bool() if version.parse(torch.__version__) >= version.parse("1.1") \
+                    else mask_256.byte()
 
         mini_batch['source_image'] = source_image
         mini_batch['target_image'] = target_image
@@ -142,10 +157,16 @@ class GLOCALNetBatchPreprocessing:
             settings: settings
             apply_mask: apply ground-truth correspondence mask for loss computation?
             apply_mask_zero_borders: apply mask zero borders (equal to 0 at black borders in target image) for loss
-                                     computation?
+                                     computation? This is specifically needed when the target image was computed
+                                     by warping another image with a synthetic transformation.
+                                     It can have many black borders due to the warp. That can cause instability
+                                     during training, if the loss is applied also in the black areas (where the network
+                                     cannot infer any correct predictions).
             mapping: load correspondence map instead of flow field?
         """
 
+        assert not (apply_mask and apply_mask_zero_borders), \
+            'apply_mask and apply_mask_zero_borders cannot both be applied at the same time, choose only one'
         self.apply_mask = apply_mask
         self.apply_mask_zero_borders = apply_mask_zero_borders
 
@@ -165,6 +186,9 @@ class GLOCALNetBatchPreprocessing:
         returns:
             TensorDict: output data block with following fields:
                         'source_image', 'target_image', 'flow_map','mask',  'correspondence_mask'
+
+                        'flow_map' is the ground-truth flow relating the target to the source. 'mask' is the mask
+                        where the loss will be applied (in coordinate system of the target)
         """
 
         if self.mapping:
@@ -181,6 +205,7 @@ class GLOCALNetBatchPreprocessing:
 
         mask = None
         if self.apply_mask_zero_borders:
+            assert 'mask_zero_borders' in mini_batch
             # make mask to remove all black borders
             mask = mini_batch['mask_zero_borders'].to(self.device)  # bxhxw, torch.uint8
         elif self.apply_mask:
@@ -188,7 +213,7 @@ class GLOCALNetBatchPreprocessing:
         if mask is not None and (mask.shape[1] != h or mask.shape[2] != w):
             # mask_gt does not have the proper shape
             mask = F.interpolate(mask.float().unsqueeze(1), (h, w), mode='bilinear',
-                                 align_corners=False).squeeze(1).byte()  #bxhxw
+                                 align_corners=False).squeeze(1).floor()  # bxhxw
             mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
         mini_batch['source_image'] = normalize_image_with_imagenet_weights(mini_batch['source_image']).to(self.device)
@@ -210,9 +235,15 @@ class ImageNetNormalizationBatchPreprocessing:
             settings: settings
             apply_mask: apply ground-truth correspondence mask for loss computation?
             apply_mask_zero_borders: apply mask zero borders (equal to 0 at black borders in target image) for loss
-                                     computation?
+                                     computation? This is specifically needed when the target image was computed
+                                     by warping another image with a synthetic transformation.
+                                     It can have many black borders due to the warp. That can cause instability
+                                     during training, if the loss is applied also in the black areas (where the network
+                                     cannot infer any correct predictions).
             mapping: load correspondence map instead of flow field?
         """
+        assert not (apply_mask and apply_mask_zero_borders), \
+            'apply_mask and apply_mask_zero_borders cannot both be applied at the same time, choose only one'
 
         self.apply_mask = apply_mask
         self.apply_mask_zero_borders = apply_mask_zero_borders
@@ -232,6 +263,9 @@ class ImageNetNormalizationBatchPreprocessing:
         returns:
             TensorDict: output data block with following fields:
                         'source_image', 'target_image', 'flow_map','mask',  'correspondence_mask'
+
+                        'flow_map' is the ground-truth flow relating the target to the source. 'mask' is the mask
+                        where the loss will be applied (in coordinate system of the target)
         """
 
         if self.mapping:
@@ -245,6 +279,8 @@ class ImageNetNormalizationBatchPreprocessing:
 
         mask = None
         if self.apply_mask_zero_borders:
+            assert 'mask_zero_borders' in mini_batch
+
             # make mask to remove all black borders
             mask = mini_batch['mask_zero_borders'].to(self.device)  # bxhxw, torch.uint8
         elif self.apply_mask:
@@ -252,7 +288,7 @@ class ImageNetNormalizationBatchPreprocessing:
         if mask is not None and (mask.shape[1] != h or mask.shape[2] != w):
             # mask_gt does not have the proper shape
             mask = F.interpolate(mask.float().unsqueeze(1), (h, w), mode='bilinear',
-                                 align_corners=False).squeeze(1).byte()  #bxhxw
+                                 align_corners=False).squeeze(1).floor()  # bxhxw
             mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
         mini_batch['source_image'] = normalize_image_with_imagenet_weights(mini_batch['source_image']).to(self.device)

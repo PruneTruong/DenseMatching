@@ -93,7 +93,7 @@ def pad_to_same_shape(im1, im2):
 
 
 def pad_to_size(im, size):
-    # load_size first h then w
+    # size first h then w
     if not isinstance(size, tuple):
         size = (size, size)
     # pad to same shape
@@ -111,7 +111,7 @@ def pad_to_size(im, size):
 
 
 def center_pad(im, size):
-    # load_size first h then w
+    # size first h then w
     if not isinstance(size, tuple):
         size = (size, size)
     # pad to same shape
@@ -133,7 +133,7 @@ def center_crop(img, size):
     Get the center crop of the input image
     Args:
         img: input image [HxWxC]
-        size: load_size of the center crop (tuple) (width, height)
+        size: size of the center crop (tuple) (width, height)
     Output:
         img_pad: center crop
         x, y: coordinates of the crop
@@ -141,7 +141,7 @@ def center_crop(img, size):
 
     if not isinstance(size, tuple):
         size = (size, size)
-        #load_size is W,H
+        #size is W,H
 
     img = img.copy()
     h, w = img.shape[:2]
@@ -174,7 +174,7 @@ def crop(img, size, x1, y1):
     Get the center crop of the input image
     Args:
         img: input image [HxWxC]
-        size: load_size of the center crop (tuple) (width, height)
+        size: size of the center crop (tuple) (width, height)
     Output:
         img_pad: center crop
         x, y: coordinates of the crop
@@ -182,7 +182,7 @@ def crop(img, size, x1, y1):
 
     if not isinstance(size, tuple):
         size = (size, size)
-        #load_size is W,H
+        #size is W,H
 
     img = img.copy()
     h, w = img.shape[:2]

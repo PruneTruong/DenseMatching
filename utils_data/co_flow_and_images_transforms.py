@@ -76,9 +76,9 @@ class Lambda(object):
 
 class CenterCrop(object):
     """Crops the given inputs and target arrays at the center to have a region of
-    the given load_size. load_size can be a tuple (target_height, target_width)
-    or an integer, in which case the target will be of a square shape (load_size, load_size)
-    Careful, img1 and img2 may not be the same load_size
+    the given size. size can be a tuple (target_height, target_width)
+    or an integer, in which case the target will be of a square shape (size, size)
+    Careful, img1 and img2 may not be the same size
     """
 
     def __init__(self, size):
@@ -107,8 +107,8 @@ class CenterCrop(object):
 
 
 class Scale(object):
-    """ Rescales the inputs and target arrays to the given 'load_size'.
-    load_size can be a tuple, otherwise it will be (load_size,load_size), first height then width.
+    """ Rescales the inputs and target arrays to the given 'size'.
+    size can be a tuple, otherwise it will be (size,size), first height then width.
     interpolation order: Default: 2 (bilinear)
     """
 
@@ -142,8 +142,8 @@ class Scale(object):
 
 
 class RandomScale(object):
-    """ Rescales the inputs and target arrays to the given 'load_size'.
-    load_size can be a tuple, otherwise it will be (load_size,load_size), first height then width.
+    """ Rescales the inputs and target arrays to the given 'size'.
+    size can be a tuple, otherwise it will be (size,size), first height then width.
     interpolation order: Default: 2 (bilinear)
     """
 
@@ -180,11 +180,11 @@ class RandomScale(object):
 
 
 class ScaleKeepingAspectRatio(object):
-    """ Rescales the inputs and target arrays to the given 'load_size'.
-    'load_size' will be the load_size of the biggest edge.
+    """ Rescales the inputs and target arrays to the given 'size'.
+    'size' will be the size of the biggest edge.
     For example, if height > width, then image will be
-    rescaled to (load_size, load_size * width/height)
-    load_size: load_size of the biggest edge
+    rescaled to (size, size * width/height)
+    size: size of the biggest edge
     interpolation order: Default: 2 (bilinear)
     """
 
@@ -217,8 +217,8 @@ class ScaleKeepingAspectRatio(object):
 
 class RandomCrop(object):
     """Crops the given PIL.Image at a random location to have a region of
-    the given load_size. load_size can be a tuple (target_height, target_width)
-    or an integer, in which case the target will be of a square shape (load_size, load_size)
+    the given size. size can be a tuple (target_height, target_width)
+    or an integer, in which case the target will be of a square shape (size, size)
     """
 
     def __init__(self, size):
@@ -284,7 +284,7 @@ class RandomRotate(object):
     This is useful for dataAugmentation, especially for geometric problems such as FlowEstimation
     angle: max angle of the rotation
     interpolation order: Default: 2 (bilinear)
-    reshape: Default: false. If set to true, image load_size will be set to keep every pixel in the image.
+    reshape: Default: false. If set to true, image size will be set to keep every pixel in the image.
     diff_angle: Default: 0. Must stay less than 10 degrees, or linear approximation of flowmap will be off.
     """
 

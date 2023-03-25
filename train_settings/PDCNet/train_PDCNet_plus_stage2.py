@@ -26,7 +26,7 @@ from admin.loading import partial_load
 
 def run(settings):
     settings.description = 'Default train settings for PDC-Net+ stage 2 (final)'
-    settings.data_mode = 'euler'
+    settings.data_mode = 'local'
     settings.batch_size = 10
     settings.n_threads = 8
     settings.multi_gpu = True
@@ -52,6 +52,7 @@ def run(settings):
     # very important, we compute the object reprojection mask, will be used for training
     settings.compute_object_reprojection_mask = True
 
+    # 1. Define training and validation datasets
     # Train dataset: combination of synthetic data with perturbations + independently moving objects, and real image
     # pairs from the MegaDepth dataset with sparse ground-truth matches
 
@@ -101,7 +102,8 @@ def run(settings):
                                                   source_image_transform=source_img_transforms,
                                                   target_image_transform=source_img_transforms,
                                                   flow_transform=flow_transform, co_transform=co_transform,
-                                                  split='train')
+                                                  split='train', store_scene_info_in_memory=False)
+    # put store_scene_info_in_memory to True if more than 55GB of cpu memory is available. Sampling will be faster
 
     # final training dataset: combination of both previous datasets
     train_dataset = MixDatasets(list_of_datasets=[train_dataset_dynamic, training_dataset_megadepth],
@@ -113,9 +115,10 @@ def run(settings):
                                    cfg=megadepth_cfg, split='val',
                                    source_image_transform=source_img_transforms,
                                    target_image_transform=source_img_transforms,
-                                   flow_transform=flow_transform, co_transform=co_transform)
+                                   flow_transform=flow_transform, co_transform=co_transform,
+                                   store_scene_info_in_memory=False)
 
-    # dataloaders
+    # 2. Define dataloaders
     train_loader = Loader('train', train_dataset, batch_size=settings.batch_size,
                           sampler=RandomSampler(train_dataset, num_samples=30000),
                           drop_last=False, training=True, num_workers=settings.n_threads)
@@ -123,7 +126,7 @@ def run(settings):
     val_loader = Loader('val', val_dataset, batch_size=settings.batch_size, shuffle=False,
                         epoch_interval=1.0, training=False, num_workers=settings.n_threads)
 
-    # models
+    # 3. Define model
     global_gocor_arguments = {'optim_iter': 3, 'init_gauss_sigma_DIMP': 0.5, 'score_act': 'relu',
                               'bin_displacement': 0.5, 'train_label_map': False, 'steplength_reg': 0.1,
                               'apply_query_loss': True, 'reg_kernel_size': 3, 'reg_inter_dim': 16,
@@ -154,13 +157,15 @@ def run(settings):
     if settings.multi_gpu:
         model = MultiGPU(model)
 
+    # 4. batch pre-processing module: put all the inputs to cuda as well as in the right format, defines mask
+    # used during training, ect
     # since we have sparse ground-truth, we cannot simple downsample the ground-truth flow.
     batch_processing = GLUNetBatchPreprocessing(settings, apply_mask=True, apply_mask_zero_borders=False,
                                                 sparse_ground_truth=True, mapping=False)
     # sparse_gt means you can't just downsample the gt flow field at resolution 256x256.
     # it needs to be done before, on the ground truth sparse matches (done in the dataloader)
 
-    # Loss module
+    # 5. Define Loss module
     objective = NLLMixtureLaplace()
     weights_level_loss = [0.08, 0.08, 0.02, 0.02]
     loss_module_256 = MultiScaleMixtureDensity(level_weights=weights_level_loss[:2], loss_function=objective,
@@ -170,12 +175,13 @@ def run(settings):
     glunet_actor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
                                     batch_processing=batch_processing)
 
-    # Optimizer
+    # 6. Define Optimizer
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=settings.lr, weight_decay=0.0004)
 
-    # Scheduler
+    # 7. Define Scheduler
     scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=settings.scheduler_steps, gamma=0.5)
 
+    # 8. Define trainer
     trainer = MatchingTrainer(glunet_actor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler,
                               make_initial_validation=True)
 

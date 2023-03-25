@@ -284,7 +284,7 @@ class SemanticKeypointsDataset(Dataset):
 
         if self.training_cfg['output_image_size'] is not None:
             if isinstance(self.training_cfg['output_image_size'], list):
-                # resize to a fixed load_size and rescale the keypoints accordingly
+                # resize to a fixed size and rescale the keypoints accordingly
                 h1, w1 = source.shape[:2]
                 source = cv2.resize(source, (self.training_cfg['output_image_size'][1],
                                              self.training_cfg['output_image_size'][0]))
@@ -297,8 +297,8 @@ class SemanticKeypointsDataset(Dataset):
                 kp_target[:n_pts, 0] *= float(self.training_cfg['output_image_size'][1]) / float(w2)
                 kp_target[:n_pts, 1] *= float(self.training_cfg['output_image_size'][0]) / float(h2)
             else:
-                # rescale both images so that the largest dimension is equal to the desired load_size of image and
-                # then pad to obtain load_size 256x256 or whatever desired load_size. and change keypoints accordingly
+                # rescale both images so that the largest dimension is equal to the desired size of image and
+                # then pad to obtain size 256x256 or whatever desired size. and change keypoints accordingly
                 source, ratio_1 = resize_keeping_aspect_ratio(source, self.training_cfg['output_image_size'])
                 source = pad_to_size(source, self.training_cfg['output_image_size'])
                 kp_source[:n_pts] *= ratio_1
@@ -311,7 +311,7 @@ class SemanticKeypointsDataset(Dataset):
         # create the flow field from the matches and the mask for training
         if self.training_cfg['output_flow_size'] is None:
             size_of_flow = [[h, w]]
-            # creates a flow of the same load_size as the images
+            # creates a flow of the same size as the images
         else:
             size_of_flow = self.training_cfg['output_flow_size']
 
@@ -466,7 +466,7 @@ class ImagePairDataset(Dataset):
         if flip:
             image = np.flip(image, 1)
 
-        # get image load_size
+        # get image size
         im_size = np.asarray(image.shape)
 
         image = cv2.resize(image, dsize=(self.out_w, self.out_h), interpolation=cv2.INTER_LINEAR)

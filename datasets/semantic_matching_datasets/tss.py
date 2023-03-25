@@ -88,7 +88,7 @@ def flow_loader(root, path_imgs, path_flo):
     path_mask = os.path.join(root, base_path, 'mask{}.png'.format(image_number))
     mask = cv2.imread(path_mask, 0)/255 # before it was 255, we want mask in range 0,1
     images = [cv2.imread(img)[:,:,::-1].astype(np.uint8) for img in imgs]
-    source_size = images[0].shape # threshold is max load_size of source image for pck
+    source_size = images[0].shape # threshold is max size of source image for pck
     im1, im2, flow, mask = pad_to_same_shape(images[0], images[1], flow, mask)
     return [im1, im2], flow, mask.astype(np.uint8), source_size
 
@@ -103,7 +103,7 @@ def flow_loader_with_paths(root, path_imgs, path_flo):
     path_mask = os.path.join(root, base_path, 'mask{}.png'.format(image_number))
     mask = cv2.imread(path_mask, 0)/255  # before it was 255, we want mask in range 0,1
     images = [cv2.imread(img)[:, :, ::-1].astype(np.uint8) for img in imgs]
-    source_size = images[0].shape # threshold is max load_size of source image for pck
+    source_size = images[0].shape # threshold is max size of source image for pck
     target_size = images[1].shape
     im1, im2, flow, mask = pad_to_same_shape(images[0], images[1], flow, mask)
     return [im1, im2], flow, mask.astype(np.uint8), source_size, target_size, path_flo

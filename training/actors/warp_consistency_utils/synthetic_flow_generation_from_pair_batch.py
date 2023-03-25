@@ -16,8 +16,7 @@ from utils_data.geometric_transformation_sampling.synthetic_warps_sampling impor
 
 # for debugging
 def plot_synthetic_flow_creation(save_path, epoch, batch, source_image, target_image,
-                                         estimated_flow_target_to_source,
-                                         estimated_flow_source_to_target, mask):
+                                 estimated_flow_target_to_source, estimated_flow_source_to_target, mask):
 
     flow_target_to_source_x = estimated_flow_target_to_source.detach().permute(0, 2, 3, 1)[0, :, :, 0]
     flow_target_to_source_y = estimated_flow_target_to_source.detach().permute(0, 2, 3, 1)[0, :, :, 1]
@@ -87,7 +86,7 @@ class GetSyntheticFlowFromNetPredictions:
             get_net_prediction: class returning the network predictions
             pre_process_data_for_net_prediction: module to pre process the data, given as input to the net predictor
                                                  module
-            image_prediction_size: load_size of the images used for network prediction
+            image_prediction_size: size of the images used for network prediction
             first_epochs_alternative: epochs for which to use directly the alternative flow sampling generator instead
                                       of the network predictions
             cyclic_cons_thresh: threshold used for cyclic consistency mask
@@ -156,7 +155,7 @@ class GetSyntheticFlowFromNetPredictions:
                 flow_gt_ = get_flow_from_predictions(estimated_flow_target_to_source[b_].unsqueeze(0),
                                                      consistent_matches[b_], scaling,
                                                      self.size_output_flow, min_nbr_points=self.min_nbr_points)
-            # would be load_size 1, 2, h, w
+            # would be size 1, 2, h, w
             if flow_gt_ is None:
                 # prediction was not accurate !
                 flow_gt_ = self.alternative_synthetic_flow_generator(mini_batch=mini_batch, training=training)
@@ -178,7 +177,7 @@ class GetSyntheticFlowFromNetPredictions:
 
             # resize the unit flow to desired shape if needed
             if h_f != self.size_output_flow[0] or w_f != self.size_output_flow[1]:
-                # reshape and rescale to desired load_size
+                # reshape and rescale to desired size
                 flow_gt_ = F.interpolate(flow_gt_, self.size_output_flow, mode='bilinear', align_corners=False)
                 # interpolation to image_prediction_size is taken into account already
                 flow_gt_[:, 0] *= ratio_x
@@ -195,7 +194,7 @@ class GetSyntheticFlowFromCAD:
         """
         Args:
             settings:
-            size_output_flow:
+            size_output_flow:  size of the outputted flow field
             homo_dataloader: dataloader used for getting the saved flow fields corresponding to CAD, used during
                              training
             homo_dataloader_eval: dataloader used for getting the saved flow fields corresponding to CAD, used during
@@ -236,7 +235,7 @@ class GetSyntheticFlowFromCAD:
         if flow_gt.shape[1] != 2:
             flow_gt.permute(0, 3, 1, 2)
 
-        # reshape and rescale to desired load_size
+        # reshape and rescale to desired size
         bs, _, h_f, w_f = flow_gt.shape
         flow_gt = F.interpolate(flow_gt, self.size_output_flow, mode='bilinear', align_corners=False)
         flow_gt[:, 0] *= float(self.size_output_flow[1]) / float(w_f)
@@ -246,13 +245,13 @@ class GetSyntheticFlowFromCAD:
 
 class GetRandomSyntheticHomographyFlow:
     """ For all image in a batch, computes the flow fields corresponding to random homography transforms. A different
-    homography is sampled for each image pair in the batch.
+    homography is sampled for each image pair in the batch.They have a size corresponding to argument size_output_flow.
     The range of sampling parameters are provided through the homo sampling module. """
     def __init__(self, settings, size_output_flow, homo_sampling_module=None):
         """
         Args:
             settings:
-            size_output_flow:
+            size_output_flow: size of the outputted flow field
             homo_sampling_module: module to sample the homogaphy transform parameters.
                                   If None, we use the default module.
         """
@@ -265,8 +264,7 @@ class GetRandomSyntheticHomographyFlow:
             homo_sampling_module = RandomHomography(p_flip=0.0, max_rotation=10.0, max_shear=0.1,
                                                     max_scale=1.1, max_ar_factor=0.1,
                                                     min_perspective=0.0005, max_perspective=0.0009,
-                                                    max_translation=10,
-                                                    border_mode='constant', pad_amount=0)
+                                                    max_translation=10, pad_amount=0)
         self.homography_transform = homo_sampling_module
 
         if not isinstance(size_output_flow, (tuple, list)):
@@ -276,9 +274,8 @@ class GetRandomSyntheticHomographyFlow:
     def __call__(self,  mini_batch, training=True, *args, **kwargs):
 
         with torch.no_grad():
-            # take original images, have them at resolution 520x520
             source_image = mini_batch['source_image'].to(self.device)
-            b, _, h, w = source_image.shape
+            b = source_image.shape[0]
             synthetic_flow = []
 
             for b_ in range(b):
@@ -299,14 +296,15 @@ class GetRandomSyntheticHomographyFlow:
 
 
 class GetRandomSyntheticAffHomoTPSFlow:
-    """ For all image in a batch, computes the flow fields corresponding to random Affine, homography or TPS transforms.
+    """ For all image in a batch, computes flow fields corresponding to random Affine, homography or TPS transforms.
+    They have a size corresponding to argument size_output_flow.
     A different geometric transformation is sampled for each image pair in the batch.
     The range of sampling parameters are provided through the transfo sampling module. """
     def __init__(self, settings, size_output_flow, transfo_sampling_module=None):
         """
         Args:
             settings:
-            size_output_flow:
+            size_output_flow:  size of the outputted flow field
             transfo_sampling_module: module to sample the transform parameters. If None, we use the default module.
         """
 
@@ -322,16 +320,16 @@ class GetRandomSyntheticAffHomoTPSFlow:
             transfo_sampling_module = SynthecticAffHomoTPSTransfo(size_output_flow=self.size_output_flow, random_t=0.25,
                                                                   random_s=0.5, random_alpha=np.pi / 12,
                                                                   random_t_hom=0.4, random_t_tps=0.4,
-                                                                  transformation_types=['affine', 'hom', 'tps', 'afftps'])
+                                                                  transformation_types=['affine', 'hom',
+                                                                                        'tps', 'afftps'])
             # this is quite strong transformations
         self.sample_transfo = transfo_sampling_module
 
     def __call__(self,  mini_batch, training=True, *args, **kwargs):
 
         with torch.no_grad():
-            # take original images, have them at resolution 520x520
             source_image = mini_batch['source_image'].to(self.device)
-            b, _, h, w = source_image.shape
+            b = source_image.shape[0]
             synthetic_flow = []
 
             for b_ in range(b):

@@ -189,7 +189,7 @@ class AugmentedImagePairsDatasetMultipleObjects(BaseVideoDataset):
         return bg_image, bg_mask.squeeze(-1)
 
     def __len__(self):
-        """ Returns load_size of the dataset
+        """ Returns size of the dataset
         returns:
             int - number of samples in the dataset
         """

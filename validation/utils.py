@@ -249,7 +249,6 @@ def matches_from_flow(flow, binary_mask, scaling=1.0):
         binary_mask: bool mask corresponding to valid flow vectors, shape B, H, W
         scaling: scalar or list of scalar (horizontal and then vertical direction):
                  scaling factor to apply to the retrieved pixel coordinates in both images.
-        return_scores: return confidence scores corresponding to the matches
 
     Returns:
         pixel coordinates of 'good' matches in the source image, Nx2 (numpy array)
@@ -430,14 +429,14 @@ def assign_flow_to_keypoints(kp_source, kp_target, flow, mask_valid, confidence_
 
 
 def get_mutual_matches(matches_0_1, matches_1_0,  kp_0, kp_1, acceptable_error):
-    """
+    """Keep only matches which are mutually consistent.
 
     Args:
         matches_1_0: Nx2 or Nx3, contains index of kp_1 followed by kp_0. Can also contain confidence value.
         matches_0_1: Mx2 or Nx3, contains index of kp_0 followed by kp_1. Can also contain confidence value.
         kp_0: K0 x 2
         kp_1: K1 x 2
-        acceptable_error; threshold in pixel for cyclic error to consider a match mutual.
+        acceptable_error: threshold in pixel for cyclic error to consider a match mutual.
 
     Returns:
         matches: Lx2 or Lx3, contains index of kp_0 followed by kp_1. Can also contain confidence value.

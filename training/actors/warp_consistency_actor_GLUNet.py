@@ -50,34 +50,41 @@ class GetGLUNetPredictions:
 class GLUNetWarpCUnsupervisedBatchPreprocessing:
     """ Class responsible for processing the mini-batch to create the desired training inputs for GLUNet
      based networks, when training unsupervised using warp consistency.
+
      Particularly, from the source and target image pair (which are usually not related by a known ground-truth flow),
      the online_triplet_creator creates an image triplet (source, target and target_prime) where the target prime
      image is related to the target by a known synthetically and randomly generated flow field.
      The final image triplet is obtained by cropping central patches in the three images.
      Optionally, two image triplets can be created with different synthetic flow fields, resulting in different
-     target_prime images, to apply different losses on each.
+     target_prime images, to apply different losses on each. This is done in 'online_triplet_creator'.
+
      Here, appearance augmentations can optionally be added, the images are normalized and the
      ground-truth flow field as well as mask used for training are processed.
+
      In that case, the ground-truth flow field used during training is the synthetic flow field relating
      target prime to target.
      The training inputs are also created at resolution 256x256 for training the L-Net.
     """
 
-    def __init__(self, settings, apply_mask=False, apply_mask_zero_borders=False, sparse_ground_truth=False,
-                 mapping=False, online_triplet_creator=None, appearance_transform_source=None,
+    def __init__(self, settings, online_triplet_creator, apply_mask=False, apply_mask_zero_borders=False,
+                 sparse_ground_truth=False, mapping=False, appearance_transform_source=None,
                  appearance_transform_target=None, appearance_transform_target_prime=None,
                  appearance_transform_target_prime_ss=None):
         """
         Args:
             settings: settings
+            online_triplet_creator: class responsible for the creation of the image triplet used in the warp
+                                    consistency graph, from an image pair.
             apply_mask: apply ground-truth correspondence mask for loss computation?
-            apply_mask_zero_borders: apply mask zero borders (equal to 0 at black borders in target image) for loss
-                                     computation?
+            apply_mask_zero_borders: apply mask zero borders (equal to 0 at black borders in target_prime image) for loss
+                                     computation? This is specifically useful when the target image prime is
+                                     computed by warping the target with a synthetic transformation.
+                                     It can have many black borders due to the warp. That can cause instability
+                                     during training, if the loss is applied also in the black areas (where the network
+                                     cannot infer any correct predictions).
             sparse_ground_truth: if ground-truth between source and target image is known, indicates that it is a
                                  sparse ground-truth.
             mapping: load correspondence map instead of flow field?
-            online_triplet_creator: class responsible for the creation of the image triplet used in the warp
-                                    consistency graph, from an image pair.
             appearance_transform_source: appearance augmentation applied to batched source image tensors
                                         (before normalizing)
             appearance_transform_target: appearance augmentation applied to batched target image tensors
@@ -88,6 +95,10 @@ class GLUNetWarpCUnsupervisedBatchPreprocessing:
                                                   tensors (when it exists, here ss stands for
                                                   self-supervised/warp-supervision)
         """
+
+        assert not (apply_mask and apply_mask_zero_borders), \
+            'apply_mask and apply_mask_zero_borders cannot both be applied at the same time, choose only one'
+
         self.apply_mask = apply_mask
         self.apply_mask_zero_borders = apply_mask_zero_borders
         self.sparse_ground_truth = sparse_ground_truth
@@ -105,6 +116,7 @@ class GLUNetWarpCUnsupervisedBatchPreprocessing:
         self.appearance_transform_target_prime_ss = appearance_transform_target_prime_ss
 
     def __call__(self, mini_batch, net=None, training=False,  *args, **kwargs):
+
         """
         Args:
             mini_batch: The mini batch input data, should at least contain the fields 'source_image', 'target_image'
@@ -114,6 +126,12 @@ class GLUNetWarpCUnsupervisedBatchPreprocessing:
             mini_batch: output data block with at least the fields 'source_image', 'target_image',
                         'target_image_prime', 'flow_map', 'mask', 'correspondence_mask',
                         'source_image_256', 'target_image_256', 'target_image_prime_256', 'flow_map_256',  'mask_256'.
+
+                        'flow_map' here is the ground-truth synthetic flow relating the target_image_prime to the
+                        target. 'correspondence_mask' is the in-view flow regions.
+                        'mask' is the mask of where the loss will be applied in the target image prime frame.
+                        Same applies for the 256x256 tensors.
+
                          If ground-truth is known between source and target image, will contain the fields
                         'flow_map_target_to_source', 'correspondence_mask_target_to_source'.
         """
@@ -164,12 +182,12 @@ class GLUNetWarpCUnsupervisedBatchPreprocessing:
         if mask is not None and (mask.shape[1] != h_original or mask.shape[2] != w_original):
             # mask_gt does not have the proper shape
             mask = F.interpolate(mask.float().unsqueeze(1), (h_original, w_original), mode='bilinear',
-                                 align_corners=False).squeeze(1).byte()  # bxhxw
+                                 align_corners=False).squeeze(1).floor()  # bxhxw
             mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
         if mask is not None:
             mask_256 = F.interpolate(mask.unsqueeze(1).float(), (256, 256), mode='bilinear',
-                                     align_corners=False).squeeze(1).byte()  # bx256x256, rounding
+                                     align_corners=False).squeeze(1).floor()  # bx256x256, flooring
             mask_256 = mask_256.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_256.byte()
 
         mini_batch['source_image'] = source_image
@@ -221,12 +239,12 @@ class GLUNetWarpCUnsupervisedBatchPreprocessing:
             if mask is not None and (mask.shape[1] != h_original or mask.shape[2] != w_original):
                 # mask_gt does not have the proper shape
                 mask = F.interpolate(mask.float().unsqueeze(1), (h_original, w_original), mode='bilinear',
-                                     align_corners=False).squeeze(1).byte()  # bxhxw
+                                     align_corners=False).squeeze(1).floor()  # bxhxw
                 mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
             if mask is not None:
                 mask_256 = F.interpolate(mask.unsqueeze(1).float(), (256, 256), mode='bilinear',
-                                         align_corners=False).squeeze(1).byte()  # bx256x256, rounding
+                                         align_corners=False).squeeze(1).floor()  # bx256x256, rounding
                 mask_256 = mask_256.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask_256.byte()
 
             mini_batch['correspondence_mask_ss'] = mini_batch['correspondence_mask_ss'].to(self.device)
@@ -300,6 +318,12 @@ class GLUNetWarpCUnsupervisedActor(BaseActor):
                         'target_image_prime', 'flow_map', 'mask', 'correspondence_mask',
                         'source_image_256', 'target_image_256', 'target_image_prime_256',
                         'flow_map_256',  'mask_256'.
+
+                        'flow_map' here is the ground-truth synthetic flow relating the target_image_prime to the
+                        target. 'correspondence_mask' is the in-view flow regions.
+                        'mask' is the mask of where the loss will be applied in the target image prime frame.
+                        Same applies for the 256x256 tensors.
+
                          If ground-truth is known between source and target image, will contain the fields
                         'flow_map_target_to_source', 'correspondence_mask_target_to_source'.
             training: bool indicating if we are in training or evaluation mode

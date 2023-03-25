@@ -24,7 +24,7 @@ from utils_data.sampler import RandomSampler
 
 def run(settings):
     settings.description = 'Default train settings for weakly-supervised PWarpC-SF-Net, trained on Spair-71K.'
-    settings.data_mode = 'euler'
+    settings.data_mode = 'local'
     settings.multi_gpu = True
     settings.print_interval = 50
     settings.keep_last_checkpoints = 10
@@ -69,9 +69,13 @@ def run(settings):
     # each loss is multiplied by these weights.
     settings.final_loss_weights = {'triplet': 1.0, 'pairwise': 1.0}
 
+    # dataset parameters
+    settings.dataset_img_size = 340
+    # size of images outputted by the dataloader, also size of the sampled synthetic flow for triplet creation
+
     # synthetic transfo parameters
-    settings.resizing_size = 340
     settings.crop_size = 20*16
+    # size of final images in the triplet, and of the corresponding synthetic flow relating target prime to target
     settings.parametrize_with_gaussian = False
     settings.transformation_types = ['hom', 'tps', 'afftps']
     settings.random_t = 0.25
@@ -83,21 +87,25 @@ def run(settings):
     settings.proba_horizontal_flip = 0.15   # larger horizontal flip than pfpascal
 
     # 1. Define datasets
+    # images outputted by the dataset must have size equal to settings.dataset_img_size, the same size
+    # than the synthetic transformation
     flow_transform = transforms.Compose([ArrayToTensor()])  # just put channels first and put it to float
     image_transforms = transforms.Compose([ArrayToTensor(get_float=True)])  # just put channels first
 
-    prepare_data(settings.env.spair_tar, mode=settings.data_mode)
-    spair_cfg = {'augment_with_crop': True, 'crop_size': [settings.resizing_size, settings.resizing_size],
+    if settings.data_mode == 'euler':
+        prepare_data(settings.env.spair_tar, mode=settings.data_mode)
+
+    spair_cfg = {'augment_with_crop': True, 'crop_size': [settings.dataset_img_size, settings.dataset_img_size],
                  'augment_with_flip': True, 'proba_of_image_flip': 0.0, 'proba_of_batch_flip': 0.5,
-                 'output_image_size': [settings.resizing_size, settings.resizing_size],
-                 'pad_to_same_shape': False, 'output_flow_size': [settings.resizing_size, settings.resizing_size]}
-    train_dataset = SPairDataset(settings.env.spair, output_image_size=settings.resizing_size,
+                 'output_image_size': [settings.dataset_img_size, settings.dataset_img_size],
+                 'pad_to_same_shape': False, 'output_flow_size': [settings.dataset_img_size, settings.dataset_img_size]}
+    train_dataset = SPairDataset(settings.env.spair, output_image_size=settings.dataset_img_size,
                                  source_image_transform=image_transforms, target_image_transform=image_transforms,
                                  flow_transform=flow_transform, split='trn', training_cfg=spair_cfg)
 
     spair_cfg['augment_with_crop'] = False
     spair_cfg['augment_with_flip'] = False
-    val_dataset = SPairDataset(settings.env.spair, output_image_size=settings.resizing_size,
+    val_dataset = SPairDataset(settings.env.spair, output_image_size=settings.dataset_img_size,
                                source_image_transform=image_transforms, target_image_transform=image_transforms,
                                flow_transform=flow_transform, split='val', training_cfg=spair_cfg)
 
@@ -117,9 +125,16 @@ def run(settings):
         model.load_state_dict(checkpoint)
     print(colored('==> ', 'blue') + 'model created.')
 
-    # 4. Define batch_processing
+    # 4. Define batch processing (creates the triplet from the original image pair, then put them to the right
+    # format to be processed by the network, ect)
+
+    # synthetic transformation sampling modules (for synthetic flow W in the paper)
     # transformation and appearance transformation sampling for triplet preparation
-    sample_transfo = SynthecticAffHomoTPSTransfo(size_output_flow=settings.resizing_size, random_t=settings.random_t,
+    # the flow outputted (size_output_flow) needs to be the same size than the images provided by the dataloader
+    # (ie settings.dataset_img_size). Then the flow is applied to the target to create the target prime image.
+    # Then all three images (souce, target and target prime) along with the flow are centered cropped
+    # (resulting in size 'settings.crop_size').
+    sample_transfo = SynthecticAffHomoTPSTransfo(size_output_flow=settings.dataset_img_size, random_t=settings.random_t,
                                                  random_s=settings.random_s,
                                                  random_alpha=settings.random_alpha,
                                                  random_t_tps_for_afftps=settings.random_t_tps_for_afftps,
@@ -128,9 +143,13 @@ def run(settings):
                                                  parametrize_with_gaussian=settings.parametrize_with_gaussian,
                                                  proba_horizontal_flip=settings.proba_horizontal_flip)
 
+    # synthetic flow sampling module. The outputted flow has size settings.dataset_img_size, which is the
+    # same size than the image pair given by the dataloader
     synthetic_flow_generator = GetRandomSyntheticAffHomoTPSFlow(
-        settings=settings, transfo_sampling_module=sample_transfo, size_output_flow=settings.resizing_size)
-    # to match sparse_ground_truth images
+        settings=settings, transfo_sampling_module=sample_transfo, size_output_flow=settings.dataset_img_size)
+
+    # actual module responsable for creating the image triplet from the real image pair and the previously
+    # sampled synthetic flow
     batched_triplet_creator = BatchedImageTripletCreation(settings, synthetic_flow_generator=synthetic_flow_generator,
                                                           compute_mask_zero_borders=False,
                                                           output_size=settings.crop_size, crop_size=settings.crop_size)
@@ -145,6 +164,8 @@ def run(settings):
                                                                   saturation=0.4, hue=0.5 / 3.14, invert_channel=True),
                                                       RandomGaussianBlur(sigma=(0.2, 2.0), probability=0.2)])
 
+    # batch processing module, creates the triplet,  apply appearance transformations and put all the inputs
+    # to cuda as well as in the right format
     batch_processing = GLOCALNetWarpCUnsupervisedBatchPreprocessing(
         settings, apply_mask_zero_borders=False, apply_mask=True, normalize_images=True,  # imagenet weights
         online_triplet_creator=batched_triplet_creator, appearance_transform_source=batch_image_transform,
@@ -175,6 +196,7 @@ def run(settings):
     # 7. Define scheduler
     scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=settings.scheduler_steps, gamma=0.5)
 
+    # 8. Define trainer
     trainer = MatchingTrainer(actor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler,
                               make_initial_validation=True)
 

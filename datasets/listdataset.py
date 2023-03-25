@@ -42,7 +42,7 @@ class ListDataset(data.Dataset):
             co_transform: transforms to apply to both image pairs and corresponding flow field
             loader: image and flow loader type
             load_valid_mask: is the loader outputting a valid mask ?
-            load_size: is the loader outputting load_size of original source image ?
+            load_size: is the loader outputting size of original source image ?
             load_occlusion_mask: is the loader outputting a ground-truth occlusion mask ?
             get_mapping: get mapping ?
             compute_mask_zero_borders: output mask of zero borders ?

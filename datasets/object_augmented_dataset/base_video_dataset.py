@@ -21,7 +21,7 @@ class BaseVideoDataset(torch.utils.data.Dataset):
         self.class_list = []
 
     def __len__(self):
-        """ Returns load_size of the dataset
+        """ Returns size of the dataset
         returns:
             int - number of samples in the dataset
         """

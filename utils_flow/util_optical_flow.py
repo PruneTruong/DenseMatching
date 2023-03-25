@@ -271,7 +271,7 @@ def center_crop(img, size):
     Get the center crop of the input image
     Args:
         img: input image [BxCxHxW]
-        size: load_size of the center crop (tuple)
+        size: size of the center crop (tuple)
     Output:
         img_pad: center crop
         x, y: coordinates of the crop
@@ -393,8 +393,8 @@ def center_crop(img, crop_height, crop_width):
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
         raise ValueError(
-            'Requested crop load_size ({crop_height}, {crop_width}) is '
-            'larger than the image load_size ({height}, {width})'.format(
+            'Requested crop size ({crop_height}, {crop_width}) is '
+            'larger than the image size ({height}, {width})'.format(
                 crop_height=crop_height,
                 crop_width=crop_width,
                 height=height,
@@ -418,8 +418,8 @@ def random_crop(img, crop_height, crop_width, h_start, w_start):
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
         raise ValueError(
-            'Requested crop load_size ({crop_height}, {crop_width}) is '
-            'larger than the image load_size ({height}, {width})'.format(
+            'Requested crop size ({crop_height}, {crop_width}) is '
+            'larger than the image size ({height}, {width})'.format(
                 crop_height=crop_height,
                 crop_width=crop_width,
                 height=height,

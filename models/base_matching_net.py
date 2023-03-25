@@ -428,9 +428,9 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
             im_target_pyr = self.pyramid(im_target, eigth_resolution=True)
         if im_source_pyr is None:
             im_source_pyr = self.pyramid(im_source, eigth_resolution=True)
-        c11 = im_target_pyr[-2]  # load_size original_res/4xoriginal_res/4
+        c11 = im_target_pyr[-2]  # size original_res/4xoriginal_res/4
         c21 = im_source_pyr[-2]
-        c12 = im_target_pyr[-1]  # load_size original_res/8xoriginal_res/8
+        c12 = im_target_pyr[-1]  # size original_res/8xoriginal_res/8
         c22 = im_source_pyr[-1]
 
         # pyramid, 256 reso
@@ -444,10 +444,10 @@ class BaseGLUMultiScaleMatchingNet(BaseMultiScaleMatchingNet):
                 im_source_pyr_256 = self.pyramid_256(im_source_256)
             else:
                 im_source_pyr_256 = self.pyramid(im_source_256)
-        c13 = im_target_pyr_256[-2]  # load_size 256/8 x 256/8
-        c23 = im_source_pyr_256[-2]  # load_size 256/8 x 256/8
-        c14 = im_target_pyr_256[-1]  # load_size 256/16 x 256/16
-        c24 = im_source_pyr_256[-1]  # load_size 256/16 x 256/16
+        c13 = im_target_pyr_256[-2]  # size 256/8 x 256/8
+        c23 = im_source_pyr_256[-2]  # size 256/8 x 256/8
+        c14 = im_target_pyr_256[-1]  # size 256/16 x 256/16
+        c24 = im_source_pyr_256[-1]  # size 256/16 x 256/16
 
         return c14, c24, c13, c23, c12, c22, c11, c21
 

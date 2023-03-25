@@ -26,7 +26,9 @@ class GLOCALNetActor(BaseActor):
         """
         Args:
             mini_batch: The mini batch input data, should at least contain the fields 'source_image', 'target_image',
-                        'flow_map', 'mask', 'correspondence_mask'
+                        'flow_map', 'mask', 'correspondence_mask'.
+                        'flow_map' is the ground-truth flow relating the target to the source. 'mask' is the mask
+                        where the loss will be applied (in coordinate system of the target).
             training: bool indicating if we are in training or evaluation mode
         returns:
             loss: the training loss
@@ -114,6 +116,10 @@ class GLUNetBasedActor(BaseActor):
             mini_batch: The mini batch input data, should at least contain the fields 'source_image', 'target_image',
                         'flow_map',  'mask', 'source_image_256', 'target_image_256', 'flow_map_256',
                         'mask_256', 'correspondence_mask'
+
+                        'flow_map' is the ground-truth flow relating the target to the source. 'mask' is the mask
+                        where the loss will be applied (in coordinate system of the target).
+                        Similar for the 256x256 tensors.
             training: bool indicating if we are in training or evaluation mode
         returns:
             loss: the training loss

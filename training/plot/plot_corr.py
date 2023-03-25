@@ -114,13 +114,13 @@ def plot_correlation(target_image, source_image, flow_gt, correlation_volume, sa
 
     if isinstance(source_image, torch.Tensor):
         if image_normalization:
-            # resizing of source and target image to correlation load_size
+            # resizing of source and target image to correlation size
             source_image = F.interpolate(source_image.unsqueeze(0).cpu() * std_values +
                        mean_values, (H, W), mode='area').squeeze().permute(1, 2, 0).numpy()
             target_image = F.interpolate(target_image.unsqueeze(0).cpu() * std_values +
                        mean_values, (H, W), mode='area').squeeze().permute(1, 2, 0).numpy()
         else:
-            # resizing of source and target image to correlation load_size
+            # resizing of source and target image to correlation size
             source_image = F.interpolate(source_image.unsqueeze(0).cpu().float(), (H, W),
                                          mode='area').squeeze().permute(1, 2, 0).numpy()
             target_image = F.interpolate(target_image.unsqueeze(0).cpu().float(), (H, W),
@@ -231,7 +231,7 @@ def plot_local_correlation(target_image, source_image, flow_gt, correlation_volu
     std_values = torch.tensor([0.229, 0.224, 0.225],
                               dtype=source_image.dtype).view(3, 1, 1)
 
-    # resizing of source and target image to correlation load_size
+    # resizing of source and target image to correlation size
     image_source = F.interpolate(source_image.unsqueeze(0).cpu() * std_values +
                mean_values, (H, W), mode='area').squeeze().permute(1, 2, 0).numpy()
     image_target = F.interpolate(target_image.unsqueeze(0).cpu() * std_values +

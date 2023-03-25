@@ -50,9 +50,9 @@ class HPatchesDataset(Dataset):
             image_transform: image transformations to apply to source and target images
             flow_transform: flow transformations to apply to ground-truth flow fields
             co_transform: transformations to apply to both images and ground-truth flow fields
-            use_original_size: load images and flow at original load_size ?
+            use_original_size: load images and flow at original size ?
             get_mapping: bool get mapping ?
-            image_size: image load_size used for evaluation, will be ignored if origical_size is True.
+            image_size: image size used for evaluation, will be ignored if origical_size is True.
                         default=(240, 240) as in DGC-Net
         Output in __getitem__:
                 source_image

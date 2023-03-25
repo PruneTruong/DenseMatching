@@ -141,6 +141,7 @@ class ColorJitter(torch.nn.Module):
                 or the given [min, max]. Should be non negative numbers.
             hue (float or tuple of float (min, max)): How much to jitter hue.
                 hue_factor is chosen uniformly from [-hue, hue] or the given [min, max].
+            invert_channel (bool): creates more drastic transformations by inverting order of RGB channels.
 
         """
         super().__init__()
@@ -377,14 +378,14 @@ class RandomGaussianBlur(torch.nn.Module):
 
         Returns:
             sigma: Standard deviation to be passed to calculate kernel for gaussian blurring.
-            kernel_size: Kernel load_size to be passed for gaussian blurring
+            kernel_size: Kernel size to be passed for gaussian blurring
         """
         sigma = torch.empty(1).uniform_(sigma_min, sigma_max).item()
 
         kernel_size = random.randint(self.kernel_size[0], self.kernel_size[1])
         if kernel_size % 2 == 0:
             kernel_size += 1
-        kernel_size = _setup_size(kernel_size, "Kernel load_size should be a tuple/list of two integers")
+        kernel_size = _setup_size(kernel_size, "Kernel size should be a tuple/list of two integers")
         return sigma, kernel_size
 
     def blur_4d_tensor(self, img):

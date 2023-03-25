@@ -26,7 +26,7 @@ from admin.loading import partial_load
 
 def run(settings):
     settings.description = 'Default train settings for GLU-Net-GOCor* stage 1'
-    settings.data_mode = 'euler'
+    settings.data_mode = 'local'
     settings.batch_size = 10
     settings.n_threads = 8
     settings.multi_gpu = True
@@ -41,6 +41,7 @@ def run(settings):
                                                      'train_settings/PDCNet/train_GLUNet_GOCor_star_stage1',
                                                      'GLUNetModel_model_best.pth.tar')
 
+    # 1. Define training and validation datasets
     # Training dataset:
     # DPED-CityScape-ADE (self-supervised data) + perturbations + sparse ground-truth on MegaDepth
     img_transforms = transforms.Compose([ArrayToTensor(get_float=False)])
@@ -114,7 +115,7 @@ def run(settings):
                                    store_scene_info_in_memory=False)
     # put store_scene_info_in_memory to True if more than 55GB of cpu memory is available. Sampling will be faster
 
-    # dataloader
+    # 2. Define dataloaders
     train_loader = Loader('train', train_dataset, batch_size=settings.batch_size,
                           sampler=RandomSampler(train_dataset, num_samples=30000),
                           drop_last=False, training=True, num_workers=settings.n_threads)
@@ -122,7 +123,7 @@ def run(settings):
     val_loader = Loader('val', val_dataset, batch_size=settings.batch_size, shuffle=False,
                         epoch_interval=1.0, training=False, num_workers=settings.n_threads)
 
-    # models
+    # 3. Define model
     global_gocor_arguments = {'optim_iter': 3, 'init_gauss_sigma_DIMP': 0.5, 'score_act': 'relu',
                               'bin_displacement': 0.5, 'train_label_map': True, 'steplength_reg': 0.1,
                               'apply_query_loss': True, 'reg_kernel_size': 3, 'reg_inter_dim': 16,
@@ -145,11 +146,12 @@ def run(settings):
     if settings.multi_gpu:
         model = MultiGPU(model)
 
-    # batch pre-processing
+    # 4. batch pre-processing module: put all the inputs to cuda as well as in the right format, defines mask
+    # used during training, ect
     batch_preprocessing = GLUNetBatchPreprocessing(settings, apply_mask=True, apply_mask_zero_borders=False,
                                                    sparse_ground_truth=True)
 
-    # Loss module and actor
+    # 5. Define Loss module and actor
     objective = L1()
     weights_level_loss = [0.08, 0.08, 0.02, 0.02]
     # here because sparse ground-truth, we do not downsample the gt flow for the loss but upsample the
@@ -161,16 +163,16 @@ def run(settings):
     glunet_actor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
                                     batch_processing=batch_preprocessing)
 
-    # Optimizer
+    # 6. Define Optimizer
     optimizer = \
         optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
                    lr=settings.lr,
                    weight_decay=0.0004)
 
-    # Scheduler
+    # 7. Define scheduler
     scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=settings.scheduler_steps, gamma=0.5)
 
-    # Trainer
+    # 8. Define trainer
     trainer = MatchingTrainer(glunet_actor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler,
                               make_initial_validation=True)
 

@@ -38,7 +38,7 @@ def resize_images_to_min_resolution(min_size, img, x, y, stride_net=16):  # for 
     ratioW, ratioH = new_w / float(w), new_h / float(h)
     img = img.resize((new_w, new_h), resample=Image.LANCZOS)
 
-    x, y = x * ratioW, y * ratioH  # put coordinate in proper load_size after resizing the images
+    x, y = x * ratioW, y * ratioH  # put coordinate in proper size after resizing the images
     index_valid = (x > 0) * (x < new_w) * (y > 0) * (y < new_h)
 
     return img, x, y, index_valid

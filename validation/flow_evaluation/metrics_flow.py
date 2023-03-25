@@ -36,7 +36,7 @@ def correct_correspondences(input_flow, target_flow, alpha, img_size, epe_tensor
         input_flow: estimated flow [BxHxW,2]
         target_flow: ground-truth flow [BxHxW,2]
         alpha: threshold
-        img_size: image load_size
+        img_size: image size
         epe_tensor: epe tensor already computed [BxHxW, 1], default is None
     Output:
         PCK metric

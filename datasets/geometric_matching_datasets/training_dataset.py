@@ -39,7 +39,7 @@ class HomoAffTpsDataset(Dataset):
             compute_mask_zero_borders: bool mask removing the black image borders
             pyramid_param: spatial resolution of the feature maps at each level
                 of the feature pyramid (list)
-            output_image_size: load_size (tuple) of the output images
+            output_image_size: size (tuple) of the output images
         Output:
             if get_flow:
                 source_image: source image, shape 3xHxWx
@@ -372,7 +372,7 @@ class HomoAffTpsDataset(Dataset):
         mask_y = []
         if transform_type == 0:
             for layer_size in self.pyramid_param:
-                # get layer load_size or change it so that it corresponds to PWCNet
+                # get layer size or change it so that it corresponds to PWCNet
                 grid = self.generate_grid(layer_size,
                                           layer_size,
                                           theta).squeeze(0)
@@ -443,7 +443,7 @@ class TpsGridGen(nn.Module):
         # sampling grid with dim-0 coords (Y)
         self.grid_X, self.grid_Y = np.meshgrid(np.linspace(-1, 1, out_w),
                                                np.linspace(-1, 1, out_h))
-        # grid_X,grid_Y: load_size [1,H,W,1,1]
+        # grid_X,grid_Y: size [1,H,W,1,1]
         self.grid_X = torch.FloatTensor(self.grid_X).unsqueeze(0).unsqueeze(3)
         self.grid_Y = torch.FloatTensor(self.grid_Y).unsqueeze(0).unsqueeze(3)
         if use_cuda:
@@ -455,8 +455,8 @@ class TpsGridGen(nn.Module):
             axis_coords = np.linspace(-1, 1, grid_size)
             self.N = grid_size * grid_size
             P_Y, P_X = np.meshgrid(axis_coords, axis_coords)
-            P_X = np.reshape(P_X, (-1, 1))  # load_size (N,1)
-            P_Y = np.reshape(P_Y, (-1, 1))  # load_size (N,1)
+            P_X = np.reshape(P_X, (-1, 1))  # size (N,1)
+            P_Y = np.reshape(P_Y, (-1, 1))  # size (N,1)
             P_X = torch.FloatTensor(P_X)
             P_Y = torch.FloatTensor(P_Y)
             self.Li = self.compute_L_inverse(P_X, P_Y).unsqueeze(0)
@@ -538,7 +538,7 @@ class TpsGridGen(nn.Module):
                                                            self.N)), Q_Y)
         '''
         reshape
-        W_X,W,Y: load_size [B,H,W,1,N]
+        W_X,W,Y: size [B,H,W,1,N]
         '''
         W_X = \
             W_X.unsqueeze(3).unsqueeze(4).transpose(1, 4).repeat(1,
@@ -563,7 +563,7 @@ class TpsGridGen(nn.Module):
                                                            self.N)), Q_Y)
         '''
         reshape
-        A_X,A,Y: load_size [B,H,W,1,3]
+        A_X,A,Y: size [B,H,W,1,3]
         '''
         A_X = A_X.unsqueeze(3).unsqueeze(4).transpose(1, 4).repeat(1,
                                                                    points_h,
@@ -597,7 +597,7 @@ class TpsGridGen(nn.Module):
 
         dist_squared = torch.pow(delta_X, 2) + torch.pow(delta_Y, 2)
         '''
-        U: load_size [1,H,W,1,N]
+        U: size [1,H,W,1,N]
         avoid NaN in log computation
         '''
         dist_squared[dist_squared == 0] = 1

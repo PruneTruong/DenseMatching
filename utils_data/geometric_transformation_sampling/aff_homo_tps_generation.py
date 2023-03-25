@@ -15,7 +15,7 @@ def expand_dim(tensor, dim, desired_dim_len):
 
 class AffineGridGen(Module):
     """Dense correspondence map generator, corresponding to an affine transform."""
-    def __init__(self, out_h=240, out_w=240, out_ch=3, use_cuda=True):
+    def __init__(self, out_h, out_w, out_ch=3, use_cuda=True):
         super(AffineGridGen, self).__init__()
         self.out_h = out_h
         self.out_w = out_w
@@ -33,7 +33,7 @@ class AffineGridGen(Module):
 
 class AffineGridGenV2(Module):
     """Dense correspondence map generator, corresponding to an affine  transform."""
-    def __init__(self, out_h=240, out_w=240, use_cuda=True):
+    def __init__(self, out_h, out_w, use_cuda=True):
         super(AffineGridGenV2, self).__init__()
         self.out_h, self.out_w = out_h, out_w
         self.use_cuda = use_cuda
@@ -42,7 +42,7 @@ class AffineGridGenV2(Module):
         # self.grid = np.zeros( [self.out_h, self.out_w, 3], dtype=np.float32)
         # sampling grid with dim-0 coords (Y)
         self.grid_X, self.grid_Y = np.meshgrid(np.linspace(-1, 1, out_w), np.linspace(-1, 1, out_h))
-        # grid_X,grid_Y: load_size [1,H,W,1,1]
+        # grid_X,grid_Y: size [1,H,W,1,1]
         self.grid_X = torch.FloatTensor(self.grid_X).unsqueeze(0).unsqueeze(3)
         self.grid_Y = torch.FloatTensor(self.grid_Y).unsqueeze(0).unsqueeze(3)
         self.grid_X.requires_grad = False
@@ -74,7 +74,7 @@ class AffineGridGenV2(Module):
 
 class HomographyGridGen(Module):
     """Dense correspondence map generator, corresponding to a homography transform."""
-    def __init__(self, out_h=240, out_w=240, use_cuda=True):
+    def __init__(self, out_h, out_w, use_cuda=True):
         super(HomographyGridGen, self).__init__()
         self.out_h, self.out_w = out_h, out_w
         self.use_cuda = use_cuda
@@ -83,7 +83,7 @@ class HomographyGridGen(Module):
         # self.grid = np.zeros( [self.out_h, self.out_w, 3], dtype=np.float32)
         # sampling grid with dim-0 coords (Y)
         self.grid_X, self.grid_Y = np.meshgrid(np.linspace(-1, 1, out_w), np.linspace(-1, 1, out_h))
-        # grid_X,grid_Y: load_size [1,H,W,1,1]
+        # grid_X,grid_Y: size [1,H,W,1,1]
         self.grid_X = torch.FloatTensor(self.grid_X).unsqueeze(0).unsqueeze(3)
         self.grid_Y = torch.FloatTensor(self.grid_Y).unsqueeze(0).unsqueeze(3)
         self.grid_X.requires_grad = False
@@ -158,7 +158,7 @@ def homography_mat_from_4_pts(theta):
 class TpsGridGen(Module):
     """Dense correspondence map generator, corresponding to a TPS transform.
     https://github.com/cheind/py-thin-plate-spline/blob/master/thinplate/pytorch.py"""
-    def __init__(self, out_h=240, out_w=240, use_regular_grid=True, grid_size=3, reg_factor=0, use_cuda=True):
+    def __init__(self, out_h, out_w, use_regular_grid=True, grid_size=3, reg_factor=0, use_cuda=True):
         super(TpsGridGen, self).__init__()
         self.out_h, self.out_w = out_h, out_w
         self.reg_factor = reg_factor
@@ -168,7 +168,7 @@ class TpsGridGen(Module):
         # self.grid = np.zeros( [self.out_h, self.out_w, 3], dtype=np.float32)
         # sampling grid with dim-0 coords (Y)
         self.grid_X, self.grid_Y = np.meshgrid(np.linspace(-1, 1, out_w), np.linspace(-1, 1, out_h))
-        # grid_X,grid_Y: load_size [1,H,W,1,1]
+        # grid_X,grid_Y: size [1,H,W,1,1]
         self.grid_X = torch.FloatTensor(self.grid_X).unsqueeze(0).unsqueeze(3)
         self.grid_Y = torch.FloatTensor(self.grid_Y).unsqueeze(0).unsqueeze(3)
         self.grid_X.requires_grad = False
@@ -182,8 +182,8 @@ class TpsGridGen(Module):
             axis_coords = np.linspace(-1, 1, grid_size)
             self.N = grid_size * grid_size
             P_Y, P_X = np.meshgrid(axis_coords, axis_coords)
-            P_X = np.reshape(P_X, (-1, 1))  # load_size (N,1)
-            P_Y = np.reshape(P_Y, (-1, 1))  # load_size (N,1)
+            P_X = np.reshape(P_X, (-1, 1))  # size (N,1)
+            P_Y = np.reshape(P_Y, (-1, 1))  # size (N,1)
             P_X = torch.FloatTensor(P_X)
             P_Y = torch.FloatTensor(P_Y)
             self.Li = self.compute_L_inverse(P_X, P_Y).unsqueeze(0)
@@ -246,14 +246,14 @@ class TpsGridGen(Module):
         W_X = torch.bmm(self.Li[:, :self.N, :self.N].expand((batch_size, self.N, self.N)), Q_X)
         W_Y = torch.bmm(self.Li[:, :self.N, :self.N].expand((batch_size, self.N, self.N)), Q_Y)
         # reshape
-        # W_X,W,Y: load_size [B,H,W,1,N]
+        # W_X,W,Y: size [B,H,W,1,N]
         W_X = W_X.unsqueeze(3).unsqueeze(4).transpose(1, 4).repeat(1, points_h, points_w, 1, 1)
         W_Y = W_Y.unsqueeze(3).unsqueeze(4).transpose(1, 4).repeat(1, points_h, points_w, 1, 1)
         # compute weights for affine part
         A_X = torch.bmm(self.Li[:, self.N:, :self.N].expand((batch_size, 3, self.N)), Q_X)
         A_Y = torch.bmm(self.Li[:, self.N:, :self.N].expand((batch_size, 3, self.N)), Q_Y)
         # reshape
-        # A_X,A,Y: load_size [B,H,W,1,3]
+        # A_X,A,Y: size [B,H,W,1,3]
         A_X = A_X.unsqueeze(3).unsqueeze(4).transpose(1, 4).repeat(1, points_h, points_w, 1, 1)
         A_Y = A_Y.unsqueeze(3).unsqueeze(4).transpose(1, 4).repeat(1, points_h, points_w, 1, 1)
 
@@ -273,7 +273,7 @@ class TpsGridGen(Module):
             delta_Y = points_Y_for_summation - P_Y.expand_as(points_Y_for_summation)
 
         dist_squared = torch.pow(delta_X, 2) + torch.pow(delta_Y, 2)
-        # U: load_size [1,H,W,1,N]
+        # U: size [1,H,W,1,N]
         dist_squared[dist_squared == 0] = 1  # avoid NaN in log computation
         U = torch.mul(dist_squared, torch.log(dist_squared))
 
@@ -302,7 +302,7 @@ class ComposedGeometricTnf(object):
     Composed geometric transformation (affine+tps)
     """
 
-    def __init__(self, tps_grid_size=3, tps_reg_factor=0, out_h=240, out_w=240,
+    def __init__(self, out_h, out_w, tps_grid_size=3, tps_reg_factor=0,
                  offset_factor=1.0,
                  padding_crop_factor=None,
                  use_cuda=True):
@@ -367,7 +367,7 @@ class GeometricTnf(object):
     ( can be used with no transformation to perform bilinear resizing )
     """
 
-    def __init__(self, geometric_model='affine', tps_grid_size=3, tps_reg_factor=0, out_h=240, out_w=240,
+    def __init__(self, out_h, out_w, geometric_model='affine', tps_grid_size=3, tps_reg_factor=0,
                  offset_factor=None, use_cuda=True):
         self.out_h = out_h
         self.out_w = out_w

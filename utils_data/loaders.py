@@ -44,8 +44,8 @@ class Loader(torch.utils.data.DataLoader):
         pin_memory (bool, optional): If ``True``, the data loader will copy tensors
             into CUDA pinned memory before returning them.
         drop_last (bool, optional): set to ``True`` to drop the last incomplete batch,
-            if the dataset load_size is not divisible by the batch load_size. If ``False`` and
-            the load_size of dataset is not divisible by the batch load_size, then the last batch
+            if the dataset size is not divisible by the batch size. If ``False`` and
+            the size of dataset is not divisible by the batch size, then the last batch
             will be smaller. (default: False)
         timeout (numeric, optional): if positive, the timeout value for collecting a batch
             from workers. Should always be non-negative. (default: 0)

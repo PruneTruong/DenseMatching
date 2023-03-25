@@ -49,7 +49,9 @@ class ModelWithPairWiseLoss(BaseActor):
         """
         args:
             mini_batch: The mini batch input data, should at least contain the fields 'source_image', 'target_image',
-                        'flow_map', 'correspondence_mask'
+                        'flow_map', 'correspondence_mask'.
+                        'flow_map' is the ground-truth flow relating the target to the source.
+
             training: bool indicating if we are in training or evaluation mode
         returns:
             loss: the training loss
@@ -181,7 +183,8 @@ class ModelWithTripletProbabilisticWarpConsistency(BaseActor):
         """
         args:
             mini_batch: The mini batch input data, should at least contain the fields 'source_image', 'target_image',
-                        'flow_map', 'correspondence_mask'
+                        'flow_map', 'correspondence_mask'.
+                        'flow_map' is the ground-truth flow relating the target to the source.
             training: bool indicating if we are in training or evaluation mode
         returns:
             loss: the training loss
@@ -205,6 +208,20 @@ class ModelWithTripletProbabilisticWarpConsistency(BaseActor):
         # Run network
         # creates the image triplet, and puts all inputs to GPU
         mini_batch = self.batch_processing(mini_batch)
+        """
+        output data block with at least the fields 'source_image', 'target_image', 'target_image_prime', 
+        'flow_map', 'correspondence_mask'.
+        ATTENTION: 'flow_map' contains the synthetic flow field, relating the target_image_prime to
+        the target. This is NOT the same flow_map than in the original mini_batch. Similarly,
+        'correspondence_mask' identifies the valid (in-view) flow regions of the synthetic flow_map.
+
+        If ground-truth between source and target image is known (was provided), will contain the fields
+        'flow_map_target_to_source', 'correspondence_mask_target_to_source'.
+
+        If ground-truth keypoints in source and target were provided, will contain the fields
+        'target_kps' and 'source_kps'.
+        
+        """
 
         # computes flows
         # model_output can be directly correlation_from_t_to_s for NC-Net or dict for DCC-Net
@@ -387,6 +404,20 @@ class ModelWithTripletAndPairWiseProbabilisticWarpConsistency(BaseActor):
 
         # creates the image triplet here, and put all inputs to gpu and right format
         mini_batch = self.batch_processing(mini_batch)
+        """
+        output data block with at least the fields 'source_image', 'target_image', 'target_image_prime', 
+        'flow_map', 'correspondence_mask'.
+        ATTENTION: 'flow_map' contains the synthetic flow field, relating the target_image_prime to
+        the target. This is NOT the same flow_map than in the original mini_batch. Similarly,
+        'correspondence_mask' identifies the valid (in-view) flow regions of the synthetic flow_map.
+
+        If ground-truth between source and target image is known (was provided), will contain the fields
+        'flow_map_target_to_source', 'correspondence_mask_target_to_source'.
+
+        If ground-truth keypoints in source and target were provided, will contain the fields
+        'target_kps' and 'source_kps'.
+
+        """
 
         loss = 0.0
 

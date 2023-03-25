@@ -5,7 +5,8 @@ import torch.nn as nn
 from packaging import version
 
 
-def remap_using_flow_fields(image, disp_x, disp_y, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT):
+def remap_using_flow_fields(image, disp_x, disp_y, interpolation=cv2.INTER_LINEAR,
+                            border_mode=cv2.BORDER_CONSTANT):
     """
     Opencv remap
     map_x contains the index of the matching horizontal position of each pixel [i,j] while map_y contains the
@@ -33,7 +34,8 @@ def remap_using_flow_fields(image, disp_x, disp_y, interpolation=cv2.INTER_LINEA
     return remapped_image
 
 
-def remap_using_correspondence_map(image, map_x, map_y, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT):
+def remap_using_correspondence_map(image, map_x, map_y, interpolation=cv2.INTER_LINEAR,
+                                   border_mode=cv2.BORDER_CONSTANT):
     """
     Opencv remap
     map_x contains the index of the matching horizontal position of each pixel [i,j] while map_y contains the

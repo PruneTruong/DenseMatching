@@ -177,36 +177,15 @@ class FeatureExtraction(torch.nn.Module):
             resnet_module_list = [getattr(self.model, l) for l in resnet_feature_layers]
             last_layer_idx = resnet_feature_layers.index(last_layer)
             self.model = nn.Sequential(*resnet_module_list[:last_layer_idx + 1])
-
-        if feature_extraction_cnn == 'resnet101fpn':
-            if feature_extraction_model_file != '':
-                resnet = models.resnet101(pretrained=True)
-                # swap stride (2,2) and (1,1) in first layers (PyTorch ResNet is slightly different to caffe2 ResNet)
-                # this is required for compatibility with caffe2 models
-                resnet.layer2[0].conv1.stride = (2, 2)
-                resnet.layer2[0].conv2.stride = (1, 1)
-                resnet.layer3[0].conv1.stride = (2, 2)
-                resnet.layer3[0].conv2.stride = (1, 1)
-                resnet.layer4[0].conv1.stride = (2, 2)
-                resnet.layer4[0].conv2.stride = (1, 1)
-            else:
-                resnet = models.resnet101(pretrained=True)
-            resnet_module_list = [getattr(resnet, l) for l in resnet_feature_layers]
-            conv_body = nn.Sequential(*resnet_module_list)
-            self.model = fpn_body(conv_body,
-                                  resnet_feature_layers,
-                                  fpn_layers=['layer1', 'layer2', 'layer3'],
-                                  normalize=normalization,
-                                  hypercols=True)
-            if feature_extraction_model_file != '':
-                self.model.load_pretrained_weights(feature_extraction_model_file)
-
-        if feature_extraction_cnn == 'densenet201':
+        elif feature_extraction_cnn == 'densenet201':
             self.model = models.densenet201(pretrained=True)
             # keep feature extraction network up to denseblock3
             # self.model = nn.Sequential(*list(self.model.features.children())[:-3])
             # keep feature extraction network up to transitionlayer2
             self.model = nn.Sequential(*list(self.model.features.children())[:-4])
+        else:
+            raise ValueError
+
         if train_fe == False:
             # freeze parameters
             for param in self.model.parameters():

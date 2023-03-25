@@ -63,7 +63,7 @@ def plot_correlation_for_probabilistic_warpc(target_image, source_image, target_
                     ((target_image.squeeze(0).cpu() * std_values + mean_values).permute(1, 2, 0).numpy() * 255).astype(np.uint8))
         cv2.imwrite('{}/{}_target_prime.jpg'.format(save_path, name),
                     ((target_image_prime.squeeze(0).cpu() * std_values + mean_values).permute(1, 2, 0).numpy() * 255).astype(np.uint8))
-    # resizing of source and target image to correlation load_size
+    # resizing of source and target image to correlation size
     image_source = F.interpolate(source_image.unsqueeze(0).cpu() * std_values +
                                  mean_values, (H, W), mode='area').squeeze().permute(1, 2, 0).numpy()
     image_target = F.interpolate(target_image.unsqueeze(0).cpu() * std_values +

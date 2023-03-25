@@ -134,7 +134,7 @@ def KITTI_occ(root, source_image_transform=None, target_image_transform=None, fl
                                 target_image_transform=target_image_transform,
                                 flow_transform=flow_transform, co_transform=co_transform,
                                 loader=kitti_flow_loader, load_valid_mask=True)
-    # All test sample are cropped to lowest possible load_size of KITTI images
+    # All test sample are cropped to lowest possible size of KITTI images
     test_dataset = ListDataset(root, test_list, source_image_transform=source_image_transform,
                                target_image_transform=target_image_transform,
                                flow_transform=flow_transform,
@@ -168,7 +168,7 @@ def KITTI_noc(root, source_image_transform=None, target_image_transform=None, fl
                                 target_image_transform=target_image_transform,
                                 flow_transform=flow_transform, co_transform=co_transform, loader=kitti_flow_loader,
                                 load_valid_mask=True)
-    # All test sample are cropped to lowest possible load_size of KITTI images
+    # All test sample are cropped to lowest possible size of KITTI images
     test_dataset = ListDataset(root, test_list, source_image_transform=source_image_transform,
                                target_image_transform=target_image_transform,
                                flow_transform=flow_transform,
@@ -201,7 +201,7 @@ def KITTI_only_occ(root, source_image_transform=None, target_image_transform=Non
                                 target_image_transform=target_image_transform,
                                 flow_transform=flow_transform, co_transform=co_transform, loader=kitti_flow_loader,
                                 load_valid_mask=True)
-    # All test sample are cropped to lowest possible load_size of KITTI images
+    # All test sample are cropped to lowest possible size of KITTI images
     test_dataset = ListDataset(root, test_list, source_image_transform=source_image_transform,
                                target_image_transform=target_image_transform,
                                flow_transform=flow_transform,

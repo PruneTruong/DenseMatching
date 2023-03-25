@@ -19,7 +19,7 @@ from datasets.load_pre_made_datasets.load_pre_made_dataset import PreMadeDataset
 
 def run(settings):
     settings.description = 'Default train settings for GLU-Net-GOCor* stage 1 '
-    settings.data_mode = 'euler'
+    settings.data_mode = 'local'
     settings.batch_size = 15
     settings.n_threads = 8
     settings.multi_gpu = True
@@ -28,6 +28,7 @@ def run(settings):
     settings.scheduler_steps = [30, 40]
     settings.n_epochs = 50
 
+    # 1. Define training and validation datasets
     # Training dataset
     # geometric transformation for moving objects
     fg_tform = RandomAffine(p_flip=0.0, max_rotation=30.0,
@@ -94,14 +95,14 @@ def run(settings):
                                                             flow_transform=flow_transform,
                                                             co_transform=co_transform)
 
-    # dataloader
+    # 2. Define dataloaders
     train_loader = Loader('train', train_dataset, batch_size=settings.batch_size, shuffle=True,
                           drop_last=False, training=True, num_workers=settings.n_threads)
 
     val_loader = Loader('val', val_dataset, batch_size=settings.batch_size, shuffle=False,
                         epoch_interval=1.0, training=False, num_workers=settings.n_threads)
 
-    # model
+    # 3. Define model
     global_gocor_arguments = {'optim_iter': 3, 'init_gauss_sigma_DIMP': 0.5, 'score_act': 'relu',
                               'bin_displacement': 0.5, 'train_label_map': True, 'steplength_reg': 0.1,
                               'apply_query_loss': True, 'reg_kernel_size': 3, 'reg_inter_dim': 16,
@@ -120,10 +121,12 @@ def run(settings):
     if settings.multi_gpu:
         model = MultiGPU(model)
 
+    # 4. batch pre-processing module: put all the inputs to cuda as well as in the right format, defines mask
+    # used during training, ect
     batch_processing = GLUNetBatchPreprocessing(settings, apply_mask=False, apply_mask_zero_borders=False,
                                                 sparse_ground_truth=False)
 
-    # Loss module
+    # 5. Define loss module
     objective = L1()
     weights_level_loss = [0.32, 0.08, 0.02, 0.01]
     loss_module_256 = MultiScaleFlow(level_weights=weights_level_loss[:2], loss_function=objective,
@@ -132,18 +135,18 @@ def run(settings):
     glunet_actor = GLUNetBasedActor(model, objective=loss_module, objective_256=loss_module_256,
                                     batch_processing=batch_processing)
 
-    # Optimizer
+    # 6. Define Optimizer
     optimizer = \
         optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
                    lr=settings.lr,
                    weight_decay=0.0004)
 
-    # Scheduler
+    # 7. Define Scheduler
     scheduler = lr_scheduler.MultiStepLR(optimizer,
                                          milestones=settings.scheduler_steps,
                                          gamma=0.5)
 
-    # Trainer
+    # 8. Define Trainer
     trainer = MatchingTrainer(glunet_actor, [train_loader, val_loader], optimizer, settings, lr_scheduler=scheduler)
 
     trainer.train(settings.n_epochs, load_latest=True, fail_safe=True)

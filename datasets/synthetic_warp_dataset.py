@@ -118,7 +118,7 @@ class WarpingDataset(torch.utils.data.Dataset):
         flow_gt.require_grad = False
         bs, _, h_f, w_f = flow_gt.shape
         if h_f != h or w_f != w:
-            # reshape and rescale the flow so it has the load_size of the original images
+            # reshape and rescale the flow so it has the size of the original images
             flow_gt = F.interpolate(flow_gt, (h, w), mode='bilinear', align_corners=False)
             flow_gt[:, 0] *= float(w) / float(w_f)
             flow_gt[:, 1] *= float(h) / float(h_f)
@@ -135,7 +135,7 @@ class WarpingDataset(torch.utils.data.Dataset):
         flow_gt_resized = flow_gt[:, :, y_start: y_start + self.crop_size[0], x_start: x_start + self.crop_size[1]]
         mask_zero_borders = mask_zero_borders[:, y_start: y_start + self.crop_size[0], x_start: x_start + self.crop_size[1]]
 
-        # resize to final outptu load_size, this is to prevent the crop from removing all common areas
+        # resize to final outptu size, this is to prevent the crop from removing all common areas
         if self.output_size != self.crop_size:
             source_image_resized = F.interpolate(source_image_resized, self.output_size,
                                                  mode='area')

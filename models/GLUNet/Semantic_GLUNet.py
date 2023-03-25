@@ -220,7 +220,7 @@ class SemanticGLUNetModel(BaseGLUMultiScaleMatchingNet):
             # run match processing model
             corr4d = MutualMatching(corr4d)
             corr4d = self.NeighConsensus(corr4d)
-            corr4d = MutualMatching(corr4d)  # load_size is [b, 1, hsource, wsource, htarget, wtarget]
+            corr4d = MutualMatching(corr4d)  # size is [b, 1, hsource, wsource, htarget, wtarget]
             corr4 = corr4d.squeeze(1).view(c24.shape[0], c24.shape[2] * c24.shape[3], c14.shape[2], c14.shape[3])
         else:
             corr4 = self.corr(self.l2norm(c24), self.l2norm(c14))
@@ -269,9 +269,9 @@ class SemanticGLUNetModel(BaseGLUMultiScaleMatchingNet):
             im_target_pyr = self.pyramid(im_target, eigth_resolution=True)
         if im_source_pyr is None:
             im_source_pyr = self.pyramid(im_source, eigth_resolution=True)
-        c11 = im_target_pyr[-2]  # load_size original_res/4xoriginal_res/4
+        c11 = im_target_pyr[-2]  # size original_res/4xoriginal_res/4
         c21 = im_source_pyr[-2]
-        c12 = im_target_pyr[-1]  # load_size original_res/8xoriginal_res/8
+        c12 = im_target_pyr[-1]  # size original_res/8xoriginal_res/8
         c22 = im_source_pyr[-1]
 
         # pyramid, 256 reso

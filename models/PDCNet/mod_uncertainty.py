@@ -5,30 +5,50 @@ import math
 from models.modules.batch_norm import BatchNorm
 
 
-def estimate_average_variance_of_mixture_density(weight_map, log_var_map, list_item=-1):
+def estimate_average_variance_of_mixture_density(weight_map, log_var_map):
     # Computes variance of the mixture
-    if isinstance(weight_map, list):
-        # several uncertainties estimation
-        log_var_map = log_var_map[list_item]
-        proba_map = torch.nn.functional.softmax(weight_map[list_item], dim=1)
-    else:
-        proba_map = torch.nn.functional.softmax(weight_map, dim=1)
+    proba_map = torch.nn.functional.softmax(weight_map, dim=1)
 
     avg_variance = torch.sum(proba_map * torch.exp(log_var_map), dim=1, keepdim=True) # shape is b,1,  h, w
     return avg_variance
 
 
-def estimate_probability_of_confidence_interval_of_mixture_density(weight_map, log_var_map, list_item=-1, R=1.0):
+def estimate_probability_of_confidence_interval_of_mixture_density(weight_map, log_var_map, R=1.0, gaussian=False):
+    """Computes P_R of a mixture of probability distributions (with K components). See PDC-Net.
+    Args:
+        weight_map: weight maps of each component of the mixture. They are not softmaxed yet. (B, K, H, W)
+        log_var_map: log variance corresponding to each component, (B, K, H, W)
+        R: radius for the confidence interval
+        gaussian: Mixture of Gaussian or Laplace densities?
+    """
     # compute P_R of the mixture
-    if isinstance(weight_map, list):
-        # several uncertainties estimation
-        log_var_map = log_var_map[list_item]
-        proba_map = torch.nn.functional.softmax(weight_map[list_item], dim=1)
-    else:
-        proba_map = torch.nn.functional.softmax(weight_map, dim=1)
+    proba_map = torch.nn.functional.softmax(weight_map, dim=1)
 
+    if gaussian:
+        var_map = torch.exp(log_var_map)
+        p_r = torch.sum(proba_map * (1 - torch.exp(-R ** 2 / (2 * var_map))), dim=1, keepdim=True)
+    else:
+        # laplace distribution
+        var_map = torch.exp(log_var_map)
+        p_r = torch.sum(proba_map * (1 - torch.exp(- math.sqrt(2)*R/torch.sqrt(var_map)))**2, dim=1, keepdim=True)
+    return p_r
+
+
+def estimate_probability_of_confidence_interval_of_unimodal_density(log_var_map, R=1.0, gaussian=False):
+    """Computes P_R of a unimodal probability distribution.
+    Args:
+        log_var_map: log variance of the distribution, (B, 1, H, W)
+        R: radius for the confidence interval
+        gaussian: Mixture of Gaussian or Laplace densities?
+    """
+    # NOTE: ONLY FOR GAUSSIAN
+    assert log_var_map.shape[1] == 1
     var_map = torch.exp(log_var_map)
-    p_r = torch.sum(proba_map * (1 - torch.exp(- math.sqrt(2)*R/torch.sqrt(var_map)))**2, dim=1, keepdim=True)
+
+    if gaussian:
+        p_r = 1.0 - torch.exp(-R ** 2 / (2 * var_map))
+    else:
+        p_r = (1 - torch.exp(- math.sqrt(2)*R/torch.sqrt(var_map)))**2
     return p_r
 
 
@@ -166,8 +186,9 @@ class MixtureDensityEstimatorFromUncertaintiesAndFlow(nn.Module):
                  output_all_channels_together=False):
         super(MixtureDensityEstimatorFromUncertaintiesAndFlow, self).__init__()
         # 9
-        self.output_all_channels_together= output_all_channels_together
-        self.estimate_small_variance=estimate_small_variance
+        self.output_channels = output_channels
+        self.output_all_channels_together = output_all_channels_together
+        self.estimate_small_variance = estimate_small_variance
         self.conv_0 = conv(in_channels, 32, kernel_size=3, stride=1, padding=1, batch_norm=batch_norm)
         self.conv_1 = conv(32, 16, kernel_size=3, stride=1, padding=1, batch_norm=batch_norm)
         if self.estimate_small_variance:
@@ -185,11 +206,20 @@ class MixtureDensityEstimatorFromUncertaintiesAndFlow(nn.Module):
                 # shape is b*h*w, 4, 1, 1
                 large_log_var = uncertainty[:, 0].unsqueeze(1)
                 small_var = uncertainty[:, 1].unsqueeze(1)
-                small_log_var = F.logsigmoid(small_var) # constraining the small var to 0 and 1 and putting sigmoid to it
-                proba_map = uncertainty[:, 2:]
+                small_log_var = F.logsigmoid(small_var)
+                # constraining the small var to 0 and 1 and putting sigmoid to it
+                if self.output_channels == 1:
+                    proba_map = torch.ones_like(large_log_var)
+                    # in case one only predicts the log variance (unimodel distribution)
+                else:
+                    proba_map = uncertainty[:, 2:]
                 return large_log_var, small_log_var, proba_map
             else:
                 # shape is b, 3, h, w
-                log_var_map = uncertainty[:, 0].unsqueeze(1) # always one that is not fixed
-                proba_map = uncertainty[:, 1:]  # all the others are probability, sum should be 1 there
+                log_var_map = uncertainty[:, 0].unsqueeze(1)  # always one that is not fixed
+                if self.output_channels == 1:
+                    proba_map = torch.ones_like(log_var_map)
+                    # in case one only predicts the log variance (unimodel distribution)
+                else:
+                    proba_map = uncertainty[:, 1:]  # all the others are probability, sum should be 1 there
                 return log_var_map, proba_map

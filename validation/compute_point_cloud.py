@@ -242,7 +242,7 @@ def compute_and_save(pts1, pts2, Is, It, savepath, thresholds=None, K1=None, K2=
     default_thresholds = {"fundamental_ransac": 1.0, "essential_ransac": 1.0}
     if thresholds is not None:
         default_thresholds.update(thresholds)
-    # put images to correct load_size
+    # put images to correct size
     Is = image_to_numpy_array(Is)
     It = image_to_numpy_array(It)
     # final shape should be H, W, 3

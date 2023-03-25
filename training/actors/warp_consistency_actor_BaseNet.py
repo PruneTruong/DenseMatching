@@ -33,27 +33,38 @@ class GetBaseNetPredictions:
 class GLOCALNetWarpCUnsupervisedBatchPreprocessing:
     """ Class responsible for processing the mini-batch to create the desired training inputs for GLOCALNet
      based networks, when training unsupervised using warp consistency.
+
      Particularly, from the source and target image pair (which are usually not related by a known ground-truth flow),
      the online_triplet_creator creates an image triplet (source, target and target_prime) where the target prime
      image is related to the target by a known synthetically and randomly generated flow field.
      The final image triplet is obtained by cropping central patches in the three images.
+     This is done in 'online_triplet_creator'.
+
      Here, appearance augmentations can optionally be added, the images are normalized when necessary and the
      ground-truth flow field as well as mask used for training are processed.
+
      In that case, the ground-truth flow field used during training is the synthetic flow field relating
      target prime to target.
     """
-    def __init__(self, settings, apply_mask=False, apply_mask_zero_borders=False,
-                 mapping=False, online_triplet_creator=None, normalize_images=False,
-                 appearance_transform_source=None, appearance_transform_target=None, appearance_transform_target_prime=None):
+    def __init__(self, settings, online_triplet_creator, apply_mask=False, apply_mask_zero_borders=False,
+                 mapping=False, normalize_images=False, appearance_transform_source=None,
+                 appearance_transform_target=None, appearance_transform_target_prime=None):
         """
         Args:
             settings: settings
-            apply_mask: apply ground-truth correspondence mask for loss computation?
-            apply_mask_zero_borders: apply mask zero borders (equal to 0 at black borders in target image) for loss
-                                     computation?
-            mapping: load correspondence map instead of flow field?
             online_triplet_creator: class responsible for the creation of the image triplet used in the warp
                                     consistency graph, from an image pair.
+
+            apply_mask: apply ground-truth correspondence mask for loss computation?
+            apply_mask_zero_borders: apply mask zero borders (equal to 0 at black borders in target_prime image) for loss
+                                     computation? This is specifically useful when the target image prime is
+                                     computed by warping the target with a synthetic transformation.
+                                     It can have many black borders due to the warp. That can cause instability
+                                     during training, if the loss is applied also in the black areas (where the network
+                                     cannot infer any correct predictions).
+
+            mapping: load correspondence map instead of flow field?
+
             normalize_images: bool, indicating if need to normalize images with ImageNet weights.
             appearance_transform_source: appearance augmentation applied to batched source image tensors
                                         (before normalizing)
@@ -62,6 +73,10 @@ class GLOCALNetWarpCUnsupervisedBatchPreprocessing:
             appearance_transform_target_prime: appearance augmentation applied to batched target prime image tensors
                                         (before normalizing)
         """
+
+        assert not (apply_mask and apply_mask_zero_borders), \
+            'apply_mask and apply_mask_zero_borders cannot both be applied at the same time, choose only one'
+
         self.apply_mask = apply_mask
         self.apply_mask_zero_borders = apply_mask_zero_borders
         self.mapping = mapping
@@ -87,6 +102,11 @@ class GLOCALNetWarpCUnsupervisedBatchPreprocessing:
         Returns:
             mini_batch: output data block with at least the fields 'source_image', 'target_image',
                         'target_image_prime', 'flow_map', 'mask', 'correspondence_mask'.
+
+                        'flow_map' here is the ground-truth synthetic flow relating the target_image_prime to the
+                        target. 'correspondence_mask' is the in-view flow regions.
+                        'mask' is the mask of where the loss will be applied in the target image prime frame.
+
                          If ground-truth is known between source and target image, will contain the fields
                         'flow_map_target_to_source', 'correspondence_mask_target_to_source'.
         """
@@ -136,7 +156,7 @@ class GLOCALNetWarpCUnsupervisedBatchPreprocessing:
         if mask is not None and (mask.shape[1] != h or mask.shape[2] != w):
             # mask_gt does not have the proper shape
             mask = F.interpolate(mask.float().unsqueeze(1), (h, w), mode='bilinear',
-                                 align_corners=False).squeeze(1).byte()  # bxhxw
+                                 align_corners=False).squeeze(1).floor()  # bxhxw
         mask = mask.bool() if version.parse(torch.__version__) >= version.parse("1.1") else mask.byte()
 
         mini_batch['correspondence_mask'] = mini_batch['correspondence_mask'].to(self.device)
@@ -203,6 +223,11 @@ class GLOCALNetWarpCUnsupervisedActor(BaseActor):
         args:
             mini_batch: The mini batch input data, should at least contain the fields 'source_image', 'target_image',
                         'target_image_prime', 'flow_map', 'mask', 'correspondence_mask'.
+
+                        'flow_map' here is the ground-truth synthetic flow relating the target_image_prime to the
+                        target. 'correspondence_mask' is the in-view flow regions.
+                        'mask' is the mask of where the loss will be applied in the target image prime frame.
+
                          If ground-truth is known between source and target image, will contain the fields
                         'flow_map_target_to_source', 'correspondence_mask_target_to_source'.
             training: bool indicating if we are in training or evaluation mode
@@ -409,6 +434,11 @@ class OneOutputResoWarpCUnsupervisedActor(BaseActor):
         args:
             mini_batch: The mini batch input data, should at least contain the fields 'source_image', 'target_image',
                         'target_image_prime', 'flow_map', 'mask', 'correspondence_mask'.
+
+                        'flow_map' here is the ground-truth synthetic flow relating the target_image_prime to the
+                        target. 'correspondence_mask' is the in-view flow regions.
+                        'mask' is the mask of where the loss will be applied in the target image prime frame.
+
                          If ground-truth is known between source and target image, will contain the fields
                         'flow_map_target_to_source', 'correspondence_mask_target_to_source'.
             training: bool indicating if we are in training or evaluation mode

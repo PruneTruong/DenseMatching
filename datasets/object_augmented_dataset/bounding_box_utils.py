@@ -6,8 +6,8 @@ def masks_to_bboxes(mask, fmt='c'):
     """ Convert a mask tensor to one or more bounding boxes.
     Note: This function is a bit new, make sure it does what it says.  /Andreas
     :param mask: Tensor of masks, shape = (..., H, W)
-    :param fmt: bbox layout. 'c' => "center + load_size" or (x_center, y_center, width, height)
-                             't' => "top left + load_size" or (x_left, y_top, width, height)
+    :param fmt: bbox layout. 'c' => "center + size" or (x_center, y_center, width, height)
+                             't' => "top left + size" or (x_left, y_top, width, height)
                              'v' => "vertices" or (x_left, y_top, x_right, y_bottom)
     :return: tensor containing a batch of bounding boxes, shape = (..., 4)
     """

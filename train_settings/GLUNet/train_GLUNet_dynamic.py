@@ -20,7 +20,7 @@ from datasets.object_augmented_dataset.synthetic_object_augmentation_for_pairs_m
 
 def run(settings):
     settings.description = 'Default train settings for GLU-Net on the dynamic dataset (from GOCor paper)'
-    settings.data_mode = 'euler'
+    settings.data_mode = 'local'
     settings.batch_size = 16
     settings.n_threads = 8
     settings.multi_gpu = True

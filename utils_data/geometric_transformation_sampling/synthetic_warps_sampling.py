@@ -26,9 +26,9 @@ class CompositionOfFlowCreations:
 
 
 class SynthecticAffHomoTPSTransfo:
-    """Generates a flow field of given load_size, corresponding to a randomly sampled Affine, Homography, TPS or Affine-TPS
+    """Generates a flow field of given size, corresponding to a randomly sampled Affine, Homography, TPS or Affine-TPS
     transformation. """
-    def __init__(self, size_output_flow=(480, 640), random_t=0.25, random_s=0.5, random_alpha=np.pi / 12,
+    def __init__(self, size_output_flow, random_t=0.25, random_s=0.5, random_alpha=np.pi / 12,
                  random_t_tps_for_afftps=None, random_t_hom=0.4, random_t_tps=0.4, tps_grid_size=3, tps_reg_factor=0,
                  transformation_types=None, parametrize_with_gaussian=False, proba_horizontal_flip=0.0, use_cuda=True):
         """
@@ -36,7 +36,7 @@ class SynthecticAffHomoTPSTransfo:
         within [0, 1]. The range of sampling is then [-parameter, parameter] or [1-parameter, 1+parameter] for the
         scale.
         Args:
-            size_output_flow: desired output load_size for generated flow field
+            size_output_flow: desired output size for generated flow field
             random_t: max translation for affine transform.
             random_s: max scale for affine transform
             random_alpha: max rotation and shearing angle for the affine transform
@@ -44,7 +44,7 @@ class SynthecticAffHomoTPSTransfo:
                          affine-tps transforms
             random_t_hom: max translation parameter for the homography transform generation
             random_t_tps: max translation parameter for the tps transform generation
-            tps_grid_size: tps grid load_size
+            tps_grid_size: tps grid size
             tps_reg_factor:
             transformation_types: list of transformations to samples.
                                   Must be selected from ['affine', 'hom', 'tps', 'afftps']
@@ -205,7 +205,7 @@ class SynthecticAffHomoTPSTransfo:
 
 
 class AddElasticTransforms:
-    """Generates batched dense elastic deformation fields of a given load_size. Optionally compose them with existing
+    """Generates batched dense elastic deformation fields of a given size. Optionally compose them with existing
     batched dense flow fields. The elastic deformation field is only applied in random regions of random sizes. """
     def __init__(self, settings, size_output_flow, max_nbr_perturbations=10, min_nbr_perturbations=3,
                  elastic_parameters=None, max_sigma_mask=10, min_sigma_mask=3):
@@ -224,7 +224,7 @@ class AddElasticTransforms:
         regions on all sides from 1.0 to 0.0.
         Args:
             settings:
-            size_output_flow: desired output load_size for generated flow field
+            size_output_flow: desired output size for generated flow field
             max_nbr_perturbations:
             min_nbr_perturbations:
             elastic_parameters: parameters for the deformation field generation
@@ -244,7 +244,7 @@ class AddElasticTransforms:
         if elastic_parameters is not None:
             self.elastic_parameters.update(elastic_parameters)
 
-        self.max_sigma_mask = max_sigma_mask  # can vary this load_size if we dont want small transformations
+        self.max_sigma_mask = max_sigma_mask  # can vary this size if we dont want small transformations
         self.min_sigma_mask = min_sigma_mask
         self.ElasticTrans = ElasticTransform(self.elastic_parameters, get_flow=True, approximate=True)
 
@@ -325,7 +325,7 @@ class AddElasticTransforms:
 
 
 class AddGridDistortion:
-    """Generates a dense grid deformation field of a given load_size. Optionally compose it with an existing
+    """Generates a dense grid deformation field of a given size. Optionally compose it with an existing
     dense flow field. """
     def __init__(self, settings, size_output_flow, parameters=None):
 
@@ -382,7 +382,7 @@ class AddGridDistortion:
 
 
 class AddElasticTransformsV2:
-    """Generates batched dense elastic deformation fields of a given load_size. Optionally compose them with existing
+    """Generates batched dense elastic deformation fields of a given size. Optionally compose them with existing
     batched dense flow fields. The elastic deformation field is only applied in random regions of random sizes.
     Contrary to previous version, applies the same elastic deformation field to all flows of the batch. """
 
@@ -403,7 +403,7 @@ class AddElasticTransformsV2:
         regions on all sides from 1.0 to 0.0.
         Args:
             settings:
-            size_output_flow: desired output load_size for generated flow field
+            size_output_flow: desired output size for generated flow field
             max_nbr_perturbations:
             min_nbr_perturbations:
             elastic_parameters: parameters for the deformation field generation
@@ -424,7 +424,7 @@ class AddElasticTransformsV2:
         if elastic_parameters is not None:
             self.elastic_parameters.update(elastic_parameters)
 
-        self.max_sigma_mask = max_sigma_mask  # can vary this load_size if we dont want small transformations
+        self.max_sigma_mask = max_sigma_mask  # can vary this size if we dont want small transformations
         self.min_sigma_mask = min_sigma_mask
         self.ElasticTrans = ElasticTransform(self.elastic_parameters, get_flow=True, approximate=True)
 

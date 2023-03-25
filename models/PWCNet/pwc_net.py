@@ -376,10 +376,10 @@ class PWCNetModel(BaseMultiScaleMatchingNet):
 
         '''
         source_img = torch.nn.functional.interpolate(input=source_img.float().to(device),
-                                                     load_size=(int_preprocessed_height, int_preprocessed_width),
+                                                     size=(int_preprocessed_height, int_preprocessed_width),
                                                      mode='area').byte()
         target_img = torch.nn.functional.interpolate(input=target_img.float().to(device),
-                                                     load_size=(int_preprocessed_height, int_preprocessed_width),
+                                                     size=(int_preprocessed_height, int_preprocessed_width),
                                                      mode='area').byte()
         source_img = source_img.float().div(255.0)
         target_img = target_img.float().div(255.0)

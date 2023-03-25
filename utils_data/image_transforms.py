@@ -126,7 +126,7 @@ class RGBtoBGR(object):
 
 # Flow transform here
 class ResizeFlow(object):
-    """Resize a provided flow field (must be in shape 2xHxW to the given load_size."""
+    """Resize a provided flow field (must be in shape 2xHxW to the given size."""
     def __init__(self, size):
         if not isinstance(size, tuple):
             size = (size, size)
